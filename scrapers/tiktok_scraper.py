@@ -112,8 +112,8 @@ def export_signals_to_sheet(signals: list[dict], action: str = "append"):
         rows.append(row)
 
     try:
-        append_rows_to_sheet("Market Signals", rows, action=action, headers=HEADERS_MARKET_SIGNALS)
-        log.info(f"📊 {len(rows)} sinyal pasar di-export ke 'Market Signals'")
+        append_rows_to_sheet("📈 Market Signals", rows, action=action, headers=HEADERS_MARKET_SIGNALS)
+        log.info(f"📊 {len(rows)} sinyal pasar di-export ke '📈 Market Signals'")
     except Exception as e:
         log.warning(f"⚠️  Belum bisa export ke Google Sheets: {e}")
         log.info("ℹ️  Data sinyal pasar tetap tersimpan di folder data/processed/")

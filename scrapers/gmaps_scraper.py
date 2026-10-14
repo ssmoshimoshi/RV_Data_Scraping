@@ -371,8 +371,8 @@ def export_leads_to_sheet(leads: list[dict], action: str = "append"):
         rows.append(row)
 
     try:
-        append_rows_to_sheet("Radar Prospek", rows, action=action, headers=HEADERS_RADAR_PROSPEK)
-        log.info(f"📊 {len(rows)} leads berhasil di-export ke 'Radar Prospek'")
+        append_rows_to_sheet("🎯 Radar Prospek", rows, action=action, headers=HEADERS_RADAR_PROSPEK)
+        log.info(f"📊 {len(rows)} leads berhasil di-export ke '🎯 Radar Prospek'")
     except Exception as e:
         log.warning(f"⚠️  Belum bisa export ke Google Sheets: {e}")
         log.info("ℹ️  Data tetap aman tersimpan di folder data/processed/")

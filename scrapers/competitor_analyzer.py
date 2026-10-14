@@ -168,8 +168,8 @@ def export_matrix_to_sheet(matrix: list[dict], action: str = "append"):
         rows.append(row)
 
     try:
-        append_rows_to_sheet("Matriks Kompetitor", rows, action=action, headers=HEADERS_MATRIKS_KOMPETITOR)
-        log.info(f"📊 {len(rows)} baris berhasil di-export ke 'Matriks Kompetitor'")
+        append_rows_to_sheet("🏭 Matriks Kompetitor", rows, action=action, headers=HEADERS_MATRIKS_KOMPETITOR)
+        log.info(f"📊 {len(rows)} baris berhasil di-export ke '🏭 Matriks Kompetitor'")
     except Exception as e:
         log.warning(f"⚠️  Belum bisa export ke Google Sheets: {e}")
         log.info("ℹ️  Matriks kompetitor tetap tersimpan di folder data/processed/")
