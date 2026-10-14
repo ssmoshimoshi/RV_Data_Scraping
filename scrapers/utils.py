@@ -142,7 +142,7 @@ def get_spreadsheet_id() -> str:
     return sid
 
 
-def append_rows_to_sheet(sheet_name: str, rows: list[list[str]]):
+def append_rows_to_sheet(sheet_name: str, rows: list[list[str]], action: str = "append", headers: list[str] = None):
     """
     Append multiple rows ke Google Sheet.
     Mendukung 2 metode:
@@ -155,14 +155,17 @@ def append_rows_to_sheet(sheet_name: str, rows: list[list[str]]):
     # METODE 1: Webhook (Google Apps Script)
     if webhook_url:
         import urllib.request
-        payload = json.dumps({"sheet_name": sheet_name, "rows": rows}).encode("utf-8")
+        body_dict = {"sheet_name": sheet_name, "rows": rows, "action": action}
+        if headers:
+            body_dict["headers"] = headers
+        payload = json.dumps(body_dict).encode("utf-8")
         req = urllib.request.Request(
             webhook_url,
             data=payload,
             headers={"Content-Type": "application/json"},
         )
         with urllib.request.urlopen(req, timeout=30) as resp:
-            logger.info(f"✅ {len(rows)} baris terkirim ke Google Sheets ('{sheet_name}') via Webhook")
+            logger.info(f"✅ {len(rows)} baris terkirim ke Google Sheets ('{sheet_name}') via Webhook [Action: {action}]")
             return len(rows)
 
     # METODE 2: Official Google Sheets API v4

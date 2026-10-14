@@ -170,20 +170,34 @@ def run_export_csv():
         csv_file = proc_dir / "leads_calon_customer.csv"
         with open(csv_file, "w", newline="", encoding="utf-8-sig") as f:
             w = csv.writer(f)
-            w.writerow(["Nama Bisnis", "Kategori", "Skor Prospek", "Status", "Alamat", "Telepon", "Website", "Rating", "Jumlah Ulasan", "Alasan Skor", "Link GMaps"])
+            w.writerow([
+                "Nama Bisnis", "Kategori", "Skor", "Status", "No. WhatsApp",
+                "Link WA", "Proyeksi Kebutuhan Cetak", "Alamat", "Rating & Ulasan",
+                "Website", "Peta Lokasi", "Tanggal"
+            ])
             for l in leads:
+                phone = l.get("telepon", "").strip()
+                clean_phone = "".join([c for c in phone if c.isdigit()])
+                if clean_phone.startswith("08"):
+                    clean_phone = "62" + clean_phone[1:]
+                elif clean_phone.startswith("8"):
+                    clean_phone = "62" + clean_phone
+                wa_link = f"https://wa.me/{clean_phone}" if clean_phone else "-"
+
+                rating_str = f"{l.get('rating', 0)} ⭐ ({l.get('jumlah_review', 0)} ulasan)"
                 w.writerow([
                     l.get("nama_bisnis", ""),
-                    l.get("kategori", ""),
-                    l.get("skor", ""),
-                    l.get("skor_label", ""),
-                    l.get("alamat", ""),
-                    l.get("telepon", ""),
-                    l.get("website", ""),
-                    l.get("rating", ""),
-                    l.get("jumlah_review", ""),
-                    l.get("skor_reasons", ""),
-                    l.get("url_gmaps", ""),
+                    l.get("kategori", "Umum").upper(),
+                    l.get("skor", 7),
+                    l.get("skor_label", "🟡 WARM"),
+                    phone or "-",
+                    wa_link,
+                    l.get("proyeksi_kebutuhan", "Banner & Media Promosi"),
+                    l.get("alamat", "-") or "-",
+                    rating_str,
+                    l.get("website", "-") or "-",
+                    l.get("url_gmaps", "-") or "-",
+                    l.get("scrape_date", ""),
                 ])
         log.info(f"✅ Leads diekspor: {csv_file}")
 
@@ -195,18 +209,33 @@ def run_export_csv():
         csv_file = proc_dir / "matriks_kompetitor.csv"
         with open(csv_file, "w", newline="", encoding="utf-8-sig") as f:
             w = csv.writer(f)
-            w.writerow(["Nama Kompetitor", "Fokus Layanan", "Skala Kapasitas", "Rating GMaps", "Jumlah Review", "Kontak WhatsApp", "Celah Kualitas", "Celah Pelayanan & SOP", "Selling Point RUANG VISUAL"])
+            w.writerow([
+                "Nama Percetakan", "Fokus Layanan Utama", "Kapasitas / Skala",
+                "Rating & Ulasan", "No. WhatsApp", "Link WA", "Celah Kualitas",
+                "Celah Pelayanan & SOP", "Selling Point RUANG VISUAL", "Website / Maps", "Tanggal Update"
+            ])
             for m in matrix:
+                phone = m.get("telepon", "").strip()
+                clean_phone = "".join([c for c in phone if c.isdigit()])
+                if clean_phone.startswith("08"):
+                    clean_phone = "62" + clean_phone[1:]
+                elif clean_phone.startswith("8"):
+                    clean_phone = "62" + clean_phone
+                wa_link = f"https://wa.me/{clean_phone}" if clean_phone else "-"
+                rating_str = f"{m.get('rating_gmaps', '0.0')} ⭐ ({m.get('jumlah_review', '0')} ulasan)"
+
                 w.writerow([
                     m.get("nama_bisnis", ""),
                     m.get("fokus_layanan", ""),
                     m.get("estimasi_kapasitas", ""),
-                    m.get("rating_gmaps", ""),
-                    m.get("jumlah_review", ""),
-                    m.get("telepon", ""),
-                    m.get("celah_kualitas", ""),
-                    m.get("celah_sop", ""),
-                    m.get("selling_point_rv", ""),
+                    rating_str,
+                    phone or "-",
+                    wa_link,
+                    m.get("celah_kualitas", "-"),
+                    m.get("celah_sop", "-"),
+                    m.get("selling_point_rv", "-"),
+                    m.get("website", "") or m.get("url_gmaps", "-"),
+                    m.get("tanggal_update", ""),
                 ])
         log.info(f"✅ Matriks Kompetitor diekspor: {csv_file}")
 
@@ -218,11 +247,14 @@ def run_export_csv():
         csv_file = proc_dir / "sinyal_pasar.csv"
         with open(csv_file, "w", newline="", encoding="utf-8-sig") as f:
             w = csv.writer(f)
-            w.writerow(["Sinyal / Tren", "Platform", "Metrik", "Relevansi untuk RUANG VISUAL", "URL Referensi", "Tanggal"])
+            w.writerow([
+                "Sinyal / Tren Produk", "Platform", "Tingkat Demand",
+                "Peluang untuk RUANG VISUAL", "Link Referensi", "Tanggal"
+            ])
             for s in sigs:
                 w.writerow([
                     s.get("signal", ""),
-                    s.get("platform", ""),
+                    s.get("platform", "TikTok").title(),
                     s.get("metrik", ""),
                     s.get("relevansi", ""),
                     s.get("url", ""),

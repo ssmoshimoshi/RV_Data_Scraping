@@ -305,9 +305,33 @@ def process_leads(raw_results: list[dict]) -> list[dict]:
     return processed
 
 
+HEADERS_RADAR_PROSPEK = [
+    "Nama Bisnis", "Kategori", "Skor", "Status", "No. WhatsApp",
+    "Link WA", "Proyeksi Kebutuhan Cetak", "Alamat", "Rating & Ulasan",
+    "Website", "Peta Lokasi", "Tanggal"
+]
+
+
+def format_wa_hyperlink(phone: str) -> str:
+    if not phone:
+        return "-"
+    clean = "".join([c for c in phone if c.isdigit()])
+    if clean.startswith("08"):
+        clean = "62" + clean[1:]
+    elif clean.startswith("8"):
+        clean = "62" + clean
+    return f'=HYPERLINK("https://wa.me/{clean}"; "📲 Chat WA")' if clean else "-"
+
+
+def format_gmaps_hyperlink(url: str) -> str:
+    if not url:
+        return "-"
+    return f'=HYPERLINK("{url}"; "📍 Buka GMaps")'
+
+
 # ─── Export to Google Sheets ──────────────────────────────────────────────────
-def export_leads_to_sheet(leads: list[dict]):
-    """Export processed leads ke sheet 'Radar Prospek'."""
+def export_leads_to_sheet(leads: list[dict], action: str = "append"):
+    """Export processed leads ke sheet 'Radar Prospek' dengan format eksekutif rapi."""
     if not leads:
         log.info("Tidak ada leads baru untuk di-export")
         return
@@ -323,35 +347,31 @@ def export_leads_to_sheet(leads: list[dict]):
             "lainnya": "Lainnya",
         }.get(lead.get("kategori_kode", ""), "Lainnya")
 
-        kebutuhan_map = {
-            "fnb": "Menu, banner, packaging box, stiker cup",
-            "eo": "Banner, backdrop, undangan, sertifikat",
-            "retail": "Kartu nama, brosur, stiker produk, label",
-            "instansi": "Dokumen, ID card, signage, kop surat",
-            "percetakan": "-",
-            "lainnya": "Kartu nama, brosur, banner",
-        }
-        kebutuhan = kebutuhan_map.get(lead.get("kategori_kode", ""), "Kartu nama, brosur")
-
-        trigger_event = "Bisnis baru buka / ulasan awal" if lead.get("is_new_3months") else "Listing aktif di Google Maps"
+        phone = lead.get("telepon", "").strip()
+        wa_link = format_wa_hyperlink(phone)
+        gmaps_url = lead.get("url_gmaps", "").strip()
+        gmaps_link = format_gmaps_hyperlink(gmaps_url)
+        kebutuhan = lead.get("proyeksi_kebutuhan", "Banner & Media Promosi")
+        rating_str = f"{lead.get('rating', 0)} ⭐ ({lead.get('jumlah_review', 0)} ulasan)"
 
         row = [
-            lead.get("nama_bisnis", ""),                # A: Entitas Bisnis
-            kategori_label,                              # B: Kategori Segmen
-            trigger_event,                               # C: Trigger Event
-            lead.get("source", "google_maps"),           # D: Sumber Data
-            lead.get("telepon", ""),                     # E: Kontak
-            kebutuhan,                                    # F: Proyeksi Kebutuhan
-            str(lead.get("skor", 1)),                    # G: Skor Prospek
-            "BARU",                                       # H: Status Akuisisi
-            lead.get("url_gmaps", ""),                   # I: URL Referensi
-            lead.get("scrape_date", today_wita()),       # J: Tanggal Scrape
-            f"{lead.get('skor_label', '')} ({lead.get('jumlah_review', 0)} ulasan, rating {lead.get('rating', 0)})",  # K: Catatan
+            lead.get("nama_bisnis", ""),         # A: Nama Bisnis
+            kategori_label,                       # B: Kategori
+            str(lead.get("skor", 7)),             # C: Skor
+            lead.get("skor_label", "🟡 WARM"),   # D: Status
+            phone or "-",                         # E: No. WhatsApp
+            wa_link,                              # F: Link WA
+            kebutuhan,                            # G: Proyeksi Kebutuhan Cetak
+            lead.get("alamat", "-") or "-",       # H: Alamat
+            rating_str,                           # I: Rating & Ulasan
+            lead.get("website", "-") or "-",      # J: Website
+            gmaps_link,                           # K: Peta Lokasi
+            lead.get("scrape_date", today_wita()),# L: Tanggal
         ]
         rows.append(row)
 
     try:
-        append_rows_to_sheet("Radar Prospek", rows)
+        append_rows_to_sheet("Radar Prospek", rows, action=action, headers=HEADERS_RADAR_PROSPEK)
         log.info(f"📊 {len(rows)} leads berhasil di-export ke 'Radar Prospek'")
     except Exception as e:
         log.warning(f"⚠️  Belum bisa export ke Google Sheets: {e}")

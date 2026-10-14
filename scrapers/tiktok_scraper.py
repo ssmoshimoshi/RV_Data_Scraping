@@ -84,24 +84,35 @@ def scan_market_signals(keywords: list[str]) -> list[dict]:
     return signals
 
 
-def export_signals_to_sheet(signals: list[dict]):
-    """Export daftar sinyal pasar ke Google Sheets tab 'Market Signals'."""
+HEADERS_MARKET_SIGNALS = [
+    "Sinyal / Tren Produk", "Platform", "Tingkat Demand",
+    "Peluang untuk RUANG VISUAL", "Link Referensi", "Tanggal"
+]
+
+
+def format_link_hyperlink(url: str, label: str = "🔗 Lihat Tren") -> str:
+    if not url:
+        return "-"
+    return f'=HYPERLINK("{url}"; "{label}")'
+
+
+def export_signals_to_sheet(signals: list[dict], action: str = "append"):
+    """Export daftar sinyal pasar ke Google Sheets tab 'Market Signals' dengan format eksekutif."""
     rows = []
     for s in signals:
-        # Schema PRD §12 Sheet 3:
-        # A: Signal, B: Platform, C: Metrik, D: Relevansi, E: URL, F: Tanggal
+        url = s.get("url", "")
         row = [
             s.get("signal", ""),
-            s.get("platform", "tiktok"),
+            s.get("platform", "TikTok").title(),
             s.get("metrik", ""),
             s.get("relevansi", ""),
-            s.get("url", ""),
+            format_link_hyperlink(url),
             s.get("tanggal", today_wita()),
         ]
         rows.append(row)
 
     try:
-        append_rows_to_sheet("Market Signals", rows)
+        append_rows_to_sheet("Market Signals", rows, action=action, headers=HEADERS_MARKET_SIGNALS)
         log.info(f"📊 {len(rows)} sinyal pasar di-export ke 'Market Signals'")
     except Exception as e:
         log.warning(f"⚠️  Belum bisa export ke Google Sheets: {e}")

@@ -118,28 +118,57 @@ def analyze_all_competitors(competitors: list[dict]) -> list[dict]:
     return matrix
 
 
-def export_matrix_to_sheet(matrix: list[dict]):
-    """Export Matriks Kompetitor lengkap ke Google Sheets."""
+HEADERS_MATRIKS_KOMPETITOR = [
+    "Nama Percetakan", "Fokus Layanan Utama", "Kapasitas / Skala",
+    "Rating & Ulasan", "No. WhatsApp", "Link WA", "Celah Kualitas",
+    "Celah Pelayanan & SOP", "Selling Point RUANG VISUAL", "Website / Maps", "Tanggal Update"
+]
+
+
+def format_wa_hyperlink(phone: str) -> str:
+    if not phone:
+        return "-"
+    clean = "".join([c for c in phone if c.isdigit()])
+    if clean.startswith("08"):
+        clean = "62" + clean[1:]
+    elif clean.startswith("8"):
+        clean = "62" + clean
+    return f'=HYPERLINK("https://wa.me/{clean}"; "📲 Hubungi")' if clean else "-"
+
+
+def format_link_hyperlink(url: str, label: str = "🌐 Kunjungi") -> str:
+    if not url or url == "-":
+        return "-"
+    return f'=HYPERLINK("{url}"; "{label}")'
+
+
+def export_matrix_to_sheet(matrix: list[dict], action: str = "append"):
+    """Export Matriks Kompetitor lengkap ke Google Sheets dengan format eksekutif."""
     rows = []
     for m in matrix:
+        phone = m.get("telepon", "").strip()
+        wa_link = format_wa_hyperlink(phone)
+        web_or_map = m.get("website", "") or m.get("url_gmaps", "")
+        web_link = format_link_hyperlink(web_or_map, "🌐 Kunjungi") if web_or_map else "-"
+        rating_str = f"{m.get('rating_gmaps', '0.0')} ⭐ ({m.get('jumlah_review', '0')} ulasan)"
+
         row = [
-            m.get("nama_bisnis", ""),         # A: Nama Kompetitor
-            m.get("fokus_layanan", ""),       # B: Fokus Layanan Utama
-            m.get("celah_kualitas", ""),      # C: Celah Kualitas
-            m.get("celah_sop", ""),           # D: Celah SOP/Admin
-            m.get("estimasi_kapasitas", ""),  # E: Estimasi Kapasitas
-            m.get("estetika_visual", ""),     # F: Estetika Visual
-            m.get("rating_gmaps", ""),        # G: Rating GMaps
-            m.get("jumlah_review", ""),       # H: Jumlah Review
-            m.get("telepon", ""),             # I: Kontak/WhatsApp
-            m.get("website", ""),             # J: Website
-            m.get("selling_point_rv", ""),    # K: Selling Point RUANG VISUAL
-            m.get("tanggal_update", today_wita()), # L: Tanggal Update
+            m.get("nama_bisnis", ""),              # A: Nama Percetakan
+            m.get("fokus_layanan", ""),            # B: Fokus Layanan Utama
+            m.get("estimasi_kapasitas", ""),       # C: Kapasitas / Skala
+            rating_str,                            # D: Rating & Ulasan
+            phone or "-",                          # E: No. WhatsApp
+            wa_link,                               # F: Link WA
+            m.get("celah_kualitas", "-"),          # G: Celah Kualitas
+            m.get("celah_sop", "-"),               # H: Celah Pelayanan & SOP
+            m.get("selling_point_rv", "-"),        # I: Selling Point RUANG VISUAL
+            web_link,                              # J: Website / Maps
+            m.get("tanggal_update", today_wita()), # K: Tanggal Update
         ]
         rows.append(row)
 
     try:
-        append_rows_to_sheet("Matriks Kompetitor", rows)
+        append_rows_to_sheet("Matriks Kompetitor", rows, action=action, headers=HEADERS_MATRIKS_KOMPETITOR)
         log.info(f"📊 {len(rows)} baris berhasil di-export ke 'Matriks Kompetitor'")
     except Exception as e:
         log.warning(f"⚠️  Belum bisa export ke Google Sheets: {e}")
