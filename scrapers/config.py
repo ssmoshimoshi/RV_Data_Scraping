@@ -109,10 +109,10 @@ SCORING_RULES = {
 }
 
 SCORE_LABELS = {
-    (8, 10): "🔥 HOT",
-    (5, 7):  "🟡 WARM",
-    (3, 4):  "🔵 COOL",
-    (1, 2):  "⚪ COLD",
+    (8, 10): "HOT",
+    (5, 7):  "WARM",
+    (3, 4):  "COOL",
+    (1, 2):  "COLD",
 }
 
 # ─── Competitor Review Keywords (PRD §11) ────────────────────────────────────

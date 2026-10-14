@@ -73,11 +73,11 @@ def analyze_single_competitor(comp: dict) -> dict:
     selling_points = []
 
     if rating < 4.5 and reviews > 10:
-        celah_kualitas.append(f"Rating rendah ({rating}⭐) — risiko deviasi warna/finishing")
+        celah_kualitas.append(f"Rating rendah ({rating}/5.0) — risiko deviasi warna/finishing")
         celah_sop.append("Indikasi ketidakpuasan customer pada ketepatan waktu/admin")
         selling_points.append("Tawarkan garansi cetak ulang & proofing warna presisi")
     elif rating < 4.8 and reviews > 50:
-        celah_kualitas.append(f"Rating {rating}⭐ — kualitas standar, rentan saat overload")
+        celah_kualitas.append(f"Rating {rating}/5.0 — kualitas standar, rentan saat overload")
         celah_sop.append("Potensi antrean panjang saat jam sibuk")
         selling_points.append("Tawarkan prioritas pengerjaan kilat & sistem order online")
     else:
@@ -133,24 +133,24 @@ def format_wa_hyperlink(phone: str) -> str:
         clean = "62" + clean[1:]
     elif clean.startswith("8"):
         clean = "62" + clean
-    return f'=HYPERLINK("https://wa.me/{clean}"; "📲 Hubungi")' if clean else "-"
+    return f'=HYPERLINK("https://wa.me/{clean}", "Hubungi WhatsApp")' if clean else "-"
 
 
-def format_link_hyperlink(url: str, label: str = "🌐 Kunjungi") -> str:
+def format_link_hyperlink(url: str, label: str = "Kunjungi Website") -> str:
     if not url or url == "-":
         return "-"
-    return f'=HYPERLINK("{url}"; "{label}")'
+    return f'=HYPERLINK("{url}", "{label}")'
 
 
 def export_matrix_to_sheet(matrix: list[dict], action: str = "append"):
-    """Export Matriks Kompetitor lengkap ke Google Sheets dengan format eksekutif."""
+    """Export Matriks Kompetitor lengkap ke Google Sheets."""
     rows = []
     for m in matrix:
         phone = m.get("telepon", "").strip()
         wa_link = format_wa_hyperlink(phone)
         web_or_map = m.get("website", "") or m.get("url_gmaps", "")
-        web_link = format_link_hyperlink(web_or_map, "🌐 Kunjungi") if web_or_map else "-"
-        rating_str = f"{m.get('rating_gmaps', '0.0')} ⭐ ({m.get('jumlah_review', '0')} ulasan)"
+        web_link = format_link_hyperlink(web_or_map, "Kunjungi Website") if web_or_map else "-"
+        rating_str = f"{m.get('rating_gmaps', '0.0')} ({m.get('jumlah_review', '0')} ulasan)"
 
         row = [
             m.get("nama_bisnis", ""),              # A: Nama Percetakan
@@ -168,11 +168,11 @@ def export_matrix_to_sheet(matrix: list[dict], action: str = "append"):
         rows.append(row)
 
     try:
-        append_rows_to_sheet("🏭 Matriks Kompetitor", rows, action=action, headers=HEADERS_MATRIKS_KOMPETITOR)
-        log.info(f"📊 {len(rows)} baris berhasil di-export ke '🏭 Matriks Kompetitor'")
+        append_rows_to_sheet("Matriks Kompetitor", rows, action=action, headers=HEADERS_MATRIKS_KOMPETITOR)
+        log.info(f"{len(rows)} baris berhasil di-export ke 'Matriks Kompetitor'")
     except Exception as e:
-        log.warning(f"⚠️  Belum bisa export ke Google Sheets: {e}")
-        log.info("ℹ️  Matriks kompetitor tetap tersimpan di folder data/processed/")
+        log.warning(f"Belum bisa export ke Google Sheets: {e}")
+        log.info("Matriks kompetitor tetap tersimpan di folder data/processed/")
 
 
 def main():
@@ -193,7 +193,7 @@ def main():
     args = parser.parse_args()
 
     log.info("=" * 60)
-    log.info("🏭  RUANG VISUAL — Competitor Matrix & Intelligence")
+    log.info("RUANG VISUAL - Competitor Matrix & Intelligence")
     log.info("=" * 60)
 
     # Cari file competitors terbaru jika tidak dispesifikasikan
@@ -201,36 +201,36 @@ def main():
     if not input_file:
         files = list(PROCESSED_DIR.glob("competitors_*.json"))
         if not files:
-            log.error("❌ Tidak ditemukan file data kompetitor di data/processed/!")
+            log.error("[ERROR] Tidak ditemukan file data kompetitor di data/processed/!")
             log.info("   Jalankan dulu: python run_pipeline.py gmaps --mode competitors")
             return
         files.sort(key=lambda f: f.stat().st_mtime, reverse=True)
         input_file = str(files[0])
 
-    log.info(f"📂 Membaca data kompetitor dari: {input_file}")
+    log.info(f"Membaca data kompetitor dari: {input_file}")
     with open(input_file, "r", encoding="utf-8") as f:
         competitors = json.load(f)
 
-    log.info(f"🔍 Menganalisis {len(competitors)} kompetitor percetakan...")
+    log.info(f"Menganalisis {len(competitors)} kompetitor percetakan...")
     matrix = analyze_all_competitors(competitors)
 
     out_file = PROCESSED_DIR / f"competitor_matrix_{datetime.now(WITA).strftime('%Y%m%d_%H%M%S')}.json"
     with open(out_file, "w", encoding="utf-8") as f:
         json.dump(matrix, f, ensure_ascii=False, indent=2)
-    log.info(f"💾 Matriks kompetitor tersimpan: {out_file}")
+    log.info(f"Matriks kompetitor tersimpan: {out_file}")
 
-    log.info("\n📊 TOP 5 KOMPETITOR UTAMA & STRATEGI MENANG RUANG VISUAL:")
+    log.info("\nTOP 5 KOMPETITOR UTAMA DAN STRATEGI MENANG RUANG VISUAL:")
     for i, m in enumerate(matrix[:5], 1):
         log.info(f"\n[{i}] {m['nama_bisnis']}")
-        log.info(f"    Rating: {m['rating_gmaps']}⭐ ({m['jumlah_review']} ulasan) | Kontak: {m['telepon'] or '-'}")
+        log.info(f"    Rating: {m['rating_gmaps']}/5.0 ({m['jumlah_review']} ulasan) | Kontak: {m['telepon'] or '-'}")
         log.info(f"    Kapasitas : {m['estimasi_kapasitas']}")
         log.info(f"    Celah SOP : {m['celah_sop']}")
-        log.info(f"    💡 Selling Point RV: {m['selling_point_rv']}")
+        log.info(f"    Selling Point RV: {m['selling_point_rv']}")
 
     if not args.dry_run:
         export_matrix_to_sheet(matrix)
 
-    log.info("\n✅ Selesai!")
+    log.info("\nSelesai.")
 
 
 if __name__ == "__main__":

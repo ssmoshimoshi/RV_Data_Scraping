@@ -28,8 +28,8 @@ if str(PROJECT_ROOT) not in sys.path:
 
 def print_banner():
     print("=" * 60)
-    print("  🏢 RUANG VISUAL — Market Intelligence Pipeline")
-    print("  📍 Makassar, Sulawesi Selatan")
+    print("  RUANG VISUAL — Market Intelligence Pipeline")
+    print("  Makassar, Sulawesi Selatan")
     print("=" * 60)
 
 
@@ -69,7 +69,7 @@ def run_init_sheets():
     from scrapers.utils import get_logger, build_sheets_service, get_spreadsheet_id, append_rows_to_sheet
 
     log = get_logger("init")
-    log.info("🔧 Menginisialisasi Google Sheets...")
+    log.info("Menginisialisasi Google Sheets...")
 
     service = build_sheets_service()
     spreadsheet_id = get_spreadsheet_id()
@@ -77,7 +77,7 @@ def run_init_sheets():
     # Ambil sheets yang ada
     meta = service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
     existing = [s["properties"]["title"] for s in meta.get("sheets", [])]
-    log.info(f"📄 Sheets yang ada: {existing}")
+    log.info(f"Sheets yang ada: {existing}")
 
     # Sheets yang dibutuhkan sesuai PRD §12
     required_sheets = {
@@ -106,7 +106,7 @@ def run_init_sheets():
     requests = []
     for title in required_sheets:
         if title not in existing:
-            log.info(f"  ➕ Membuat tab: '{title}'")
+            log.info(f"  Membuat tab: '{title}'")
             requests.append({"addSheet": {"properties": {"title": title}}})
 
     if requests:
@@ -114,7 +114,7 @@ def run_init_sheets():
             spreadsheetId=spreadsheet_id,
             body={"requests": requests}
         ).execute()
-        log.info("  ✅ Tab baru berhasil dibuat!")
+        log.info("  Tab baru berhasil dibuat.")
 
     # Tulis header untuk tab yang belum ada headernya
     for title, headers in required_sheets.items():
@@ -130,11 +130,11 @@ def run_init_sheets():
                 valueInputOption="USER_ENTERED",
                 body={"values": [headers]}
             ).execute()
-            log.info(f"  📝 Header ditulis untuk '{title}'")
+            log.info(f"  Header ditulis untuk '{title}'")
         else:
-            log.info(f"  ℹ️  Header '{title}' sudah ada")
+            log.info(f"  Header '{title}' sudah ada")
 
-    log.info("\n🎉 Inisialisasi selesai!")
+    log.info("\nInisialisasi selesai.")
 
 
 def run_matrix():
@@ -184,22 +184,22 @@ def run_export_csv():
                     clean_phone = "62" + clean_phone
                 wa_link = f"https://wa.me/{clean_phone}" if clean_phone else "-"
 
-                rating_str = f"{l.get('rating', 0)} ⭐ ({l.get('jumlah_review', 0)} ulasan)"
+                rating_str = f"{l.get('rating', 0)} ({l.get('jumlah_review', 0)} ulasan)"
                 w.writerow([
                     l.get("nama_bisnis", ""),
                     l.get("kategori", "Umum").upper(),
                     l.get("skor", 7),
-                    l.get("skor_label", "🟡 WARM"),
+                    l.get("skor_label", "WARM"),
                     phone or "-",
                     wa_link,
-                    l.get("proyeksi_kebutuhan", "Banner & Media Promosi"),
+                    l.get("proyeksi_kebutuhan", "Banner dan Media Promosi"),
                     l.get("alamat", "-") or "-",
                     rating_str,
                     l.get("website", "-") or "-",
                     l.get("url_gmaps", "-") or "-",
                     l.get("scrape_date", ""),
                 ])
-        log.info(f"✅ Leads diekspor: {csv_file}")
+        log.info(f"Leads diekspor: {csv_file}")
 
     # 2. Competitor Matrix to CSV
     matrix_files = sorted(proc_dir.glob("competitor_matrix_*.json"), key=lambda f: f.stat().st_mtime, reverse=True)
@@ -222,7 +222,7 @@ def run_export_csv():
                 elif clean_phone.startswith("8"):
                     clean_phone = "62" + clean_phone
                 wa_link = f"https://wa.me/{clean_phone}" if clean_phone else "-"
-                rating_str = f"{m.get('rating_gmaps', '0.0')} ⭐ ({m.get('jumlah_review', '0')} ulasan)"
+                rating_str = f"{m.get('rating_gmaps', '0.0')} ({m.get('jumlah_review', '0')} ulasan)"
 
                 w.writerow([
                     m.get("nama_bisnis", ""),
@@ -237,7 +237,7 @@ def run_export_csv():
                     m.get("website", "") or m.get("url_gmaps", "-"),
                     m.get("tanggal_update", ""),
                 ])
-        log.info(f"✅ Matriks Kompetitor diekspor: {csv_file}")
+        log.info(f"Matriks Kompetitor diekspor: {csv_file}")
 
     # 3. Market Signals to CSV
     sig_files = sorted(proc_dir.glob("market_signals_*.json"), key=lambda f: f.stat().st_mtime, reverse=True)
@@ -260,7 +260,7 @@ def run_export_csv():
                     s.get("url", ""),
                     s.get("tanggal", ""),
                 ])
-        log.info(f"✅ Sinyal Pasar diekspor: {csv_file}")
+        log.info(f"Sinyal Pasar diekspor: {csv_file}")
 
 
 def run_all(limit: int = 2, dry_run: bool = False, notify_telegram: bool = True):
@@ -287,7 +287,7 @@ def run_all(limit: int = 2, dry_run: bool = False, notify_telegram: bool = True)
 
     log = get_logger("runner-all")
     start_time = time.time()
-    log.info("🚀 MEMULAI EKSEKUSI PIPELINE LENGKAP RUANG VISUAL...")
+    log.info("Memulai eksekusi pipeline lengkap RUANG VISUAL...")
 
     leads_count = 0
     hot_leads = []
@@ -310,9 +310,9 @@ def run_all(limit: int = 2, dry_run: bool = False, notify_telegram: bool = True)
 
             if not dry_run:
                 export_leads_to_sheet(leads_only)
-            log.info(f"✅ Leads selesai: {leads_count} ditemukan ({len(hot_leads)} hot leads)")
+            log.info(f"Leads selesai: {leads_count} ditemukan ({len(hot_leads)} hot leads)")
     except Exception as e:
-        log.error(f"❌ Error saat scraping leads: {e}")
+        log.error(f"Error saat scraping leads: {e}")
         try:
             send_error_alert("Google Maps Scraper", str(e))
         except Exception:
@@ -345,9 +345,9 @@ def run_all(limit: int = 2, dry_run: bool = False, notify_telegram: bool = True)
                 json.dump(matrix, f, ensure_ascii=False, indent=2)
             if not dry_run:
                 export_matrix_to_sheet(matrix)
-            log.info(f"✅ Matriks kompetitor selesai: {competitor_count} percetakan teranalisis")
+            log.info(f"Matriks kompetitor selesai: {competitor_count} percetakan teranalisis")
     except Exception as e:
-        log.error(f"❌ Error saat analisis kompetitor: {e}")
+        log.error(f"Error saat analisis kompetitor: {e}")
         try:
             send_error_alert("Competitor Matrix Analyzer", str(e))
         except Exception:
@@ -363,9 +363,9 @@ def run_all(limit: int = 2, dry_run: bool = False, notify_telegram: bool = True)
             json.dump(signals, f, ensure_ascii=False, indent=2)
         if not dry_run:
             export_signals_to_sheet(signals)
-        log.info(f"✅ Sinyal pasar selesai: {signals_count} tren terpetakan")
+        log.info(f"Sinyal pasar selesai: {signals_count} tren terpetakan")
     except Exception as e:
-        log.error(f"❌ Error saat memindai tren pasar: {e}")
+        log.error(f"Error saat memindai tren pasar: {e}")
         try:
             send_error_alert("Market Signals Scraper", str(e))
         except Exception:
@@ -376,14 +376,14 @@ def run_all(limit: int = 2, dry_run: bool = False, notify_telegram: bool = True)
         log.info("\n--- [4/4] Mengekspor Data ke CSV Lokal ---")
         run_export_csv()
     except Exception as e:
-        log.warning(f"⚠️ Gagal ekspor CSV: {e}")
+        log.warning(f"Gagal ekspor CSV: {e}")
 
     duration = time.time() - start_time
-    log.info(f"\n🎉 Seluruh rangkaian pipeline selesai dalam {duration:.1f} detik!")
+    log.info(f"\nSeluruh rangkaian pipeline selesai dalam {duration:.1f} detik.")
 
     # 5. Kirim Telegram Notification
     if notify_telegram:
-        log.info("📲 Mengirimkan laporan eksekutif ke Telegram...")
+        log.info("Mengirimkan laporan eksekutif ke Telegram...")
         try:
             send_pipeline_summary(
                 total_leads=leads_count,
@@ -394,7 +394,7 @@ def run_all(limit: int = 2, dry_run: bool = False, notify_telegram: bool = True)
                 mode="Cloud Pipeline Automation",
             )
         except Exception as e:
-            log.warning(f"⚠️ Gagal mengirim notifikasi Telegram: {e}")
+            log.warning(f"Gagal mengirim notifikasi Telegram: {e}")
 
 
 def main():
@@ -442,7 +442,7 @@ def main():
     elif module in ("help", "--help", "-h"):
         print_help()
     else:
-        print(f"❌ Module tidak dikenal: '{module}'")
+        print(f"[ERROR] Module tidak dikenal: '{module}'")
         print_help()
         sys.exit(1)
 

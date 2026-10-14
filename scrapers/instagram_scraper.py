@@ -64,7 +64,7 @@ def scrape_instagram_profile(username: str, page) -> dict:
     """
     clean_username = username.strip().replace("@", "")
     url = f"https://www.instagram.com/{clean_username}/"
-    log.info(f"📸 Scraping @{clean_username} ({url})")
+    log.info(f"Scraping @{clean_username} ({url})")
 
     try:
         page.goto(url, wait_until="domcontentloaded", timeout=25000)
@@ -75,7 +75,7 @@ def scrape_instagram_profile(username: str, page) -> dict:
 
     # Cek apakah dialihkan ke login
     if "/accounts/login" in page.url:
-        log.warning(f"  ⚠️ Redirected to login page for @{clean_username}. Instagram rate limit.")
+        log.warning(f"  [WARNING] Redirected to login page for @{clean_username}. Instagram rate limit.")
         return None
 
     # 1. Ekstraksi dari Meta Tags
@@ -170,7 +170,7 @@ def scrape_profiles(usernames: list[str], max_profiles: int = INSTAGRAM_MAX_PAGE
     """
     results = []
     targets = usernames[:max_profiles]
-    log.info(f"📸 Memulai Instagram profile scraper — {len(targets)} target")
+    log.info(f"Memulai Instagram profile scraper - {len(targets)} target")
 
     with sync_playwright() as p:
         browser = launch_stealth_browser(p, headless=True)
@@ -190,13 +190,13 @@ def scrape_profiles(usernames: list[str], max_profiles: int = INSTAGRAM_MAX_PAGE
 
             if data:
                 results.append(data)
-                log.info(f"  ✅ Followers: {data['jumlah_followers']} | WA: {data['kontak'] or '-'} | Kategori: {data['kategori_kode']}")
+                log.info(f"  Followers: {data['jumlah_followers']} | WA: {data['kontak'] or '-'} | Kategori: {data['kategori_kode']}")
             else:
-                log.warning(f"  ❌ Gagal mengambil data @{username}")
+                log.warning(f"  [ERROR] Gagal mengambil data @{username}")
 
             if i < len(targets):
                 delay = rate_limit(INSTAGRAM_DELAY_SECONDS)
-                log.info(f"  ⏳ Delay anti-ban: {delay:.1f}s")
+                log.info(f"  Delay anti-ban: {delay:.1f}s")
 
         browser.close()
 
@@ -269,15 +269,15 @@ def export_ig_leads_to_sheet(leads: list[dict]):
 
     try:
         append_rows_to_sheet("Radar Prospek", rows)
-        log.info(f"📊 {len(rows)} IG leads di-export ke 'Radar Prospek'")
+        log.info(f"{len(rows)} IG leads di-export ke 'Radar Prospek'")
     except Exception as e:
-        log.warning(f"⚠️  Belum bisa export ke Google Sheets: {e}")
-        log.info("ℹ️  Data tetap aman tersimpan di folder data/processed/")
+        log.warning(f"[WARNING] Belum bisa export ke Google Sheets: {e}")
+        log.info("Data tetap aman tersimpan di folder data/processed/")
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="RUANG VISUAL — Instagram Scraper (Module C)"
+        description="RUANG VISUAL - Instagram Scraper (Module C)"
     )
     parser.add_argument(
         "--profiles",
@@ -299,7 +299,7 @@ def main():
     args = parser.parse_args()
 
     log.info("=" * 60)
-    log.info("📸  RUANG VISUAL — Instagram Intelligence Scraper")
+    log.info("RUANG VISUAL - Instagram Intelligence Scraper")
     log.info("=" * 60)
 
     # Profil default jika tidak dispesifikasikan (kombinasi kompetitor & brand kuliner Makassar)
@@ -320,22 +320,22 @@ def main():
         raw_path = RAW_DIR / f"instagram_{datetime.now(WITA).strftime('%Y%m%d_%H%M%S')}.json"
         with open(raw_path, "w", encoding="utf-8") as f:
             json.dump(raw_data, f, ensure_ascii=False, indent=2)
-        log.info(f"💾 Raw data disimpan: {raw_path}")
+        log.info(f"Raw data disimpan: {raw_path}")
 
         scored_leads = process_and_score_ig_leads(raw_data)
         proc_path = PROCESSED_DIR / f"ig_leads_scored_{datetime.now(WITA).strftime('%Y%m%d_%H%M%S')}.json"
         with open(proc_path, "w", encoding="utf-8") as f:
             json.dump(scored_leads, f, ensure_ascii=False, indent=2)
-        log.info(f"💾 Processed & scored data disimpan: {proc_path}")
+        log.info(f"Processed & scored data disimpan: {proc_path}")
 
-        log.info("\n📊 HASIL SCRAPING PROFIL INSTAGRAM:")
+        log.info("\nHASIL SCRAPING PROFIL INSTAGRAM:")
         for l in scored_leads:
-            log.info(f"  → @{l['username']} ({l['nama_display']}) | Followers: {l['jumlah_followers']} | WA: {l.get('kontak') or '-'} | Skor: {l['skor']}/10 ({l['skor_label']})")
+            log.info(f"  -> @{l['username']} ({l['nama_display']}) | Followers: {l['jumlah_followers']} | WA: {l.get('kontak') or '-'} | Skor: {l['skor']}/10 ({l['skor_label']})")
 
         if not args.dry_run:
             export_ig_leads_to_sheet(scored_leads)
 
-    log.info("\n✅ Selesai!")
+    log.info("\nSelesai.")
 
 
 if __name__ == "__main__":

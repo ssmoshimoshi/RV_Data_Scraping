@@ -1,6 +1,6 @@
 /**
  * =========================================================================
- * 🏢 RUANG VISUAL — Google Spreadsheet Executive Formatter & Webhook
+ * RUANG VISUAL - Google Spreadsheet Executive Formatter & Webhook
  * =========================================================================
  * Script ini berfungsi ganda:
  * 1. Webhook otomatis untuk menerima data dari scraper tanpa campur aduk kolom.
@@ -71,11 +71,11 @@ function doPost(e) {
 // ─── 2. MENU INTERAKTIF DI GOOGLE SHEETS ────────────────────────────────────
 function onOpen() {
   var ui = SpreadsheetApp.getUi();
-  ui.createMenu("🚀 RUANG VISUAL")
-    .addItem("✨ Rapikan & Format Tampilan Tab", "beautifyAllSheets")
-    .addItem("🧹 Bersihkan Baris Rusak & Duplikat", "cleanCorruptedRows")
+  ui.createMenu("RUANG VISUAL")
+    .addItem("Rapikan & Format Tampilan Tab", "beautifyAllSheets")
+    .addItem("Bersihkan Baris Rusak & Duplikat", "cleanCorruptedRows")
     .addSeparator()
-    .addItem("ℹ️ Tentang Sistem", "showAbout")
+    .addItem("Tentang Sistem", "showAbout")
     .addToUi();
 }
 
@@ -88,7 +88,7 @@ function beautifyAllSheets() {
   for (var i = 0; i < sheets.length; i++) {
     formatSheet(sheets[i], sheets[i].getName());
   }
-  SpreadsheetApp.getUi().alert("✅ Berhasil!", "Seluruh tab telah dirapikan dengan tampilan profesional RUANG VISUAL.", SpreadsheetApp.getUi().ButtonSet.OK);
+  SpreadsheetApp.getUi().alert("Berhasil", "Seluruh tab telah dirapikan dengan tampilan profesional RUANG VISUAL.", SpreadsheetApp.getUi().ButtonSet.OK);
 }
 
 

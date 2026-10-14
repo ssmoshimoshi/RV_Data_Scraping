@@ -188,15 +188,15 @@ def scrape_gmaps(queries: list[str], max_queries: int = None, mode: str = "leads
     all_results = []
     queries_to_run = queries[:max_queries] if max_queries else queries
 
-    log.info(f"🗺️  Memulai Google Maps scraping ({mode}) — {len(queries_to_run)} queries")
+    log.info(f"Memulai Google Maps scraping ({mode}) - {len(queries_to_run)} queries")
 
     # Ambil nama yang sudah ada di sheet untuk deduplikasi
     sheet_name = "Radar Prospek" if mode == "leads" else "Matriks Kompetitor"
     try:
         existing = get_existing_names(sheet_name)
-        log.info(f"📋 {len(existing)} entri sudah ada di '{sheet_name}'")
+        log.info(f"{len(existing)} entri sudah ada di '{sheet_name}'")
     except Exception as e:
-        log.info(f"ℹ️  Sheet '{sheet_name}' belum terbaca (akan disimpan lokal): {e}")
+        log.info(f"Sheet '{sheet_name}' belum terbaca (akan disimpan lokal): {e}")
         existing = set()
 
     for i, query in enumerate(queries_to_run, 1):
@@ -234,7 +234,7 @@ def scrape_gmaps(queries: list[str], max_queries: int = None, mode: str = "leads
                 pass
 
         except Exception as e:
-            log.error(f"  ❌ Error scraping '{query}': {e}")
+            log.error(f"  [ERROR] Error scraping '{query}': {e}")
             try:
                 log_scrape_run(
                     module=f"Module B ({mode})",
@@ -250,9 +250,9 @@ def scrape_gmaps(queries: list[str], max_queries: int = None, mode: str = "leads
         # Rate limiting (PRD §3)
         if i < len(queries_to_run):
             delay = rate_limit(GMAPS_DELAY_SECONDS)
-            log.info(f"  ⏳ Delay: {delay:.1f}s")
+            log.info(f"  Delay: {delay:.1f}s")
 
-    log.info(f"🏁 Selesai: {len(all_results)} listings ditemukan total")
+    log.info(f"Selesai: {len(all_results)} listings ditemukan total")
     return all_results
 
 
@@ -320,20 +320,20 @@ def format_wa_hyperlink(phone: str) -> str:
         clean = "62" + clean[1:]
     elif clean.startswith("8"):
         clean = "62" + clean
-    return f'=HYPERLINK("https://wa.me/{clean}"; "📲 Chat WA")' if clean else "-"
+    return f'=HYPERLINK("https://wa.me/{clean}", "Chat WhatsApp")' if clean else "-"
 
 
 def format_gmaps_hyperlink(url: str) -> str:
     if not url:
         return "-"
-    return f'=HYPERLINK("{url}"; "📍 Buka GMaps")'
+    return f'=HYPERLINK("{url}", "Buka Google Maps")'
 
 
 # ─── Export to Google Sheets ──────────────────────────────────────────────────
 def export_leads_to_sheet(leads: list[dict], action: str = "append"):
-    """Export processed leads ke sheet 'Radar Prospek' dengan format eksekutif rapi."""
+    """Export processed leads ke sheet 'Radar Prospek'."""
     if not leads:
-        log.info("Tidak ada leads baru untuk di-export")
+        log.info("Tidak ada leads baru untuk di-export.")
         return
 
     rows = []
@@ -351,19 +351,19 @@ def export_leads_to_sheet(leads: list[dict], action: str = "append"):
         wa_link = format_wa_hyperlink(phone)
         gmaps_url = lead.get("url_gmaps", "").strip()
         gmaps_link = format_gmaps_hyperlink(gmaps_url)
-        kebutuhan = lead.get("proyeksi_kebutuhan", "Banner & Media Promosi")
-        rating_str = f"{lead.get('rating', 0)} ⭐ ({lead.get('jumlah_review', 0)} ulasan)"
+        kebutuhan = lead.get("proyeksi_kebutuhan", "Banner dan Media Promosi")
+        rating_str = f"{lead.get('rating', 0)} ({lead.get('jumlah_review', 0)} ulasan)"
 
         row = [
             lead.get("nama_bisnis", ""),         # A: Nama Bisnis
             kategori_label,                       # B: Kategori
             str(lead.get("skor", 7)),             # C: Skor
-            lead.get("skor_label", "🟡 WARM"),   # D: Status
+            lead.get("skor_label", "WARM"),      # D: Status
             phone or "-",                         # E: No. WhatsApp
             wa_link,                              # F: Link WA
             kebutuhan,                            # G: Proyeksi Kebutuhan Cetak
             lead.get("alamat", "-") or "-",       # H: Alamat
-            rating_str,                           # I: Rating & Ulasan
+            rating_str,                           # I: Rating dan Ulasan
             lead.get("website", "-") or "-",      # J: Website
             gmaps_link,                           # K: Peta Lokasi
             lead.get("scrape_date", today_wita()),# L: Tanggal
@@ -371,11 +371,11 @@ def export_leads_to_sheet(leads: list[dict], action: str = "append"):
         rows.append(row)
 
     try:
-        append_rows_to_sheet("🎯 Radar Prospek", rows, action=action, headers=HEADERS_RADAR_PROSPEK)
-        log.info(f"📊 {len(rows)} leads berhasil di-export ke '🎯 Radar Prospek'")
+        append_rows_to_sheet("Radar Prospek", rows, action=action, headers=HEADERS_RADAR_PROSPEK)
+        log.info(f"{len(rows)} leads berhasil di-export ke 'Radar Prospek'")
     except Exception as e:
-        log.warning(f"⚠️  Belum bisa export ke Google Sheets: {e}")
-        log.info("ℹ️  Data tetap aman tersimpan di folder data/processed/")
+        log.warning(f"Belum bisa export ke Google Sheets: {e}")
+        log.info("Data tetap aman tersimpan di folder data/processed/")
 
 
 def export_competitors_to_sheet(competitors: list[dict]):
@@ -404,16 +404,16 @@ def export_competitors_to_sheet(competitors: list[dict]):
 
     try:
         append_rows_to_sheet("Matriks Kompetitor", rows)
-        log.info(f"📊 {len(rows)} kompetitor di-export ke 'Matriks Kompetitor'")
+        log.info(f"{len(rows)} kompetitor di-export ke 'Matriks Kompetitor'")
     except Exception as e:
-        log.warning(f"⚠️  Belum bisa export ke Google Sheets: {e}")
-        log.info("ℹ️  Data tetap aman tersimpan di folder data/processed/")
+        log.warning(f"[WARNING] Belum bisa export ke Google Sheets: {e}")
+        log.info("Data tetap aman tersimpan di folder data/processed/")
 
 
 # ─── CLI Entry Point ─────────────────────────────────────────────────────────
 def main():
     parser = argparse.ArgumentParser(
-        description="RUANG VISUAL — Google Maps Scraper (Module B)"
+        description="RUANG VISUAL - Google Maps Scraper (Module B)"
     )
     parser.add_argument(
         "--mode",
@@ -435,17 +435,17 @@ def main():
     args = parser.parse_args()
 
     log.info("=" * 60)
-    log.info("🗺️  RUANG VISUAL — Google Maps Scraper")
+    log.info("RUANG VISUAL - Google Maps Scraper")
     log.info(f"   Mode: {args.mode} | Limit: {args.limit or 'semua'}")
     log.info("=" * 60)
 
     if args.mode in ("leads", "all"):
-        log.info("\n📍 SCRAPING LEADS...")
+        log.info("\nSCRAPING LEADS...")
         raw_leads = scrape_gmaps(GMAPS_LEAD_QUERIES, max_queries=args.limit, mode="leads")
 
         if raw_leads:
             raw_path = save_raw_json(raw_leads, "gmaps_leads")
-            log.info(f"💾 Raw data disimpan: {raw_path}")
+            log.info(f"Raw data disimpan: {raw_path}")
 
             processed = process_leads(raw_leads)
             leads_only = [l for l in processed if l.get("kategori_kode") != "percetakan"]
@@ -453,38 +453,38 @@ def main():
             proc_path = PROCESSED_DIR / f"leads_scored_{datetime.now(WITA).strftime('%Y%m%d_%H%M%S')}.json"
             with open(proc_path, "w", encoding="utf-8") as f:
                 json.dump(leads_only, f, ensure_ascii=False, indent=2)
-            log.info(f"💾 Processed & scored data disimpan: {proc_path}")
+            log.info(f"Processed & scored data disimpan: {proc_path}")
 
             if not args.dry_run:
                 export_leads_to_sheet(leads_only)
             else:
                 log.info(f"[DRY RUN] {len(leads_only)} leads siap di-export:")
                 for l in leads_only[:5]:
-                    log.info(f"  → {l['nama_bisnis']} | Skor: {l['skor']}/10 ({l['skor_label']}) | Alamat: {l.get('alamat')}")
+                    log.info(f"  -> {l['nama_bisnis']} | Skor: {l['skor']}/10 ({l['skor_label']}) | Alamat: {l.get('alamat')}")
 
     if args.mode in ("competitors", "all"):
-        log.info("\n🏭 SCRAPING COMPETITORS...")
+        log.info("\nSCRAPING COMPETITORS...")
         raw_competitors = scrape_gmaps(
             GMAPS_COMPETITOR_QUERIES, max_queries=args.limit, mode="competitors"
         )
 
         if raw_competitors:
             raw_path = save_raw_json(raw_competitors, "gmaps_competitors")
-            log.info(f"💾 Raw data disimpan: {raw_path}")
+            log.info(f"Raw data disimpan: {raw_path}")
 
             proc_path = PROCESSED_DIR / f"competitors_{datetime.now(WITA).strftime('%Y%m%d_%H%M%S')}.json"
             with open(proc_path, "w", encoding="utf-8") as f:
                 json.dump(raw_competitors, f, ensure_ascii=False, indent=2)
-            log.info(f"💾 Competitors data disimpan: {proc_path}")
+            log.info(f"Competitors data disimpan: {proc_path}")
 
             if not args.dry_run:
                 export_competitors_to_sheet(raw_competitors)
             else:
                 log.info(f"[DRY RUN] {len(raw_competitors)} kompetitor siap di-export:")
                 for c in raw_competitors[:5]:
-                    log.info(f"  → {c['nama_bisnis']} | Rating: {c['rating']} ({c['jumlah_review']} ulasan) | Alamat: {c.get('alamat')}")
+                    log.info(f"  -> {c['nama_bisnis']} | Rating: {c['rating']} ({c['jumlah_review']} ulasan) | Alamat: {c.get('alamat')}")
 
-    log.info("\n✅ Selesai!")
+    log.info("\nSelesai.")
 
 
 if __name__ == "__main__":

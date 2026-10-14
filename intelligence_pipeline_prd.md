@@ -5,7 +5,7 @@
 **Lokasi:** Makassar, Sulawesi Selatan  
 **Industri:** Percetakan (B2B & Retail)  
 **Tanggal:** 14 Oktober 2026  
-**Status:** ✅ APPROVED — Siap Eksekusi
+**Status:** [SELESAI] APPROVED — Siap Eksekusi
 
 > [!IMPORTANT]
 > **INSTRUKSI UNTUK AGENT:** Dokumen ini adalah **single source of truth** untuk seluruh project.
@@ -102,13 +102,13 @@ Percetakan di Makassar yang aktif di Google Maps dan social media. Nama spesifik
 | **Skala target** | 100-500 leads + 10-20 kompetitor/bulan | Volume sedang |
 
 ### Larangan Teknis (Hard Rules)
-1. ❌ **JANGAN** gunakan LLM API berbayar (OpenAI, Anthropic, dll)
-2. ❌ **JANGAN** gunakan Ollama/model lokal (RAM tidak cukup)
-3. ❌ **JANGAN** jalankan lebih dari 1 headless browser bersamaan
-4. ❌ **JANGAN** install Docker containers berat (RAM constraint)
-5. ❌ **JANGAN** gunakan proxy berbayar
-6. ✅ **BOLEH** gunakan Gemini API jika ada free tier yang cukup
-7. ✅ **BOLEH** upgrade constraint di masa depan dengan persetujuan owner
+1. [DILARANG] **JANGAN** gunakan LLM API berbayar (OpenAI, Anthropic, dll)
+2. [DILARANG] **JANGAN** gunakan Ollama/model lokal (RAM tidak cukup)
+3. [DILARANG] **JANGAN** jalankan lebih dari 1 headless browser bersamaan
+4. [DILARANG] **JANGAN** install Docker containers berat (RAM constraint)
+5. [DILARANG] **JANGAN** gunakan proxy berbayar
+6. [SELESAI] **BOLEH** gunakan Gemini API jika ada free tier yang cukup
+7. [SELESAI] **BOLEH** upgrade constraint di masa depan dengan persetujuan owner
 
 ---
 
@@ -181,7 +181,7 @@ Percetakan di Makassar yang aktif di Google Maps dan social media. Nama spesifik
 ### Core Framework
 | Komponen | Tool | Versi | Alasan Pemilihan |
 |----------|------|-------|------------------|
-| **Scraping Framework** | [Scrapling](https://github.com/D4Vinci/Scrapling) | Latest | ⭐87.5k stars, adaptive selectors, stealth bypass, MCP built-in, Python native, ringan |
+| **Scraping Framework** | [Scrapling](https://github.com/D4Vinci/Scrapling) | Latest |  bintang87.5k stars, adaptive selectors, stealth bypass, MCP built-in, Python native, ringan |
 | **HTTP Fetching** | Scrapling `Fetcher` | — | Untuk Google Maps (HTTP tanpa browser) |
 | **Stealth Browsing** | Scrapling `StealthyFetcher` | — | Untuk Instagram & TikTok (bypass anti-bot) |
 | **HTML Parsing** | Scrapling Parser | — | Adaptive CSS/XPath, survive layout changes |
@@ -189,10 +189,10 @@ Percetakan di Makassar yang aktif di Google Maps dan social media. Nama spesifik
 ### Infrastructure (SUDAH ADA)
 | Komponen | Tool | Status |
 |----------|------|--------|
-| **MCP Server** | Python MCP SDK (stdio) | ✅ Sudah dibangun |
-| **Database** | Google Sheets API v4 | ✅ Sudah terkoneksi |
-| **Auth** | GCP Service Account | ✅ Sudah dikonfigurasi |
-| **Env Management** | python-dotenv | ✅ Sudah ada |
+| **MCP Server** | Python MCP SDK (stdio) | [SELESAI] Sudah dibangun |
+| **Database** | Google Sheets API v4 | [SELESAI] Sudah terkoneksi |
+| **Auth** | GCP Service Account | [SELESAI] Sudah dikonfigurasi |
+| **Env Management** | python-dotenv | [SELESAI] Sudah ada |
 
 ### Dependencies Baru yang Dibutuhkan
 ```
@@ -209,7 +209,7 @@ scrapling install            # Download browser dependencies
 
 ## 6. Module A — Infrastructure & MCP (SELESAI)
 
-> **Status: ✅ COMPLETE**
+> **Status: [SELESAI] COMPLETE**
 
 ### Yang Sudah Ada
 - `hermes-mcp-server/server.py` — MCP server via stdio transport
@@ -233,7 +233,7 @@ scrapling install            # Download browser dependencies
 
 ## 7. Module B — Google Maps Scraper
 
-> **Status: 🔲 BELUM DIBANGUN**  
+> **Status: [BELUM DIBANGUN] BELUM DIBANGUN**  
 > **Prioritas: #1 (paling valuable, paling mudah)**  
 > **Estimasi Build Time: 2-4 jam**
 
@@ -320,7 +320,7 @@ GMAPS_SCHEMA = {
 
 ## 8. Module C — Instagram Scraper
 
-> **Status: 🔲 BELUM DIBANGUN**  
+> **Status: [BELUM DIBANGUN] BELUM DIBANGUN**  
 > **Prioritas: #2**  
 > **Estimasi Build Time: 3-5 jam**
 
@@ -399,7 +399,7 @@ IG_SCHEMA = {
 
 ## 9. Module D — TikTok Scraper
 
-> **Status: 🔲 BELUM DIBANGUN**  
+> **Status: [BELUM DIBANGUN] BELUM DIBANGUN**  
 > **Prioritas: #3**  
 > **Estimasi Build Time: 3-5 jam**
 
@@ -454,7 +454,7 @@ TIKTOK_SCHEMA = {
 
 ## 10. Module E — Lead Scoring Engine
 
-> **Status: 🔲 BELUM DIBANGUN**  
+> **Status: [BELUM DIBANGUN] BELUM DIBANGUN**  
 > **Prioritas: Dibangun bersamaan Module B**  
 > **Estimasi Build Time: 1-2 jam**
 
@@ -487,10 +487,10 @@ SCORING_RULES = {
 ### Skor Interpretasi
 | Skor | Label | Aksi |
 |------|-------|------|
-| 8-10 | 🔥 HOT | Follow up dalam 24 jam |
-| 5-7 | 🟡 WARM | Follow up dalam 1 minggu |
-| 3-4 | 🔵 COOL | Masukkan ke nurturing list |
-| 1-2 | ⚪ COLD | Arsipkan, cek ulang 3 bulan |
+| 8-10 |  HOT | Follow up dalam 24 jam |
+| 5-7 |  WARM | Follow up dalam 1 minggu |
+| 3-4 |  COOL | Masukkan ke nurturing list |
+| 1-2 |  COLD | Arsipkan, cek ulang 3 bulan |
 
 ### Implementasi
 - Rule-based logic di Python (BUKAN LLM)
@@ -501,7 +501,7 @@ SCORING_RULES = {
 
 ## 11. Module F — Competitor Matrix
 
-> **Status: 🔲 BELUM DIBANGUN**  
+> **Status: [BELUM DIBANGUN] BELUM DIBANGUN**  
 > **Prioritas: Dibangun bersamaan Module B & C**  
 > **Estimasi Build Time: 2-3 jam**
 
@@ -604,7 +604,7 @@ SOP_KEYWORDS = [
 DATA CALON CUSTOMER/
 ├── intelligence_pipeline_prd.md     ← DOKUMEN INI (Single Source of Truth)
 │
-├── hermes-mcp-server/               ← Module A (✅ SELESAI)
+├── hermes-mcp-server/               ← Module A ([SELESAI] SELESAI)
 │   ├── server.py                     # MCP Server (Google Sheets)
 │   ├── init_pipeline_sheets.py       # Script inisialisasi sheets
 │   ├── requirements.txt              # Dependencies Module A

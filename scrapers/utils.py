@@ -165,7 +165,7 @@ def append_rows_to_sheet(sheet_name: str, rows: list[list[str]], action: str = "
             headers={"Content-Type": "application/json"},
         )
         with urllib.request.urlopen(req, timeout=30) as resp:
-            logger.info(f"✅ {len(rows)} baris terkirim ke Google Sheets ('{sheet_name}') via Webhook [Action: {action}]")
+            logger.info(f"{len(rows)} baris terkirim ke Google Sheets ('{sheet_name}') via Webhook [Action: {action}]")
             return len(rows)
 
     # METODE 2: Official Google Sheets API v4
@@ -186,7 +186,7 @@ def append_rows_to_sheet(sheet_name: str, rows: list[list[str]], action: str = "
         .execute()
     )
     updated = result.get("updates", {}).get("updatedRows", 0)
-    logger.info(f"✅ {updated} baris ditambahkan ke '{sheet_name}'")
+    logger.info(f"{updated} baris ditambahkan ke '{sheet_name}'")
     return updated
 
 

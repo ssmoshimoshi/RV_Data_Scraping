@@ -3,7 +3,7 @@ RUANG VISUAL — Telegram Notifier Module
 =======================================
 Mengirimkan notifikasi eksekutif, rekap calon customer baru,
 rekomendasi hot leads, dan alert error langsung ke Telegram.
-Mendukung bot token & group ID untuk owner RUANG VISUAL.
+Mendukung bot token dan chat ID untuk tim RUANG VISUAL.
 """
 
 import json
@@ -39,7 +39,7 @@ def send_telegram_message(html_text: str, token: str = "", chat_id: str = "") ->
     target_chat_id = chat_id or env_chat_id
 
     if not bot_token or not target_chat_id:
-        log.warning("⚠️  TELEGRAM_BOT_TOKEN atau TELEGRAM_CHAT_ID belum diset di .env")
+        log.warning("TELEGRAM_BOT_TOKEN atau TELEGRAM_CHAT_ID belum diset di .env")
         return False
 
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
@@ -56,13 +56,13 @@ def send_telegram_message(html_text: str, token: str = "", chat_id: str = "") ->
         with urllib.request.urlopen(req, timeout=15) as resp:
             res = json.loads(resp.read().decode())
             if res.get("ok"):
-                log.info("📲 Notifikasi Telegram berhasil terkirim!")
+                log.info("Notifikasi Telegram berhasil terkirim.")
                 return True
             else:
                 log.warning(f"Telegram API warning: {res}")
                 return False
     except Exception as e:
-        log.error(f"❌ Gagal mengirim notifikasi Telegram: {e}")
+        log.error(f"Gagal mengirim notifikasi Telegram: {e}")
         return False
 
 
@@ -93,47 +93,46 @@ def send_pipeline_summary(
     timestamp = now_wita()
 
     lines = [
-        "🏢 <b>RUANG VISUAL — Market Intelligence Report</b>",
-        f"📅 <i>{timestamp} WITA | Mode: {mode}</i>",
+        "<b>RUANG VISUAL — Laporan Market Intelligence</b>",
+        f"<i>Waktu: {timestamp} WITA | Mode: {mode}</i>",
         "",
-        "📊 <b>Ringkasan Eksekutif:</b>",
-        f"• Calon Customer Baru: <b>{total_leads} Leads</b>",
-        f"• Hot Leads Prioritas: <b>{len(hot_leads)} Bisnis</b> 🔥",
+        "<b>Ringkasan Eksekutif:</b>",
+        f"- Calon Customer Baru: <b>{total_leads} Leads</b>",
+        f"- Prospek Prioritas (HOT): <b>{len(hot_leads)} Bisnis</b>",
     ]
 
     if total_competitors > 0:
-        lines.append(f"• Matriks Kompetitor Makassar: <b>{total_competitors} Percetakan</b>")
+        lines.append(f"- Matriks Kompetitor Makassar: <b>{total_competitors} Percetakan</b>")
     if total_signals > 0:
-        lines.append(f"• Sinyal Tren Pasar Terdeteksi: <b>{total_signals} Tren</b>")
+        lines.append(f"- Sinyal Tren Pasar Terdeteksi: <b>{total_signals} Topik</b>")
 
     if duration_sec > 0:
-        lines.append(f"• Durasi Eksekusi: <code>{duration_sec:.1f} detik</code>")
+        lines.append(f"- Durasi Eksekusi: <code>{duration_sec:.1f} detik</code>")
 
     # Rekomendasi Hot Leads (Top 5)
     if hot_leads:
         lines.append("")
-        lines.append("🔥 <b>Rekomendasi Hot Leads (Siap Follow-up):</b>")
+        lines.append("<b>Daftar Prospek Prioritas (HOT Leads):</b>")
         for i, lead in enumerate(hot_leads[:5], 1):
             nama = lead.get("nama_bisnis", "Bisnis")
             kategori = lead.get("kategori", "Umum").upper()
             skor = lead.get("skor", 8.0)
             telepon = lead.get("telepon", "")
             wa_link = format_wa_link(telepon)
-            reasons = lead.get("skor_reasons", "")
-            kebutuhan = lead.get("proyeksi_kebutuhan", "Kemasan & Display Promosi")
+            kebutuhan = lead.get("proyeksi_kebutuhan", "Kemasan dan Display Promosi")
 
             lead_str = f"<b>{i}. {nama}</b> [Skor: {skor:.1f} | {kategori}]"
             if wa_link:
-                lead_str += f"\n   📱 <a href=\"{wa_link}\">Kirim WhatsApp ({telepon})</a>"
+                lead_str += f"\n   Kontak: <a href=\"{wa_link}\">Kirim WhatsApp ({telepon})</a>"
             elif telepon:
-                lead_str += f"\n   📞 Telp: <code>{telepon}</code>"
+                lead_str += f"\n   Telepon: <code>{telepon}</code>"
             if kebutuhan:
-                lead_str += f"\n   💡 <i>Kebutuhan: {kebutuhan}</i>"
+                lead_str += f"\n   Kebutuhan: <i>{kebutuhan}</i>"
             lines.append(lead_str)
 
     lines.append("")
-    lines.append("📈 <b>Status Data:</b> Data otomatis tersinkronisasi ke Google Spreadsheet!")
-    lines.append("🚀 <i>Pipeline berjalan via Cloud Automation tanpa membebani laptop.</i>")
+    lines.append("<b>Status Data:</b> Data berhasil disinkronkan ke Google Spreadsheet.")
+    lines.append("<i>Pipeline berjalan melalui otomasi cloud server.</i>")
 
     message = "\n".join(lines)
     return send_telegram_message(message)
@@ -143,32 +142,10 @@ def send_error_alert(module_name: str, error_msg: str) -> bool:
     """Kirim notifikasi jika terjadi kendala pada pipeline."""
     timestamp = now_wita()
     text = (
-        f"⚠️ <b>RUANG VISUAL — Pipeline Warning</b>\n"
-        f"📅 <i>{timestamp} WITA</i>\n\n"
-        f"Terjadi kendala pada modul <b>{module_name}</b>:\n"
-        f"<code>{error_msg[:300]}</code>\n\n"
+        f"<b>RUANG VISUAL — Pemberitahuan Kendala Sistem</b>\n"
+        f"<i>Waktu: {timestamp} WITA</i>\n\n"
+        f"Modul terkait: <b>{module_name}</b>\n"
+        f"Pesan error: <code>{error_msg[:300]}</code>\n\n"
         f"<i>Sistem tetap berlanjut dan data aman tersimpan.</i>"
     )
     return send_telegram_message(text)
-
-
-if __name__ == "__main__":
-    print("Testing Telegram Notifier...")
-    sample_hot_leads = [
-        {
-            "nama_bisnis": "Kopi Se-Nusantara Panakkukang",
-            "kategori": "F&B",
-            "skor": 9.2,
-            "telepon": "081234567890",
-            "proyeksi_kebutuhan": "Packaging lunch box, cup custom, stiker segel",
-        }
-    ]
-    ok = send_pipeline_summary(
-        total_leads=5,
-        hot_leads=sample_hot_leads,
-        total_competitors=16,
-        total_signals=7,
-        duration_sec=12.4,
-        mode="Manual Test",
-    )
-    print("Test Result:", ok)

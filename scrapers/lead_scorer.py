@@ -120,7 +120,7 @@ def get_score_label(score: int) -> str:
     for (low, high), label in SCORE_LABELS.items():
         if low <= score <= high:
             return label
-    return "⚪ COLD"
+    return "COLD"
 
 
 def score_and_format(lead: dict) -> dict:

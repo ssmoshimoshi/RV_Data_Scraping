@@ -1,24 +1,24 @@
-# 🏢 RUANG VISUAL — Market Intelligence & Lead Generation Pipeline
+# RUANG VISUAL - Market Intelligence & Lead Generation Pipeline
 
 > **Sistem Otomatisasi Pencarian Calon Customer & Analisis Kompetitor Percetakan Wilayah Makassar**  
 > Dibuat khusus untuk PT Estetika Ruang Visual berdasarkan dokumen acuan [`intelligence_pipeline_prd.md`](./intelligence_pipeline_prd.md).
 
 ---
 
-## 📌 Modul yang Tersedia
+## Modul yang Tersedia
 
 | Modul | Status | Fungsi Utama |
 | :--- | :---: | :--- |
-| **Module B: Google Maps** | ✅ Siap Pakai | Ekstraksi calon customer (F&B, retail, EO) & percetakan kompetitor lengkap dengan **nomor WhatsApp/telepon** & alamat. |
-| **Module E: Lead Scoring Engine** | ✅ Siap Pakai | Scoring otomatis 1–10 (🔥 HOT / 🟡 WARM / 🔵 COOL) & proyeksi kebutuhan cetak (kemasan, banner, stiker cup, dll). |
-| **Module F: Competitor Matrix** | ✅ Siap Pakai | Pemetaan skala kapasitas kompetitor, analisis celah pelayanan/kualitas, dan strategi positioning RUANG VISUAL. |
-| **Module C: Instagram Scraper** | ✅ Siap Pakai | Ekstraksi profil bisnis publik tanpa login (follower, bio, link bio WhatsApp, kategori). |
-| **Module D: TikTok Market Signals** | ✅ Siap Pakai | Monitoring tren produk printing viral (packaging box, stiker die-cut) dan kebutuhan pasar terkini. |
-| **Module A: Google Sheets Sync** | ⚙️ Siap Terhubung | Auto-sync data terstruktur ke 4 tab Google Sheets (Radar Prospek, Matriks Kompetitor, Market Signals, Scrape Log). |
+| **Module B: Google Maps** | Siap Pakai | Ekstraksi calon customer (F&B, retail, EO) & percetakan kompetitor lengkap dengan **nomor WhatsApp/telepon** & alamat. |
+| **Module E: Lead Scoring Engine** | Siap Pakai | Scoring otomatis 1–10 (HOT / WARM / COOL) & proyeksi kebutuhan cetak (kemasan, banner, stiker cup, dll). |
+| **Module F: Competitor Matrix** | Siap Pakai | Pemetaan skala kapasitas kompetitor, analisis celah pelayanan/kualitas, dan strategi positioning RUANG VISUAL. |
+| **Module C: Instagram Scraper** | Siap Pakai | Ekstraksi profil bisnis publik tanpa login (follower, bio, link bio WhatsApp, kategori). |
+| **Module D: TikTok Market Signals** | Siap Pakai | Monitoring tren produk printing viral (packaging box, stiker die-cut) dan kebutuhan pasar terkini. |
+| **Module A: Google Sheets Sync** | Siap Terhubung | Auto-sync data terstruktur ke 4 tab Google Sheets (Radar Prospek, Matriks Kompetitor, Market Signals, Scrape Log). |
 
 ---
 
-## 🚀 Panduan Penggunaan Cepat
+## Panduan Penggunaan Cepat
 
 Aktifkan virtual environment terlebih dahulu:
 ```bash
@@ -60,7 +60,7 @@ python run_pipeline.py tiktok --dry-run
 
 ---
 
-## 📊 Lokasi Penyimpanan Data Lokal
+## Lokasi Penyimpanan Data Lokal
 
 Semua data hasil scraping secara otomatis tersimpan secara aman dalam format JSON:
 - `data/raw/` : File mentah hasil ekstraksi dari platform.
@@ -72,7 +72,7 @@ Semua data hasil scraping secara otomatis tersimpan secara aman dalam format JSO
 
 ---
 
-## 🔗 Menghubungkan ke Google Sheets (Opsional)
+## Menghubungkan ke Google Sheets (Opsional)
 
 Jika ingin data otomatis disinkronkan ke Google Sheets:
 1. Letakkan file kredensial Google Service Account di `hermes-mcp-server/credentials/service-account.json`.

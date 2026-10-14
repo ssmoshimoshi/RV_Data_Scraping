@@ -20,12 +20,12 @@ SPREADSHEET_ID = os.getenv("SPREADSHEET_ID", "").strip()
 
 def check_environment():
     if not os.path.exists(SERVICE_ACCOUNT_FILE):
-        print(f"❌ File kredensial tidak ditemukan: {SERVICE_ACCOUNT_FILE}")
+        print(f"[ERROR] File kredensial tidak ditemukan: {SERVICE_ACCOUNT_FILE}")
         print("   Pastikan file JSON Service Account sudah diletakkan di folder credentials/")
         return False
 
     if not SPREADSHEET_ID or SPREADSHEET_ID == "your-spreadsheet-id-here":
-        print("❌ SPREADSHEET_ID belum diisi di file .env!")
+        print("[ERROR] SPREADSHEET_ID belum diisi di file .env!")
         return False
 
     return True
@@ -34,7 +34,7 @@ def initialize_sheets():
     if not check_environment():
         sys.exit(1)
 
-    print(f"🔍 Menghubungkan ke Google Sheets API...")
+    print("Menghubungkan ke Google Sheets API...")
     scopes = ["https://www.googleapis.com/auth/spreadsheets"]
     credentials = service_account.Credentials.from_service_account_file(
         SERVICE_ACCOUNT_FILE, scopes=scopes
@@ -44,7 +44,7 @@ def initialize_sheets():
     # 1. Dapatkan info spreadsheet yang ada
     sheet_metadata = service.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
     existing_sheets = [s["properties"]["title"] for s in sheet_metadata.get("sheets", [])]
-    print(f"📄 Spreadsheet terdeteksi: '{sheet_metadata.get('properties', {}).get('title', '')}'")
+    print(f"Spreadsheet terdeteksi: '{sheet_metadata.get('properties', {}).get('title', '')}'")
     print(f"   Tab yang sudah ada: {existing_sheets}")
 
     # Struktur kolom sesuai PRD
@@ -71,7 +71,7 @@ def initialize_sheets():
     requests = []
     for title in target_sheets.keys():
         if title not in existing_sheets:
-            print(f"➕ Menyiapkan tab baru: '{title}'...")
+            print(f"Menyiapkan tab baru: '{title}'...")
             requests.append({"addSheet": {"properties": {"title": title}}})
 
     if requests:
@@ -79,11 +79,11 @@ def initialize_sheets():
             spreadsheetId=SPREADSHEET_ID,
             body={"requests": requests}
         ).execute()
-        print("✅ Tab berhasil dibuat!")
+        print("Tab berhasil dibuat.")
 
     # 3. Tulis Header Kolom
     for title, headers in target_sheets.items():
-        print(f"📝 Memeriksa header untuk '{title}'...")
+        print(f"Memeriksa header untuk '{title}'...")
         range_name = f"{title}!A1:Z1"
         current_data = service.spreadsheets().values().get(
             spreadsheetId=SPREADSHEET_ID, range=range_name
@@ -96,11 +96,11 @@ def initialize_sheets():
                 valueInputOption="USER_ENTERED",
                 body={"values": [headers]}
             ).execute()
-            print(f"   ✅ Header berhasil ditulis di '{title}': {headers}")
+            print(f"   Header berhasil ditulis di '{title}': {headers}")
         else:
-            print(f"   ℹ️ Header di '{title}' sudah ada, tidak ditimpa.")
+            print(f"   Header di '{title}' sudah ada, tidak ditimpa.")
 
-    print("\n🎉 INISIALISASI SELESAI! Google Sheets siap digunakan oleh Hermes.")
+    print("\nINISIALISASI SELESAI. Google Sheets siap digunakan.")
 
 if __name__ == "__main__":
     initialize_sheets()

@@ -73,7 +73,7 @@ def scan_market_signals(keywords: list[str]) -> list[dict]:
     """
     Pindai daftar kata kunci dan ekstrak sinyal pasar terkini.
     """
-    log.info(f"🎵 Memulai Market Signals scanning ({len(keywords)} topik)...")
+    log.info(f"Memulai Market Signals scanning ({len(keywords)} topik)...")
     signals = []
 
     for i, kw in enumerate(keywords, 1):
@@ -90,14 +90,14 @@ HEADERS_MARKET_SIGNALS = [
 ]
 
 
-def format_link_hyperlink(url: str, label: str = "🔗 Lihat Tren") -> str:
+def format_link_hyperlink(url: str, label: str = "Lihat Tren") -> str:
     if not url:
         return "-"
-    return f'=HYPERLINK("{url}"; "{label}")'
+    return f'=HYPERLINK("{url}", "{label}")'
 
 
 def export_signals_to_sheet(signals: list[dict], action: str = "append"):
-    """Export daftar sinyal pasar ke Google Sheets tab 'Market Signals' dengan format eksekutif."""
+    """Export daftar sinyal pasar ke Google Sheets tab 'Market Signals'."""
     rows = []
     for s in signals:
         url = s.get("url", "")
@@ -112,11 +112,11 @@ def export_signals_to_sheet(signals: list[dict], action: str = "append"):
         rows.append(row)
 
     try:
-        append_rows_to_sheet("📈 Market Signals", rows, action=action, headers=HEADERS_MARKET_SIGNALS)
-        log.info(f"📊 {len(rows)} sinyal pasar di-export ke '📈 Market Signals'")
+        append_rows_to_sheet("Market Signals", rows, action=action, headers=HEADERS_MARKET_SIGNALS)
+        log.info(f"{len(rows)} sinyal pasar di-export ke 'Market Signals'")
     except Exception as e:
-        log.warning(f"⚠️  Belum bisa export ke Google Sheets: {e}")
-        log.info("ℹ️  Data sinyal pasar tetap tersimpan di folder data/processed/")
+        log.warning(f"Belum bisa export ke Google Sheets: {e}")
+        log.info("Data sinyal pasar tetap tersimpan di folder data/processed/")
 
 
 def main():
@@ -137,7 +137,7 @@ def main():
     args = parser.parse_args()
 
     log.info("=" * 60)
-    log.info("🎵  RUANG VISUAL — TikTok Market Signals Engine")
+    log.info("RUANG VISUAL - TikTok Market Signals Engine")
     log.info("=" * 60)
 
     if args.keywords:
@@ -151,19 +151,19 @@ def main():
         out_file = PROCESSED_DIR / f"market_signals_{datetime.now(WITA).strftime('%Y%m%d_%H%M%S')}.json"
         with open(out_file, "w", encoding="utf-8") as f:
             json.dump(signals, f, ensure_ascii=False, indent=2)
-        log.info(f"💾 Sinyal pasar tersimpan: {out_file}")
+        log.info(f"Sinyal pasar tersimpan: {out_file}")
 
-        log.info("\n📈 IKHTISAR SINYAL PASAR & INSIGHT UNTUK RUANG VISUAL:")
+        log.info("\nIKHTISAR SINYAL PASAR DAN INSIGHT UNTUK RUANG VISUAL:")
         for i, s in enumerate(signals, 1):
             log.info(f"\n[{i}] {s['signal']}")
             log.info(f"    Platform : {s['platform']} | Metrik: {s['metrik']}")
-            log.info(f"    💡 Relevansi: {s['relevansi']}")
-            log.info(f"    🔗 Referensi: {s['url']}")
+            log.info(f"    Relevansi: {s['relevansi']}")
+            log.info(f"    Referensi: {s['url']}")
 
         if not args.dry_run:
             export_signals_to_sheet(signals)
 
-    log.info("\n✅ Selesai!")
+    log.info("\nSelesai.")
 
 
 if __name__ == "__main__":
