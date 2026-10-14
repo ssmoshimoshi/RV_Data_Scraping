@@ -1,0 +1,35 @@
+# Virtual environment
+.venv/
+scrapers/.venv/
+
+# Environment files & secrets (NEVER COMMIT)
+.env
+.env.*
+*.env
+hermes-mcp-server/.env
+credentials/
+hermes-mcp-server/credentials/
+*.json
+!package*.json
+
+# Data files (local cache)
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+*.html
+
+# Python cache
+__pycache__/
+*/__pycache__/
+*.pyc
+*.pyo
+
+# Logs
+*.log
+logs/
+hermes-mcp-server/logs/
+
+# OS files
+.DS_Store
+Thumbs.db

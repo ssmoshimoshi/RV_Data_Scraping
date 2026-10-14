@@ -1,0 +1,16 @@
+# ============================================================
+# RUANG VISUAL — Scraper Dependencies
+# Referensi: intelligence_pipeline_prd.md §5
+# ============================================================
+
+# Core scraping framework (adaptive selectors, stealth, MCP)
+scrapling[fetchers]
+playwright>=1.40.0
+patchright>=1.40.0
+
+# Google Sheets API (shared with hermes-mcp-server)
+google-auth>=2.27.0
+google-api-python-client>=2.120.0
+
+# Environment variable management
+python-dotenv>=1.0.1

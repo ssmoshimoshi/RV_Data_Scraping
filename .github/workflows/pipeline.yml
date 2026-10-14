@@ -1,0 +1,92 @@
+name: RUANG VISUAL — Market Intelligence Pipeline
+
+on:
+  # 1. Jadwal Otomatis: Setiap Senin & Kamis pukul 09:00 WITA (01:00 UTC)
+  schedule:
+    - cron: '0 1 * * 1,4'
+
+  # 2. Eksekusi Manual dari HP / Web GitHub (On-Demand)
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Pilih modul pipeline'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - gmaps
+          - matrix
+          - tiktok
+          - export-csv
+      limit:
+        description: 'Batas query pencarian (default: 2)'
+        required: false
+        default: '2'
+      dry_run:
+        description: 'Dry run (tidak sync ke Google Sheets)'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  run-pipeline:
+    name: Run Intelligence Pipeline
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: 📦 Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r scrapers/requirements.txt
+
+      - name: 🌐 Install Playwright Headless Browser
+        run: |
+          playwright install --with-deps chromium
+
+      - name: 🚀 Run Pipeline & Send Telegram Report
+        env:
+          GOOGLE_SHEET_WEBHOOK_URL: ${{ secrets.GOOGLE_SHEET_WEBHOOK_URL }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          MODE="${{ github.event.inputs.mode || 'all' }}"
+          LIMIT="${{ github.event.inputs.limit || '2' }}"
+          DRY_RUN="${{ github.event.inputs.dry_run }}"
+
+          CMD="python run_pipeline.py $MODE"
+          if [ "$MODE" = "all" ] || [ "$MODE" = "gmaps" ]; then
+            CMD="$CMD --limit $LIMIT"
+          fi
+          if [ "$DRY_RUN" = "true" ]; then
+            CMD="$CMD --dry-run"
+          fi
+          if [ "$MODE" = "all" ]; then
+            CMD="$CMD --notify-telegram"
+          fi
+
+          echo "Menjalankan perintah: $CMD"
+          eval $CMD
+
+      - name: 📊 Commit & Push Local Processed Data (Optional Sync)
+        if: success()
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/processed/*.csv 2>/dev/null || true
+          if git diff --staged --quiet; then
+            echo "Tidak ada perubahan data CSV baru untuk di-commit."
+          else
+            git commit -m "chore(data): auto-update processed CSV data [skip ci]"
+            git push || echo "Push skipped"
+          fi
