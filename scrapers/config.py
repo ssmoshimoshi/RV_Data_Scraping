@@ -1,8 +1,9 @@
 """
-RUANG VISUAL — Shared Configuration
+RUANG VISUAL - Shared Configuration
 =====================================
 Semua konfigurasi queries, keywords, delays, dan scoring rules.
-Referensi: intelligence_pipeline_prd.md §7-§11
+Mendukung pencarian berbasis radius dari titik pusat workshop:
+Bua Kana, Rappocini, Makassar (-5.1567, 119.4339)
 """
 
 from pathlib import Path
@@ -18,8 +19,19 @@ PROCESSED_DIR = DATA_DIR / "processed"
 RAW_DIR.mkdir(parents=True, exist_ok=True)
 PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
 
+# ─── Titik Pusat Workshop RUANG VISUAL (Epicenter) ───────────────────────────
+RV_LATITUDE = -5.1566941
+RV_LONGITUDE = 119.4338932
+RV_LOCATION_NAME = "Bua Kana, Rappocini, Makassar"
+
+# Kata kunci area sekitar titik pusat untuk pemberian bonus kedekatan lokasi (+2 skor)
+RV_NEARBY_KEYWORDS = [
+    "rappocini", "bua kana", "pettarani", "hertasning",
+    "tidung", "ballaparang", "karunrung", "mapala",
+    "minasa upa", "alauddin", "veteran selatan", "emmy saelan",
+]
+
 # ─── Rate Limiting ────────────────────────────────────────────────────────────
-# WAJIB dipatuhi — lihat PRD §3 System Constraints
 GMAPS_DELAY_SECONDS = (3, 5)        # Random delay antara 3-5 detik
 INSTAGRAM_DELAY_SECONDS = (5, 10)   # Random delay antara 5-10 detik
 TIKTOK_DELAY_SECONDS = (5, 10)      # Random delay antara 5-10 detik
@@ -27,29 +39,40 @@ TIKTOK_DELAY_SECONDS = (5, 10)      # Random delay antara 5-10 detik
 INSTAGRAM_MAX_PAGES_PER_SESSION = 15
 TIKTOK_MAX_PAGES_PER_SESSION = 15
 
-# ─── Google Maps Queries (PRD §7) ────────────────────────────────────────────
-
+# ─── Google Maps Queries Berbasis Ring & Sektor ──────────────────────────────
+# Disusun dari ring terdekat dari workshop RUANG VISUAL (Bua Kana, Rappocini) meluas ke koridor bisnis utama
 GMAPS_LEAD_QUERIES = [
-    # F&B (prioritas tinggi — sering butuh menu, banner, packaging)
-    "cafe baru Makassar",
-    "restoran baru Makassar",
-    "kedai kopi Makassar",
-    "catering Makassar",
+    # RING 1: Radius Inti (0 - 2 km: Bua Kana, Rappocini, Pettarani Selatan, Hertasning Awal)
+    "kantor konsultan Jl AP Pettarani Makassar",
+    "agensi Jl AP Pettarani Makassar",
+    "developer perumahan Hertasning Makassar",
+    "kantor pemasaran perumahan Makassar",
+    "toko emas Veteran Makassar",
+    "klinik kecantikan Hertasning Makassar",
+    "cafe Rappocini Makassar",
+    "restoran Hertasning Makassar",
+    "notaris Rappocini Makassar",
+    "butik Hertasning Makassar",
+    "coffee shop Pettarani Makassar",
 
-    # Retail & UMKM
-    "toko baru Makassar",
-    "UMKM Makassar",
-    "oleh-oleh khas Makassar",
-
-    # Event & Jasa
-    "event organizer Makassar",
+    # RING 2: Koridor Bisnis Utama (2 - 4 km: Panakkukang, Boulevard, Pengayoman, Alauddin)
+    "kantor Panakkukang Makassar",
+    "coworking space Panakkukang Makassar",
+    "cafe Boulevard Makassar",
+    "restoran Pengayoman Makassar",
+    "butik Pengayoman Makassar",
+    "event organizer Panakkukang Makassar",
     "wedding organizer Makassar",
-    "jasa fotografi Makassar",
+    "dental clinic Makassar",
+    "sekolah swasta Makassar",
+    "toko oleh-oleh Makassar",
 
-    # Instansi & Kantor
-    "kantor baru Makassar",
-    "coworking space Makassar",
-    "klinik baru Makassar",
+    # RING 3: Sentra Perdagangan & Heritage (4 - 7 km: Somba Opu, Losari, Ujung Pandang)
+    "toko emas Somba Opu Makassar",
+    "toko perhiasan Makassar",
+    "wedding venue Makassar",
+    "studio foto Makassar",
+    "hotel resto Losari Makassar",
 ]
 
 GMAPS_COMPETITOR_QUERIES = [
@@ -62,8 +85,7 @@ GMAPS_COMPETITOR_QUERIES = [
     "printing Makassar",
 ]
 
-# ─── Instagram Config (PRD §8) ───────────────────────────────────────────────
-
+# ─── Instagram Config ────────────────────────────────────────────────────────
 IG_HASHTAGS = [
     "percetakanmakassar",
     "cetakmakassar",
@@ -75,8 +97,7 @@ IG_HASHTAGS = [
     "percetakan",
 ]
 
-# ─── TikTok Config (PRD §9) ──────────────────────────────────────────────────
-
+# ─── TikTok Config ───────────────────────────────────────────────────────────
 TIKTOK_KEYWORDS = [
     "percetakan Makassar",
     "cetak stiker",
@@ -87,23 +108,34 @@ TIKTOK_KEYWORDS = [
     "usaha percetakan",
 ]
 
-# ─── Lead Scoring Rules (PRD §10) ────────────────────────────────────────────
-
+# ─── Lead Scoring Rules ──────────────────────────────────────────────────────
 SCORING_RULES = {
-    # Faktor Positif (tambah skor)
+    # Faktor Positif
     "ada_nomor_telepon":         2,
     "ada_website":               1,
     "ada_akun_instagram":        1,
+
+    # Bobot Kategori Sektor
+    "kategori_property":         3,
+    "kategori_emas_jewelry":     3,
+    "kategori_kantor_agensi":    3,
+    "kategori_klinik_estetika":  3,
     "kategori_fnb":              3,
     "kategori_eo":               3,
+    "kategori_fashion_butik":    2,
     "kategori_retail":           2,
-    "kategori_instansi":         2,
+    "kategori_pendidikan":       2,
+
+    # Bobot Kedekatan Geografis (Radius Terdekat Workshop)
+    "lokasi_dekat_rv":           2,   # Bonus jika berada di Bua Kana/Rappocini/Pettarani/Hertasning
+    "lokasi_makassar_kota":      1,
+
+    # Usia Bisnis & Kondisi Review
     "bisnis_baru_6bulan":        2,
     "bisnis_baru_3bulan":        3,
     "rating_dibawah_4":          1,
-    "lokasi_makassar_kota":      1,
 
-    # Faktor Negatif (kurangi skor)
+    # Faktor Negatif
     "sudah_punya_branding_kuat": -2,
     "franchise_nasional":        -3,
 }
@@ -115,8 +147,7 @@ SCORE_LABELS = {
     (1, 2):  "COLD",
 }
 
-# ─── Competitor Review Keywords (PRD §11) ────────────────────────────────────
-
+# ─── Competitor Review Keywords ──────────────────────────────────────────────
 QUALITY_KEYWORDS = [
     "warna meleset", "warna beda", "kualitas jelek", "buram", "pudar",
     "tipis", "sobek", "tidak rapi", "berantakan", "luntur", "garis",
@@ -130,26 +161,46 @@ SOP_KEYWORDS = [
     "tidak profesional", "mengecewakan",
 ]
 
-# ─── Kategori Bisnis Mapping ─────────────────────────────────────────────────
-# Digunakan untuk auto-detect kategori dari nama/tipe bisnis Google Maps
-
+# ─── Kategori Bisnis Mapping (Ekspansi 9 Sektor) ──────────────────────────────
 CATEGORY_MAP = {
+    "property": [
+        "developer", "perumahan", "property", "properti", "cluster",
+        "residence", "real estate", "agen properti", "kavling", "graha",
+    ],
+    "emas_jewelry": [
+        "toko emas", "emas", "jewelry", "perhiasan", "jewellery",
+        "berlian", "permata", "gold", "logam mulia",
+    ],
+    "kantor_agensi": [
+        "kantor", "office", "agency", "agensi", "konsultan", "consultant",
+        "notaris", "lawyer", "hukum", "advokat", "asuransi", "finance",
+        "leasing", "bumn", "coworking", "arsitek", "studio desain",
+    ],
+    "klinik_estetika": [
+        "klinik", "clinic", "aesthetic", "estetika", "skincare",
+        "beauty", "kecantikan", "dokter gigi", "dental", "salon",
+        "barbershop", "spa", "dermatology",
+    ],
+    "fashion_butik": [
+        "butik", "boutique", "hijab", "busana", "fashion", "distro",
+        "pakaian", "baju", "kebaya", "gamis", "sepatu", "tas",
+    ],
     "fnb": [
         "restaurant", "restoran", "cafe", "kafe", "kedai", "coffee",
         "kopi", "warung", "bakery", "catering", "food", "makan",
-        "kuliner", "bar", "bistro", "pizzeria", "sushi",
+        "kuliner", "bar", "bistro", "pizzeria", "sushi", "mie", "dapur",
     ],
     "eo": [
         "event", "wedding", "organizer", "wo ", "eo ", "planner",
-        "dekorasi", "decoration",
+        "dekorasi", "decoration", "fotografi", "studio foto", "photobooth",
+    ],
+    "pendidikan": [
+        "sekolah", "school", "bimbel", "kursus", "akademi", "academy",
+        "preschool", "tk ", "universitas", "kampus", "les ",
     ],
     "retail": [
-        "toko", "shop", "store", "butik", "boutique", "oleh-oleh",
-        "souvenir", "gift", "fashion", "clothing",
-    ],
-    "instansi": [
-        "kantor", "office", "klinik", "clinic", "rumah sakit",
-        "hospital", "sekolah", "school", "universitas", "coworking",
+        "toko", "shop", "store", "oleh-oleh", "souvenir", "gift",
+        "mart", "minimarket", "swalayan", "supermarket",
     ],
     "percetakan": [
         "percetakan", "printing", "cetak", "print", "digital print",
@@ -158,7 +209,6 @@ CATEGORY_MAP = {
 }
 
 # ─── Franchise / Brand Nasional (untuk scoring negatif) ──────────────────────
-
 FRANCHISE_BRANDS = [
     "kopi kenangan", "janji jiwa", "fore coffee", "starbucks",
     "mcdonald", "kfc", "pizza hut", "burger king", "jco",

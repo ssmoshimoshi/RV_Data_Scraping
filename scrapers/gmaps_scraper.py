@@ -29,8 +29,10 @@ from scrapers.config import (
     GMAPS_DELAY_SECONDS,
     RAW_DIR,
     PROCESSED_DIR,
+    RV_LATITUDE,
+    RV_LONGITUDE,
 )
-from scrapers.lead_scorer import detect_category, score_and_format
+from scrapers.lead_scorer import detect_category, score_and_format, is_near_rv
 from scrapers.utils import (
     get_logger,
     rate_limit,
@@ -49,9 +51,9 @@ log = get_logger("gmaps")
 
 # ─── URL Builder ─────────────────────────────────────────────────────────────
 def build_gmaps_search_url(query: str) -> str:
-    """Buat URL pencarian Google Maps."""
+    """Buat URL pencarian Google Maps berpusat pada koordinat workshop RUANG VISUAL."""
     encoded = urllib.parse.quote_plus(query)
-    return f"https://www.google.com/maps/search/{encoded}/"
+    return f"https://www.google.com/maps/search/{encoded}/@{RV_LATITUDE},{RV_LONGITUDE},15z"
 
 
 # ─── Browser-Based Scraper ───────────────────────────────────────────────────
@@ -272,6 +274,9 @@ def process_leads(raw_results: list[dict]) -> list[dict]:
         query = r.get("query_used", "").lower()
         is_new = reviews <= 25 or "baru" in query
 
+        alamat = r.get("alamat", "")
+        near_rv = is_near_rv(alamat, r["nama_bisnis"], query)
+
         lead = {
             "nama_bisnis": r["nama_bisnis"],
             "kategori": kategori,
@@ -281,7 +286,8 @@ def process_leads(raw_results: list[dict]) -> list[dict]:
             "rating": r.get("rating", 0),
             "is_new_3months": is_new,
             "is_new_6months": False,
-            "lokasi_makassar_kota": "makassar" in (r.get("alamat", "") + " " + query).lower(),
+            "lokasi_dekat_rv": near_rv,
+            "lokasi_makassar_kota": "makassar" in (alamat + " " + query).lower(),
         }
 
         scored = score_and_format(lead)
@@ -290,14 +296,19 @@ def process_leads(raw_results: list[dict]) -> list[dict]:
         r["skor_reasons"] = scored["skor_reasons"]
 
         kebutuhan_map = {
-            "fnb": "Packaging box, stiker cup segel, buku menu & banner",
-            "eo": "Backdrop panggung, banner promosi, id card, sertifikat",
-            "retail": "Stiker label kemasan, paper bag, kartu nama, brosur",
-            "instansi": "Buku laporan/agenda, signage, seragam/id card, kop surat",
+            "property": "Brosur lipat 3 mewah, booklet site plan, roll banner pameran, map serah terima kunci",
+            "emas_jewelry": "Kartu garansi/sertifikat emas, amplop nota eksklusif, box perhiasan kustom, paperbag mini premium",
+            "kantor_agensi": "Kop surat resmi, map folder company profile, kartu nama staf, ID card lanyard, stempel flash",
+            "klinik_estetika": "Kartu member gold foil, brosur pricelist treatment, stiker botol/pot krim vinyl tahan air, paperbag klinik",
+            "fashion_butik": "Hang tag label pakaian tebal (doff/glossy), thank you card, stiker segel box, paperbag belanja",
+            "fnb": "Buku menu hardcover anti-air, stiker label cup/botol cutting die-cut, kemasan lunch box kustom, table tent QRIS",
+            "eo": "Undangan eksklusif hardcover, backdrop photobooth, wristband tiket gelang event, booklet rundown acara",
+            "pendidikan": "Brosur PPDB siswa baru, map ijazah/sertifikat tebal, kalender dinding, banner spanduk pendaftaran",
+            "retail": "Stiker label kemasan, paperbag belanja, nota rangkap kustom, roll banner promosi",
             "percetakan": "-",
-            "lainnya": "Banner promosi, brosur kilat, kartu nama",
+            "lainnya": "Banner promosi, brosur kilat, kartu nama, stempel flash",
         }
-        r["proyeksi_kebutuhan"] = kebutuhan_map.get(kategori, "Banner & Media Promosi")
+        r["proyeksi_kebutuhan"] = kebutuhan_map.get(kategori, "Banner promosi & media cetak")
 
         processed.append(r)
 
@@ -348,10 +359,15 @@ def export_leads_to_sheet(leads: list[dict], action: str = "append"):
     rows = []
     for lead in leads:
         kategori_label = {
-            "fnb": "F&B",
-            "eo": "Event Organizer",
+            "property": "Developer/Properti",
+            "emas_jewelry": "Toko Emas/Jewelry",
+            "kantor_agensi": "Kantor/Agensi",
+            "klinik_estetika": "Klinik/Skincare",
+            "fashion_butik": "Fashion/Butik",
+            "fnb": "F&B/Kuliner",
+            "eo": "Event/WO",
+            "pendidikan": "Pendidikan",
             "retail": "Retail/UMKM",
-            "instansi": "Instansi/Kantor",
             "percetakan": "Percetakan",
             "lainnya": "Lainnya",
         }.get(lead.get("kategori_kode", ""), "Lainnya")

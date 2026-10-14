@@ -1,13 +1,15 @@
 """
-RUANG VISUAL — Lead Scoring Engine (Module E)
+RUANG VISUAL - Lead Scoring Engine (Module E)
 ===============================================
 Rule-based scoring untuk setiap lead. Skor 1-10.
+Mendukung pembobotan kedekatan geografis workshop RV dan ekspansi 9 sektor bisnis.
 Referensi: intelligence_pipeline_prd.md §10
 """
 
 from scrapers.config import (
     SCORING_RULES, SCORE_LABELS,
     CATEGORY_MAP, FRANCHISE_BRANDS,
+    RV_NEARBY_KEYWORDS,
 )
 from scrapers.utils import get_logger
 
@@ -17,7 +19,9 @@ log = get_logger("lead-scorer")
 def detect_category(name: str, gmaps_types: str = "", bio: str = "") -> str:
     """
     Auto-detect kategori bisnis dari nama, tipe Google Maps, atau bio IG.
-    Returns: 'fnb', 'eo', 'retail', 'instansi', 'percetakan', atau 'lainnya'
+    Returns salah satu dari 9 kategori:
+    'property', 'emas_jewelry', 'kantor_agensi', 'klinik_estetika',
+    'fashion_butik', 'fnb', 'eo', 'pendidikan', 'retail', atau 'lainnya'.
     """
     text = f"{name} {gmaps_types} {bio}".lower()
 
@@ -35,24 +39,15 @@ def is_franchise(name: str) -> bool:
     return any(brand in name_lower for brand in FRANCHISE_BRANDS)
 
 
+def is_near_rv(address: str, name: str = "", query: str = "") -> bool:
+    """Cek apakah lokasi berada di radius dekat workshop RUANG VISUAL (Rappocini / Bua Kana)."""
+    text = f"{address} {name} {query}".lower()
+    return any(kw in text for kw in RV_NEARBY_KEYWORDS)
+
+
 def calculate_score(lead: dict) -> tuple[int, list[str]]:
     """
     Hitung skor prospek berdasarkan SCORING_RULES.
-
-    Args:
-        lead: dict dengan keys:
-            - nama_bisnis (str)
-            - kategori (str): 'fnb', 'eo', 'retail', 'instansi', dll
-            - telepon (str)
-            - website (str)
-            - instagram (str)
-            - rating (float)
-            - is_new_3months (bool)
-            - is_new_6months (bool)
-            - lokasi_makassar_kota (bool)
-
-    Returns:
-        (score: int, reasons: list[str])
     """
     score = 0
     reasons = []
@@ -70,20 +65,43 @@ def calculate_score(lead: dict) -> tuple[int, list[str]]:
         score += SCORING_RULES["ada_akun_instagram"]
         reasons.append("+1 ada Instagram")
 
-    # --- Kategori ---
+    # --- Kategori (9 Sektor Ekspansi) ---
     kategori = lead.get("kategori", "lainnya")
-    if kategori == "fnb":
+    if kategori == "property":
+        score += SCORING_RULES["kategori_property"]
+        reasons.append("+3 Property & Developer")
+    elif kategori == "emas_jewelry":
+        score += SCORING_RULES["kategori_emas_jewelry"]
+        reasons.append("+3 Toko Emas & Jewelry")
+    elif kategori == "kantor_agensi":
+        score += SCORING_RULES["kategori_kantor_agensi"]
+        reasons.append("+3 Kantor & Agensi")
+    elif kategori == "klinik_estetika":
+        score += SCORING_RULES["kategori_klinik_estetika"]
+        reasons.append("+3 Klinik Estetika & Skincare")
+    elif kategori == "fnb":
         score += SCORING_RULES["kategori_fnb"]
-        reasons.append("+3 F&B")
+        reasons.append("+3 F&B / Kuliner")
     elif kategori == "eo":
         score += SCORING_RULES["kategori_eo"]
-        reasons.append("+3 Event Organizer")
+        reasons.append("+3 Event & Wedding Organizer")
+    elif kategori == "fashion_butik":
+        score += SCORING_RULES["kategori_fashion_butik"]
+        reasons.append("+2 Fashion & Butik")
     elif kategori == "retail":
         score += SCORING_RULES["kategori_retail"]
         reasons.append("+2 Retail")
-    elif kategori == "instansi":
-        score += SCORING_RULES["kategori_instansi"]
-        reasons.append("+2 Instansi/Kantor")
+    elif kategori == "pendidikan":
+        score += SCORING_RULES["kategori_pendidikan"]
+        reasons.append("+2 Pendidikan")
+
+    # --- Kedekatan Geografis (Radius Workshop) ---
+    if lead.get("lokasi_dekat_rv"):
+        score += SCORING_RULES["lokasi_dekat_rv"]
+        reasons.append("+2 dekat workshop RV")
+    elif lead.get("lokasi_makassar_kota"):
+        score += SCORING_RULES["lokasi_makassar_kota"]
+        reasons.append("+1 Makassar Kota")
 
     # --- Usia Bisnis ---
     if lead.get("is_new_3months"):
@@ -93,16 +111,11 @@ def calculate_score(lead: dict) -> tuple[int, list[str]]:
         score += SCORING_RULES["bisnis_baru_6bulan"]
         reasons.append("+2 bisnis baru <6 bulan")
 
-    # --- Rating ---
+    # --- Kondisi Rating ---
     rating = lead.get("rating", 0)
     if 0 < rating < 4.0:
         score += SCORING_RULES["rating_dibawah_4"]
         reasons.append("+1 rating <4.0")
-
-    # --- Lokasi ---
-    if lead.get("lokasi_makassar_kota"):
-        score += SCORING_RULES["lokasi_makassar_kota"]
-        reasons.append("+1 lokasi Makassar Kota")
 
     # --- Faktor Negatif ---
     if is_franchise(lead.get("nama_bisnis", "")):
