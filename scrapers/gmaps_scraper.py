@@ -320,13 +320,22 @@ def format_wa_hyperlink(phone: str) -> str:
         clean = "62" + clean[1:]
     elif clean.startswith("8"):
         clean = "62" + clean
-    return f'=HYPERLINK("https://wa.me/{clean}", "Chat WhatsApp")' if clean else "-"
+    return f'=HYPERLINK("https://wa.me/{clean}", "Chat WA")' if clean else "-"
 
 
-def format_gmaps_hyperlink(url: str) -> str:
+def format_gmaps_hyperlink(url: str, nama_bisnis: str = "", alamat: str = "") -> str:
+    if not url and nama_bisnis:
+        query = f"{nama_bisnis} {alamat} Makassar".strip()
+        url = f"https://www.google.com/maps/search/?api=1&query={urllib.parse.quote(query)}"
     if not url:
         return "-"
-    return f'=HYPERLINK("{url}", "Buka Google Maps")'
+    return f'=HYPERLINK("{url}", "Buka Peta")'
+
+
+def format_web_hyperlink(url: str) -> str:
+    if not url or url == "-" or not url.startswith("http"):
+        return "-"
+    return f'=HYPERLINK("{url}", "Buka Web")'
 
 
 # ─── Export to Google Sheets ──────────────────────────────────────────────────
@@ -350,7 +359,8 @@ def export_leads_to_sheet(leads: list[dict], action: str = "append"):
         phone = lead.get("telepon", "").strip()
         wa_link = format_wa_hyperlink(phone)
         gmaps_url = lead.get("url_gmaps", "").strip()
-        gmaps_link = format_gmaps_hyperlink(gmaps_url)
+        gmaps_link = format_gmaps_hyperlink(gmaps_url, lead.get("nama_bisnis", ""), lead.get("alamat", ""))
+        web_link = format_web_hyperlink(lead.get("website", "").strip())
         kebutuhan = lead.get("proyeksi_kebutuhan", "Banner dan Media Promosi")
         rating_str = f"{lead.get('rating', 0)} ({lead.get('jumlah_review', 0)} ulasan)"
 
@@ -364,7 +374,7 @@ def export_leads_to_sheet(leads: list[dict], action: str = "append"):
             kebutuhan,                            # G: Proyeksi Kebutuhan Cetak
             lead.get("alamat", "-") or "-",       # H: Alamat
             rating_str,                           # I: Rating dan Ulasan
-            lead.get("website", "-") or "-",      # J: Website
+            web_link,                             # J: Website
             gmaps_link,                           # K: Peta Lokasi
             lead.get("scrape_date", today_wita()),# L: Tanggal
         ]

@@ -4,8 +4,11 @@
  * =========================================================================
  * Script ini berfungsi ganda:
  * 1. Webhook otomatis untuk menerima data dari scraper tanpa campur aduk kolom.
- * 2. Menu interaktif di Google Sheets untuk merapikan, mempercantik tampilan,
- *    dan menghapus data duplikat dengan 1 kali klik.
+ * 2. Menu interaktif di Google Sheets untuk:
+ *    - Menghapus semua tab tambahan yang tidak perlu (hanya sisakan 3 tab).
+ *    - Menghapus seluruh emoji dan emoticon dari seluruh sel.
+ *    - Mengubah link panjang menjadi teks singkat ber-link (Buka Peta, Chat WA, Lihat Tren, Buka Web).
+ *    - Menghapus baris header ganda atau tumpang tindih.
  * =========================================================================
  */
 
@@ -26,7 +29,7 @@ function doPost(e) {
       }
       if (data.rows && data.rows.length > 0) {
         for (var i = 0; i < data.rows.length; i++) {
-          sheet.appendRow(data.rows[i]);
+          sheet.appendRow(sanitizeRow(data.rows[i], sheetName));
         }
       }
       formatSheet(sheet, sheetName);
@@ -41,11 +44,12 @@ function doPost(e) {
 
       var addedCount = 0;
       for (var j = 0; j < data.rows.length; j++) {
-        var row = data.rows[j];
-        var rowName = String(row[0] || "").trim().toLowerCase();
-        // Skip duplicate names or duplicate headers in rows
-        if (rowName && !existingNames.has(rowName) && rowName !== "nama bisnis" && rowName !== "entitas bisnis") {
-          sheet.appendRow(row);
+        var rawRow = data.rows[j];
+        var rowName = String(rawRow[0] || "").trim().toLowerCase();
+        if (rowName && !existingNames.has(rowName) &&
+            rowName !== "nama bisnis" && rowName !== "entitas bisnis" &&
+            rowName !== "nama percetakan" && rowName.indexOf("sinyal") === -1) {
+          sheet.appendRow(sanitizeRow(rawRow, sheetName));
           existingNames.add(rowName);
           addedCount++;
         }
@@ -72,10 +76,8 @@ function doPost(e) {
 function onOpen() {
   var ui = SpreadsheetApp.getUi();
   ui.createMenu("RUANG VISUAL")
-    .addItem("Rapikan & Format Tampilan Tab", "beautifyAllSheets")
-    .addItem("Bersihkan Baris Rusak & Duplikat", "cleanCorruptedRows")
-    .addSeparator()
-    .addItem("Hapus Semua Tab Kecuali Tab Utama (3 Tab)", "hapusSemuaTabKecualiUtama")
+    .addItem("Bersihkan & Rapikan Semua Tab", "cleanAllSheetsData")
+    .addItem("Hapus Semua Tab Selain 3 Tab Utama", "hapusSemuaTabKecualiUtama")
     .addSeparator()
     .addItem("Tentang Sistem", "showAbout")
     .addToUi();
@@ -87,14 +89,14 @@ function hapusSemuaTabKecualiUtama() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var tabUtama = ["Radar Prospek", "Matriks Kompetitor", "Market Signals"];
 
-  // Pastikan ketiga tab utama tersedia
+  // 1. Pastikan ketiga tab utama tersedia
   for (var t = 0; t < tabUtama.length; t++) {
     if (!ss.getSheetByName(tabUtama[t])) {
       ss.insertSheet(tabUtama[t]);
     }
   }
 
-  // Hapus semua tab yang bukan tab utama
+  // 2. Hapus semua tab yang bukan bagian dari 3 tab utama
   var sheets = ss.getSheets();
   var terhapus = 0;
   for (var i = 0; i < sheets.length; i++) {
@@ -109,41 +111,25 @@ function hapusSemuaTabKecualiUtama() {
     }
   }
 
-  // Bersihkan dan format ketiga tab utama
-  cleanCorruptedRows();
-  var activeSheets = ss.getSheets();
-  for (var k = 0; k < activeSheets.length; k++) {
-    formatSheet(activeSheets[k], activeSheets[k].getName());
-  }
+  // 3. Bersihkan data di ketiga tab utama
+  cleanAllSheetsData();
 
   SpreadsheetApp.getUi().alert(
     "Pembersihan Selesai",
-    "Berhasil menghapus " + terhapus + " tab tambahan. Spreadsheet kini hanya menyisakan 3 tab utama: Radar Prospek, Matriks Kompetitor, dan Market Signals.",
+    "Berhasil menghapus " + terhapus + " tab tambahan. Hanya 3 tab utama yang dipertahankan: Radar Prospek, Matriks Kompetitor, dan Market Signals.",
     SpreadsheetApp.getUi().ButtonSet.OK
   );
 }
 
 
-// ─── 4. RAPIKAN SELURUH SHEET (BEAUTIFIER) ──────────────────────────────────
-function beautifyAllSheets() {
-  cleanCorruptedRows();
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheets = ss.getSheets();
-  for (var i = 0; i < sheets.length; i++) {
-    formatSheet(sheets[i], sheets[i].getName());
-  }
-  SpreadsheetApp.getUi().alert("Berhasil", "Seluruh tab telah dirapikan dengan tampilan profesional RUANG VISUAL.", SpreadsheetApp.getUi().ButtonSet.OK);
-}
-
-
-// ─── 4. BERSIHKAN BARIS RUSAK / TUMPANG TINDIH ──────────────────────────────
-function cleanCorruptedRows() {
+// ─── 4. BERSIHKAN DATA SELURUH TAB (PURGE EMOJI & RAPIKAN LINK) ────────────
+function cleanAllSheetsData() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
 
   // Tab 1: Radar Prospek
   var leadSheet = ss.getSheetByName("Radar Prospek");
   if (leadSheet) {
-    cleanTabHeaders(leadSheet, [
+    cleanTabContent(leadSheet, [
       "Nama Bisnis", "Kategori", "Skor", "Status", "No. WhatsApp",
       "Link WA", "Proyeksi Kebutuhan Cetak", "Alamat", "Rating & Ulasan",
       "Website", "Peta Lokasi", "Tanggal"
@@ -153,7 +139,7 @@ function cleanCorruptedRows() {
   // Tab 2: Matriks Kompetitor
   var compSheet = ss.getSheetByName("Matriks Kompetitor");
   if (compSheet) {
-    cleanTabHeaders(compSheet, [
+    cleanTabContent(compSheet, [
       "Nama Percetakan", "Fokus Layanan Utama", "Kapasitas / Skala",
       "Rating & Ulasan", "No. WhatsApp", "Link WA", "Celah Kualitas",
       "Celah Pelayanan & SOP", "Selling Point RUANG VISUAL", "Website / Maps", "Tanggal Update"
@@ -163,37 +149,59 @@ function cleanCorruptedRows() {
   // Tab 3: Market Signals
   var sigSheet = ss.getSheetByName("Market Signals");
   if (sigSheet) {
-    cleanTabHeaders(sigSheet, [
+    cleanTabContent(sigSheet, [
       "Sinyal / Tren Produk", "Platform", "Tingkat Demand",
       "Peluang untuk RUANG VISUAL", "Link Referensi", "Tanggal"
     ]);
   }
 }
 
-function cleanTabHeaders(sheet, correctHeaders) {
+function cleanTabContent(sheet, correctHeaders) {
   var range = sheet.getDataRange();
   var values = range.getValues();
+  var formulas = range.getFormulas();
   if (values.length === 0) return;
 
+  var sheetName = sheet.getName();
   var cleanedRows = [];
   var seenKeys = new Set();
 
   for (var i = 0; i < values.length; i++) {
-    var row = values[i];
-    var firstCol = String(row[0] || "").trim().toLowerCase();
+    var rowVals = values[i];
+    var rowForms = formulas[i];
+    var firstCol = String(rowVals[0] || "").trim().toLowerCase();
 
-    // Skip empty rows or middle header repetitions
+    // Lewati baris kosong
     if (!firstCol) continue;
+
+    // Lewati baris header yang terulang di tengah data (seperti baris 2)
     if (firstCol === "nama bisnis" || firstCol === "entitas bisnis" ||
-        firstCol === "nama kompetitor" || firstCol === "sinyal / tren" ||
-        firstCol === "signal / tren") {
+        firstCol === "nama percetakan" || firstCol === "nama kompetitor" ||
+        firstCol.indexOf("sinyal") !== -1 || firstCol.indexOf("signal") !== -1 ||
+        firstCol.indexOf("tren produk") !== -1) {
       continue;
     }
 
-    if (!seenKeys.has(firstCol)) {
-      seenKeys.add(firstCol);
-      cleanedRows.push(row);
+    // Deduplikasi baris berdasarkan kolom pertama
+    if (seenKeys.has(firstCol)) {
+      continue;
     }
+    seenKeys.add(firstCol);
+
+    var cleanRow = [];
+    for (var c = 0; c < correctHeaders.length; c++) {
+      var cellForm = (c < rowForms.length) ? String(rowForms[c] || "").trim() : "";
+      var cellVal = (c < rowVals.length) ? String(rowVals[c] || "").trim() : "";
+
+      // Prioritaskan rumus hyperlink yang sudah ada, jika tidak ada gunakan teks nilai
+      var rawCell = cellForm ? cellForm : cellVal;
+      var entityName = String(rowVals[0] || "").trim();
+      var addressName = (c >= 7 && c < rowVals.length) ? String(rowVals[7] || "").trim() : "";
+
+      var sanitized = sanitizeCell(rawCell, c, sheetName, entityName, addressName);
+      cleanRow.push(sanitized);
+    }
+    cleanedRows.push(cleanRow);
   }
 
   sheet.clear();
@@ -201,11 +209,80 @@ function cleanTabHeaders(sheet, correctHeaders) {
   for (var j = 0; j < cleanedRows.length; j++) {
     sheet.appendRow(cleanedRows[j]);
   }
-  formatSheet(sheet, sheet.getName());
+  formatSheet(sheet, sheetName);
 }
 
 
-// ─── 5. ENGINE FORMAT TAMPILAN (STYLING) ─────────────────────────────────────
+// ─── 5. SANITIZER: PENGHAPUS EMOJI & PEMBUAT TEKS SINGKAT BER-LINK ──────────
+function sanitizeRow(row, sheetName) {
+  var out = [];
+  var entityName = String(row[0] || "").trim();
+  for (var c = 0; c < row.length; c++) {
+    out.push(sanitizeCell(row[c], c, sheetName, entityName, ""));
+  }
+  return out;
+}
+
+function sanitizeCell(content, colIndex, sheetName, entityName, addressName) {
+  if (content === null || content === undefined) return "-";
+  var str = String(content).trim();
+  if (!str) return "-";
+
+  // 1. Hapus SEMUA karakter emoji dan simbol ornamen via rentang unicode murni
+  str = str.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]|[\u2600-\u27BF]|[\u2300-\u23FF]|[\u2B50-\u2B55]|[\uFE00-\uFE0F]/g, "").trim();
+  str = str.replace(/\s+/g, " ");
+
+  // 2. Koreksi rumus HYPERLINK yang sudah ada
+  if (str.indexOf("=HYPERLINK(") === 0) {
+    // Hilangkan teks lama dan rapikan label di dalam rumus
+    str = str.replace(/Buka Google Maps/gi, "Buka Peta");
+    str = str.replace(/Buka GMaps/gi, "Buka Peta");
+    str = str.replace(/Chat WhatsApp/gi, "Chat WA");
+    str = str.replace(/Hubungi WhatsApp/gi, "Chat WA");
+    str = str.replace(/Kunjungi Website/gi, "Buka Web");
+    return str;
+  }
+
+  // 3. Ubah URL mentah yang panjang menjadi teks singkat ber-link
+  if (str.indexOf("http://") === 0 || str.indexOf("https://") === 0) {
+    if (str.indexOf("maps.google") !== -1 || str.indexOf("goo.gl/maps") !== -1 || str.indexOf("/maps/") !== -1) {
+      return '=HYPERLINK("' + str + '", "Buka Peta")';
+    } else if (str.indexOf("tiktok.com") !== -1) {
+      return '=HYPERLINK("' + str + '", "Lihat Tren")';
+    } else if (str.indexOf("wa.me") !== -1) {
+      return '=HYPERLINK("' + str + '", "Chat WA")';
+    } else {
+      return '=HYPERLINK("' + str + '", "Buka Web")';
+    }
+  }
+
+  // 4. Khusus kolom Peta Lokasi di Radar Prospek (Kolom K / indeks 10)
+  if (sheetName === "Radar Prospek" && colIndex === 10) {
+    if (!str || str === "-" || str === "Buka GMaps" || str === "Buka Peta") {
+      if (entityName) {
+        var query = encodeURIComponent((entityName + " " + addressName + " Makassar").trim());
+        return '=HYPERLINK("https://www.google.com/maps/search/?api=1&query=' + query + '", "Buka Peta")';
+      }
+    }
+  }
+
+  // 5. Khusus teks sisa tombol lama tanpa rumus
+  if (str === "Buka GMaps" || str === "Buka Peta") {
+    if (entityName) {
+      var qMap = encodeURIComponent(entityName + " Makassar");
+      return '=HYPERLINK("https://www.google.com/maps/search/?api=1&query=' + qMap + '", "Buka Peta")';
+    }
+    return "Buka Peta";
+  }
+  if (str === "Lihat Tren") {
+    return '=HYPERLINK("https://www.tiktok.com/search?q=' + encodeURIComponent(entityName) + '", "Lihat Tren")';
+  }
+
+  return str;
+}
+
+
+// ─── 6. ENGINE FORMAT TAMPILAN (STYLING) ─────────────────────────────────────
 function formatSheet(sheet, sheetName) {
   var lastRow = sheet.getLastRow();
   var lastCol = sheet.getLastColumn();
@@ -216,7 +293,7 @@ function formatSheet(sheet, sheetName) {
 
   // 2. Styling Header Baris 1
   var headerRange = sheet.getRange(1, 1, 1, lastCol);
-  headerRange.setBackground("#1E293B");     // Slate Dark / Elegant Navy
+  headerRange.setBackground("#1E293B");     // Slate Dark / Navy Elegan
   headerRange.setFontColor("#FFFFFF");     // Putih
   headerRange.setFontWeight("bold");
   headerRange.setFontFamily("Inter");
@@ -238,18 +315,18 @@ function formatSheet(sheet, sheetName) {
       sheet.setRowHeight(r, 28);
     }
 
-    // 4. Alternating Colors (Zebra Striping lembut)
-    for (var r = 2; r <= lastRow; r++) {
-      var rowRange = sheet.getRange(r, 1, 1, lastCol);
-      if (r % 2 === 0) {
+    // 4. Alternating Colors (Zebra Striping)
+    for (var r2 = 2; r2 <= lastRow; r2++) {
+      var rowRange = sheet.getRange(r2, 1, 1, lastCol);
+      if (r2 % 2 === 0) {
         rowRange.setBackground("#FFFFFF");
       } else {
-        rowRange.setBackground("#F8FAFC");  // Very soft gray
+        rowRange.setBackground("#F8FAFC");
       }
     }
 
     // 5. Alignment spesifik tiap kolom
-    sheet.getRange(2, 1, lastRow - 1, 1).setHorizontalAlignment("left"); // Nama
+    sheet.getRange(2, 1, lastRow - 1, 1).setHorizontalAlignment("left"); // Kolom Nama
 
     if (sheetName === "Radar Prospek") {
       sheet.getRange(2, 2, lastRow - 1, 1).setHorizontalAlignment("center"); // Kategori
@@ -258,6 +335,7 @@ function formatSheet(sheet, sheetName) {
       sheet.getRange(2, 5, lastRow - 1, 1).setHorizontalAlignment("center"); // Telp
       sheet.getRange(2, 6, lastRow - 1, 1).setHorizontalAlignment("center"); // Link WA
       sheet.getRange(2, 9, lastRow - 1, 1).setHorizontalAlignment("center"); // Rating
+      sheet.getRange(2, 10, lastRow - 1, 1).setHorizontalAlignment("center"); // Website
       sheet.getRange(2, 11, lastRow - 1, 1).setHorizontalAlignment("center"); // Peta
       sheet.getRange(2, 12, lastRow - 1, 1).setHorizontalAlignment("center"); // Tanggal
     } else if (sheetName === "Matriks Kompetitor") {
@@ -265,6 +343,13 @@ function formatSheet(sheet, sheetName) {
       sheet.getRange(2, 4, lastRow - 1, 1).setHorizontalAlignment("center"); // Rating
       sheet.getRange(2, 5, lastRow - 1, 1).setHorizontalAlignment("center"); // Telp
       sheet.getRange(2, 6, lastRow - 1, 1).setHorizontalAlignment("center"); // Link WA
+      sheet.getRange(2, 10, lastRow - 1, 1).setHorizontalAlignment("center"); // Website / Maps
+      sheet.getRange(2, 11, lastRow - 1, 1).setHorizontalAlignment("center"); // Tanggal
+    } else if (sheetName === "Market Signals") {
+      sheet.getRange(2, 2, lastRow - 1, 1).setHorizontalAlignment("center"); // Platform
+      sheet.getRange(2, 3, lastRow - 1, 1).setHorizontalAlignment("center"); // Demand
+      sheet.getRange(2, 5, lastRow - 1, 1).setHorizontalAlignment("center"); // Link
+      sheet.getRange(2, 6, lastRow - 1, 1).setHorizontalAlignment("center"); // Tanggal
     }
   }
 
@@ -273,7 +358,7 @@ function formatSheet(sheet, sheetName) {
     sheet.autoResizeColumn(c);
     var width = sheet.getColumnWidth(c);
     if (width < 90) sheet.setColumnWidth(c, 90);
-    if (width > 350) sheet.setColumnWidth(c, 350); // Mencegah kolom terlalu lebar
+    if (width > 350) sheet.setColumnWidth(c, 350);
   }
 }
 

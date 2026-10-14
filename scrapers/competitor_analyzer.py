@@ -133,10 +133,10 @@ def format_wa_hyperlink(phone: str) -> str:
         clean = "62" + clean[1:]
     elif clean.startswith("8"):
         clean = "62" + clean
-    return f'=HYPERLINK("https://wa.me/{clean}", "Hubungi WhatsApp")' if clean else "-"
+    return f'=HYPERLINK("https://wa.me/{clean}", "Chat WA")' if clean else "-"
 
 
-def format_link_hyperlink(url: str, label: str = "Kunjungi Website") -> str:
+def format_link_hyperlink(url: str, label: str = "Buka Web") -> str:
     if not url or url == "-":
         return "-"
     return f'=HYPERLINK("{url}", "{label}")'
@@ -149,7 +149,7 @@ def export_matrix_to_sheet(matrix: list[dict], action: str = "append"):
         phone = m.get("telepon", "").strip()
         wa_link = format_wa_hyperlink(phone)
         web_or_map = m.get("website", "") or m.get("url_gmaps", "")
-        web_link = format_link_hyperlink(web_or_map, "Kunjungi Website") if web_or_map else "-"
+        web_link = format_link_hyperlink(web_or_map, "Buka Web") if web_or_map else "-"
         rating_str = f"{m.get('rating_gmaps', '0.0')} ({m.get('jumlah_review', '0')} ulasan)"
 
         row = [
