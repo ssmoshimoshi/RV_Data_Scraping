@@ -75,12 +75,56 @@ function onOpen() {
     .addItem("Rapikan & Format Tampilan Tab", "beautifyAllSheets")
     .addItem("Bersihkan Baris Rusak & Duplikat", "cleanCorruptedRows")
     .addSeparator()
+    .addItem("Hapus Semua Tab Kecuali Tab Utama (3 Tab)", "hapusSemuaTabKecualiUtama")
+    .addSeparator()
     .addItem("Tentang Sistem", "showAbout")
     .addToUi();
 }
 
 
-// ─── 3. RAPAIKAN SELURUH SHEET (BEAUTIFIER) ──────────────────────────────────
+// ─── 3. HAPUS SEMUA TAB KECUALI TAB UTAMA ───────────────────────────────────
+function hapusSemuaTabKecualiUtama() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var tabUtama = ["Radar Prospek", "Matriks Kompetitor", "Market Signals"];
+
+  // Pastikan ketiga tab utama tersedia
+  for (var t = 0; t < tabUtama.length; t++) {
+    if (!ss.getSheetByName(tabUtama[t])) {
+      ss.insertSheet(tabUtama[t]);
+    }
+  }
+
+  // Hapus semua tab yang bukan tab utama
+  var sheets = ss.getSheets();
+  var terhapus = 0;
+  for (var i = 0; i < sheets.length; i++) {
+    var sheetName = sheets[i].getName();
+    if (tabUtama.indexOf(sheetName) === -1) {
+      try {
+        ss.deleteSheet(sheets[i]);
+        terhapus++;
+      } catch (e) {
+        // Abaikan jika tidak diizinkan oleh sistem Google
+      }
+    }
+  }
+
+  // Bersihkan dan format ketiga tab utama
+  cleanCorruptedRows();
+  var activeSheets = ss.getSheets();
+  for (var k = 0; k < activeSheets.length; k++) {
+    formatSheet(activeSheets[k], activeSheets[k].getName());
+  }
+
+  SpreadsheetApp.getUi().alert(
+    "Pembersihan Selesai",
+    "Berhasil menghapus " + terhapus + " tab tambahan. Spreadsheet kini hanya menyisakan 3 tab utama: Radar Prospek, Matriks Kompetitor, dan Market Signals.",
+    SpreadsheetApp.getUi().ButtonSet.OK
+  );
+}
+
+
+// ─── 4. RAPIKAN SELURUH SHEET (BEAUTIFIER) ──────────────────────────────────
 function beautifyAllSheets() {
   cleanCorruptedRows();
   var ss = SpreadsheetApp.getActiveSpreadsheet();
