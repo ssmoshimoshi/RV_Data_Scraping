@@ -47,6 +47,7 @@ def print_help():
     print("  tiktok         TikTok Intelligence Engine — Leads, Competitors & Trends (Module D)")
     print("  matrix         Competitor Intelligence & Strategy Matrix (Module F)")
     print("  clean-sheets   Bersihkan baris data uji coba di 3 tab utama Google Sheets")
+    print("  bot            Jalankan Telegram Bot Listener langsung di terminal")
     print("  export-csv     Ekspor seluruh data terbaru ke format CSV")
     print("  init-sheets    Inisialisasi/update Google Sheets")
     print()
@@ -174,6 +175,12 @@ def run_clean_sheets():
         log.info("Google Sheets berhasil dibersihkan. Hanya 3 tab utama dengan header terformat rapi yang dipertahankan.")
     except Exception as e:
         log.error(f"Gagal membersihkan Google Sheets: {e}")
+
+
+def run_telegram_bot():
+    """Jalankan Telegram Bot polling runner."""
+    from scrapers.telegram_bot import main as bot_main
+    bot_main()
 
 
 def run_export_csv():
@@ -504,6 +511,9 @@ def main():
     elif module in ("clean-sheets", "bersihkan"):
         print_banner()
         run_clean_sheets()
+    elif module in ("bot", "telegram"):
+        print_banner()
+        run_telegram_bot()
     elif module in ("export-csv", "csv"):
         print_banner()
         run_export_csv()
