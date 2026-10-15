@@ -38,7 +38,8 @@ export async function POST(req) {
           body: JSON.stringify({
             chat_id: chatId,
             text: textMsg,
-            parse_mode: "Markdown",
+            parse_mode: "HTML",
+            disable_web_page_preview: true,
           }),
         });
       } catch (err) {
@@ -74,7 +75,7 @@ export async function POST(req) {
 
         if (response.status === 204 || response.ok) {
           await sendTelegramMessage(
-            `Perintah diterima.\nSistem sedang menjalankan ${desc} di cloud.\nLaporan dan notifikasi akan dikirimkan otomatis ke grup ini setelah selesai.\n\nLink Spreadsheet: ${sheetUrl}`
+            `Perintah diterima.\nSistem sedang menjalankan <b>${desc}</b> di cloud.\nLaporan dan notifikasi akan dikirimkan otomatis ke grup ini setelah selesai.\n\n<a href="${sheetUrl}">Buka Google Spreadsheet</a>`
           );
           return true;
         } else {
@@ -90,26 +91,26 @@ export async function POST(req) {
       }
     }
 
-    const cmd = text.split(" ")[0].toLowerCase();
+    const cmd = text.split(" ")[0].toLowerCase().split("@")[0];
 
     switch (cmd) {
       case "/start":
       case "/help":
       case "/menu":
         const menu = [
-          "*RUANG VISUAL — Market Intelligence Pipeline*",
+          "<b>RUANG VISUAL — Market Intelligence Pipeline</b>",
           "Pusat Komando Mobile Makassar Focus",
           "--------------------------------------------------",
-          "Daftar Perintah:",
-          "/semua : Jalankan seluruh pipeline (Maps, FB, IG, TikTok, Matrix)",
-          "/prospek : Jalankan pencarian prospek bisnis baru",
-          "/pasar_fb : Jalankan scraping khusus Facebook Marketplace",
-          "/kompetitor : Analisis harga dan matriks percetakan kompetitor",
-          "/tren : Pemantauan produk printing viral & sinyal pasar",
-          "/bersihkan : Bersihkan data lama di Google Sheets",
-          "/status : Tampilkan link Google Sheets & status sistem",
+          "<b>Daftar Perintah:</b>",
+          "<b>/semua</b> : Jalankan seluruh pipeline (Maps, FB, IG, TikTok, Matrix)",
+          "<b>/prospek</b> : Jalankan pencarian prospek bisnis baru",
+          "<b>/pasar_fb</b> : Jalankan scraping khusus Facebook Marketplace",
+          "<b>/kompetitor</b> : Analisis harga dan matriks percetakan kompetitor",
+          "<b>/tren</b> : Pemantauan produk printing viral & sinyal pasar",
+          "<b>/bersihkan</b> : Bersihkan data lama di Google Sheets",
+          "<b>/status</b> : Tampilkan link Google Sheets & status sistem",
           "--------------------------------------------------",
-          `Spreadsheet: ${sheetUrl}`,
+          `<a href="${sheetUrl}">Buka Google Spreadsheet</a>`,
         ].join("\n");
         await sendTelegramMessage(menu);
         break;
