@@ -95,11 +95,32 @@ function doPost(e) {
 function onOpen() {
   var ui = SpreadsheetApp.getUi();
   ui.createMenu("RUANG VISUAL")
-    .addItem("Bersihkan & Rapikan Semua Tab", "cleanAllSheetsData")
+    .addItem("Kosongkan Semua Data Uji Coba Lama", "kosongkanSemuaDataLama")
+    .addItem("Bersihkan & Rapikan Format Seluruh Tab", "cleanAllSheetsData")
     .addItem("Hapus Semua Tab Selain 3 Tab Utama", "hapusSemuaTabKecualiUtama")
     .addSeparator()
     .addItem("Tentang Sistem", "showAbout")
     .addToUi();
+}
+
+function kosongkanSemuaDataLama() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var tabs = ["Radar Prospek", "Matriks Kompetitor", "Market Signals"];
+  for (var t = 0; t < tabs.length; t++) {
+    var s = ss.getSheetByName(tabs[t]);
+    if (s) {
+      var lr = s.getLastRow();
+      var lc = s.getLastColumn();
+      if (lr > 1 && lc > 0) {
+        s.getRange(2, 1, lr - 1, lc).clearContent();
+      }
+    }
+  }
+  SpreadsheetApp.getUi().alert(
+    "Data Lama Berhasil Dikosongkan",
+    "Seluruh baris data uji coba di ketiga tab utama telah dikosongkan. Header baris 1 tetap aman dan rapi.",
+    SpreadsheetApp.getUi().ButtonSet.OK
+  );
 }
 
 
