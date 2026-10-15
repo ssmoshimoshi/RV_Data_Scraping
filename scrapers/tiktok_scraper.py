@@ -375,6 +375,18 @@ def export_tiktok_signals_to_sheet(signals: list[dict]):
         log.warning(f"Gagal export sinyal TikTok ke Sheets: {e}")
 
 
+def scan_market_signals(keywords: list[str] = None) -> list[dict]:
+    """Alias kompatibilitas untuk proses sinyal pasar tren percetakan."""
+    if not keywords:
+        keywords = TIKTOK_TREND_KEYWORDS
+    return process_tiktok_trends(keywords)
+
+
+def export_signals_to_sheet(signals: list[dict]):
+    """Alias kompatibilitas untuk ekspor sinyal pasar ke Google Sheets."""
+    export_tiktok_signals_to_sheet(signals)
+
+
 def main():
     parser = argparse.ArgumentParser(description="RUANG VISUAL — TikTok Intelligence Engine")
     parser.add_argument("--mode", choices=["leads", "competitors", "trends", "all"], default="all")
