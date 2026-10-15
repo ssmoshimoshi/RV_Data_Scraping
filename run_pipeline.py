@@ -42,19 +42,22 @@ def print_help():
     print("Modules yang tersedia:")
     print("  all            Jalankan SELURUH pipeline & kirim rekap ke Telegram (Mode Cloud)")
     print("  gmaps          Google Maps scraper — Leads & Competitors (Module B)")
+    print("  facebook       Facebook Marketplace Makassar — Leads, Competitors & Trends")
+    print("  instagram      Instagram Intelligence Scraper — Leads, Competitors & Trends (Module C)")
+    print("  tiktok         TikTok Intelligence Engine — Leads, Competitors & Trends (Module D)")
     print("  matrix         Competitor Intelligence & Strategy Matrix (Module F)")
-    print("  instagram      Instagram Public Profile Scraper (Module C)")
-    print("  tiktok         TikTok & Market Signals Trend Scraper (Module D)")
+    print("  clean-sheets   Bersihkan baris data uji coba di 3 tab utama Google Sheets")
     print("  export-csv     Ekspor seluruh data terbaru ke format CSV")
     print("  init-sheets    Inisialisasi/update Google Sheets")
     print()
     print("Contoh:")
     print("  python run_pipeline.py all --limit 2 --notify-telegram")
+    print("  python run_pipeline.py facebook --mode all")
     print("  python run_pipeline.py gmaps --mode leads --limit 3 --dry-run")
-    print("  python run_pipeline.py gmaps --mode competitors --limit 3 --dry-run")
+    print("  python run_pipeline.py instagram --mode all --dry-run")
+    print("  python run_pipeline.py tiktok --mode all --dry-run")
     print("  python run_pipeline.py matrix --dry-run")
-    print("  python run_pipeline.py instagram --profiles ruangvisual.id --dry-run")
-    print("  python run_pipeline.py tiktok --dry-run")
+    print("  python run_pipeline.py clean-sheets")
     print()
 
 
@@ -150,9 +153,27 @@ def run_instagram():
 
 
 def run_tiktok():
-    """Jalankan TikTok & Market Signals scraper."""
+    """Jalankan TikTok Intelligence Engine."""
     from scrapers.tiktok_scraper import main as tiktok_main
     tiktok_main()
+
+
+def run_facebook():
+    """Jalankan Facebook Marketplace Scraper."""
+    from scrapers.facebook_marketplace_scraper import main as fb_main
+    fb_main()
+
+
+def run_clean_sheets():
+    """Kirim perintah pembersihan data uji coba ke 3 tab utama Google Sheets."""
+    from scrapers.utils import get_logger, append_rows_to_sheet
+    log = get_logger("clean-sheets")
+    log.info("Mengirim sinyal pembersihan ke Google Sheets...")
+    try:
+        append_rows_to_sheet("Radar Prospek", [], action="clear_all_sheets")
+        log.info("Google Sheets berhasil dibersihkan. Hanya 3 tab utama dengan header terformat rapi yang dipertahankan.")
+    except Exception as e:
+        log.error(f"Gagal membersihkan Google Sheets: {e}")
 
 
 def run_export_csv():
@@ -331,9 +352,53 @@ def run_all(limit: int = 2, dry_run: bool = False, notify_telegram: bool = True)
             except Exception:
                 pass
 
-    # 2. Competitor Matrix
+    # 2. Facebook Marketplace Makassar (Leads, Competitor Benchmark & Trends)
     try:
-        log.info("\n--- [2/4] Menganalisis Matriks Kompetitor Makassar ---")
+        log.info("\n--- [2/5] Scraping Facebook Marketplace Makassar ---")
+        from scrapers.facebook_marketplace_scraper import (
+            scrape_marketplace_query, process_fb_leads, export_fb_leads_to_sheet,
+            process_fb_competitors, export_fb_competitors_to_sheet,
+            process_fb_trends, export_fb_signals_to_sheet
+        )
+        from patchright.sync_api import sync_playwright
+        from scrapers.utils import launch_stealth_browser
+        from scrapers.config import FB_LEAD_QUERIES, FB_COMPETITOR_QUERIES
+
+        fb_leads_raw = []
+        fb_comps_raw = []
+        with sync_playwright() as p:
+            browser = launch_stealth_browser(p, headless=True)
+            page = browser.new_page()
+            for q in FB_LEAD_QUERIES[:1]:
+                fb_leads_raw.extend(scrape_marketplace_query(page, q, limit=10))
+            for q in FB_COMPETITOR_QUERIES[:1]:
+                fb_comps_raw.extend(scrape_marketplace_query(page, q, limit=10))
+            browser.close()
+
+        if fb_leads_raw:
+            fb_leads = process_fb_leads(fb_leads_raw)
+            leads_count += len(fb_leads)
+            hot_leads.extend([l for l in fb_leads if float(l.get("skor", 0)) >= 8.0])
+            if not dry_run:
+                export_fb_leads_to_sheet(fb_leads)
+
+        if fb_comps_raw:
+            fb_comps = process_fb_competitors(fb_comps_raw)
+            if not dry_run:
+                export_fb_competitors_to_sheet(fb_comps)
+
+        fb_trends = process_fb_trends(fb_leads_raw, fb_comps_raw)
+        if fb_trends:
+            signals_count += len(fb_trends)
+            if not dry_run:
+                export_fb_signals_to_sheet(fb_trends)
+        log.info(f"Facebook Marketplace selesai: {len(fb_leads_raw)} leads, {len(fb_comps_raw)} kompetitor, {len(fb_trends)} tren")
+    except Exception as e:
+        log.warning(f"Facebook Marketplace dilewati (bukan blocking error): {e}")
+
+    # 3. Competitor Matrix
+    try:
+        log.info("\n--- [3/5] Menganalisis Matriks Kompetitor Makassar ---")
         comp_files = sorted(PROCESSED_DIR.glob("competitors_*.json"), key=lambda f: f.stat().st_mtime, reverse=True)
         if comp_files:
             with open(comp_files[0], "r", encoding="utf-8") as f:
@@ -353,9 +418,9 @@ def run_all(limit: int = 2, dry_run: bool = False, notify_telegram: bool = True)
         except Exception:
             pass
 
-    # 3. Market Signals (TikTok Trends)
+    # 4. Market Signals (TikTok Trends)
     try:
-        log.info("\n--- [3/4] Memindai Tren Pasar (Market Signals) ---")
+        log.info("\n--- [4/5] Memindai Tren Pasar (Market Signals) ---")
         signals = scan_market_signals(TIKTOK_KEYWORDS)
         signals_count = len(signals)
         sig_file = PROCESSED_DIR / f"market_signals_{datetime.now(WITA).strftime('%Y%m%d_%H%M%S')}.json"
@@ -371,9 +436,9 @@ def run_all(limit: int = 2, dry_run: bool = False, notify_telegram: bool = True)
         except Exception:
             pass
 
-    # 4. Export CSV
+    # 5. Export CSV
     try:
-        log.info("\n--- [4/4] Mengekspor Data ke CSV Lokal ---")
+        log.info("\n--- [5/5] Mengekspor Data ke CSV Lokal ---")
         run_export_csv()
     except Exception as e:
         log.warning(f"Gagal ekspor CSV: {e}")
@@ -424,15 +489,21 @@ def main():
     if module == "gmaps":
         print_banner()
         run_gmaps()
+    elif module in ("facebook", "fb"):
+        print_banner()
+        run_facebook()
+    elif module in ("instagram", "ig"):
+        print_banner()
+        run_instagram()
+    elif module in ("tiktok", "tt"):
+        print_banner()
+        run_tiktok()
     elif module == "matrix":
         print_banner()
         run_matrix()
-    elif module == "instagram":
+    elif module in ("clean-sheets", "bersihkan"):
         print_banner()
-        run_instagram()
-    elif module == "tiktok":
-        print_banner()
-        run_tiktok()
+        run_clean_sheets()
     elif module in ("export-csv", "csv"):
         print_banner()
         run_export_csv()

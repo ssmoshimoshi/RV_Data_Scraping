@@ -33,6 +33,25 @@ function doPost(e) {
         }
       }
       formatSheet(sheet, sheetName);
+    } else if (action === "clear_all_sheets") {
+      // Hapus data uji coba di ketiga tab utama, pertahankan header baris 1
+      var tabs = ["Radar Prospek", "Matriks Kompetitor", "Market Signals"];
+      for (var t = 0; t < tabs.length; t++) {
+        var s = ss.getSheetByName(tabs[t]);
+        if (s) {
+          var lr = s.getLastRow();
+          var lc = s.getLastColumn();
+          if (lr > 1 && lc > 0) {
+            s.getRange(2, 1, lr - 1, lc).clearContent();
+          }
+        }
+      }
+    } else if (action === "clear_data") {
+      var lastRow = sheet.getLastRow();
+      var lastCol = sheet.getLastColumn();
+      if (lastRow > 1 && lastCol > 0) {
+        sheet.getRange(2, 1, lastRow - 1, lastCol).clearContent();
+      }
     } else {
       // Action: append with deduplication based on Column A
       var existingData = sheet.getDataRange().getValues();

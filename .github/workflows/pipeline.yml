@@ -16,8 +16,11 @@ on:
         options:
           - all
           - gmaps
-          - matrix
+          - facebook
+          - instagram
           - tiktok
+          - matrix
+          - clean-sheets
           - export-csv
       limit:
         description: 'Batas query pencarian (default: 2)'
@@ -28,6 +31,12 @@ on:
         required: false
         default: false
         type: boolean
+
+  # 3. Pemicu Webhook API dari Bot Telegram / Vercel Web App
+  repository_dispatch:
+    types:
+      - telegram_command
+      - trigger_pipeline
 
 jobs:
   run-pipeline:
@@ -60,9 +69,9 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN || secrets.TELEGRAM_BOT__TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
-          MODE="${{ github.event.inputs.mode || 'all' }}"
-          LIMIT="${{ github.event.inputs.limit || '2' }}"
-          DRY_RUN="${{ github.event.inputs.dry_run }}"
+          MODE="${{ github.event.client_payload.mode || github.event.inputs.mode || 'all' }}"
+          LIMIT="${{ github.event.client_payload.limit || github.event.inputs.limit || '2' }}"
+          DRY_RUN="${{ github.event.client_payload.dry_run || github.event.inputs.dry_run }}"
 
           CMD="python run_pipeline.py $MODE"
           if [ "$MODE" = "all" ] || [ "$MODE" = "gmaps" ]; then

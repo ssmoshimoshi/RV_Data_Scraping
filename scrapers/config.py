@@ -35,9 +35,11 @@ RV_NEARBY_KEYWORDS = [
 GMAPS_DELAY_SECONDS = (3, 5)        # Random delay antara 3-5 detik
 INSTAGRAM_DELAY_SECONDS = (5, 10)   # Random delay antara 5-10 detik
 TIKTOK_DELAY_SECONDS = (5, 10)      # Random delay antara 5-10 detik
+FB_DELAY_SECONDS = (4, 7)          # Random delay antara 4-7 detik
 
 INSTAGRAM_MAX_PAGES_PER_SESSION = 15
 TIKTOK_MAX_PAGES_PER_SESSION = 15
+FB_MAX_ITEMS_PER_SESSION = 20
 
 # ─── Google Maps Queries Berbasis Ring & Sektor ──────────────────────────────
 # Disusun dari ring terdekat dari workshop RUANG VISUAL (Bua Kana, Rappocini) meluas ke koridor bisnis utama
@@ -85,6 +87,31 @@ GMAPS_COMPETITOR_QUERIES = [
     "printing Makassar",
 ]
 
+# ─── Facebook Marketplace Makassar Config ─────────────────────────────────────
+FB_MARKETPLACE_BASE_URL = "https://www.facebook.com/marketplace/makassar/search?query="
+
+FB_LEAD_QUERIES = [
+    "kue kering makassar",
+    "frozen food makassar",
+    "catering makassar",
+    "hampers makassar",
+    "snack makassar",
+    "bakery makassar",
+    "butik makassar",
+    "hijab makassar",
+    "skincare makassar",
+]
+
+FB_COMPETITOR_QUERIES = [
+    "cetak banner makassar",
+    "cetak stiker makassar",
+    "cetak undangan makassar",
+    "percetakan makassar",
+    "spanduk makassar",
+    "sablon makassar",
+    "nota bon makassar",
+]
+
 # ─── Instagram Config ────────────────────────────────────────────────────────
 IG_HASHTAGS = [
     "percetakanmakassar",
@@ -97,16 +124,50 @@ IG_HASHTAGS = [
     "percetakan",
 ]
 
-# ─── TikTok Config ───────────────────────────────────────────────────────────
-TIKTOK_KEYWORDS = [
-    "percetakan Makassar",
-    "cetak stiker",
-    "digital printing",
-    "packaging custom",
-    "cetak banner",
-    "printing murah",
-    "usaha percetakan",
+IG_COMPETITOR_TARGETS = [
+    "ruangvisual.id",
+    "cahayaprintingmks",
+    "primagrafika.mks",
+    "bintangprintingmakassar",
+    "percetakanmakassar_official",
 ]
+
+IG_LEAD_DORK_QUERIES = [
+    'site:instagram.com "Makassar" ("wa.me" OR "08") ("kuliner" OR "cafe" OR "resto")',
+    'site:instagram.com "Makassar" ("wa.me" OR "08") ("klinik" OR "skincare" OR "aesthetic")',
+    'site:instagram.com "Makassar" ("wa.me" OR "08") ("butik" OR "fashion" OR "hijab")',
+    'site:instagram.com "Makassar" ("wa.me" OR "08") ("developer" OR "perumahan" OR "cluster")',
+    'site:instagram.com "Makassar" ("wa.me" OR "08") ("wedding organizer" OR "wo makassar")',
+]
+
+# ─── TikTok Config ───────────────────────────────────────────────────────────
+TIKTOK_LEAD_KEYWORDS = [
+    "usaha baru makassar",
+    "kuliner makassar",
+    "cafe makassar",
+    "umkm makassar",
+    "jualan makassar",
+    "butik makassar",
+]
+
+TIKTOK_COMPETITOR_KEYWORDS = [
+    "percetakan makassar",
+    "cetak makassar",
+    "sablon makassar",
+    "digital printing makassar",
+]
+
+TIKTOK_TREND_KEYWORDS = [
+    "stiker hologram",
+    "stiker die cut waterproof",
+    "box packaging custom",
+    "tumbler uv print",
+    "standing pouch sablon",
+    "hangtag baju tebal",
+    "undangan akrilik aesthetic",
+]
+
+TIKTOK_KEYWORDS = TIKTOK_COMPETITOR_KEYWORDS + TIKTOK_TREND_KEYWORDS
 
 # ─── Lead Scoring Rules ──────────────────────────────────────────────────────
 SCORING_RULES = {
