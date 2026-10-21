@@ -80,6 +80,43 @@ GMAPS_LEAD_QUERIES = [
     "kantor distributor Makassar",
     "toko perlengkapan event Makassar",
     "agensi periklanan Makassar",
+    
+    # RING 5: UMKM Lokal Mandiri - Kuliner Khas Makassar
+    "coto makassar",
+    "pallubasa makassar",
+    "ikan bakar makassar",
+    "cafe kopi makassar",
+    "bakery makassar",
+    "rumah makan makassar",
+    
+    # RING 6: Oleh-Oleh & Souvenir Khas
+    "oleh oleh khas makassar",
+    "jalangkote makassar",
+    "otak otak makassar",
+    "sirup markisa makassar",
+    "kue tradisional makassar",
+    
+    # RING 7: Fashion & Konveksi Lokal
+    "butik hijab makassar",
+    "distro makassar",
+    "konveksi baju makassar",
+    "jahit baju makassar",
+    
+    # RING 8: Skincare & Klinik Kecantikan Lokal
+    "klinik kecantikan makassar",
+    "skincare makassar",
+    "dental clinic makassar",
+    "klinik gigi makassar",
+    
+    # RING 9: Toko Emas & Perhiasan Lokal
+    "toko emas somba opu makassar",
+    "toko perhiasan makassar",
+    
+    # RING 10: Event & Wedding Organizer
+    "wedding organizer makassar",
+    "event organizer makassar",
+    "wo makassar",
+    "eo makassar",
 ]
 
 GMAPS_COMPETITOR_QUERIES = [

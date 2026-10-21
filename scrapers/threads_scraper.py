@@ -35,6 +35,7 @@ from scrapers.config import (
     PROCESSED_DIR,
 )
 from scrapers.lead_scorer import detect_category, score_and_format
+from scrapers.franchise_filter import is_national_franchise
 from scrapers.utils import (
     get_logger,
     rate_limit,
@@ -47,9 +48,9 @@ from scrapers.utils import (
 log = get_logger("threads")
 
 HEADERS_RADAR_PROSPEK = [
-    "Nama Bisnis", "Kategori", "Skor", "Status", "No. WhatsApp",
-    "Link WA", "Proyeksi Kebutuhan Cetak", "Alamat", "Rating & Ulasan",
-    "Website", "Peta Lokasi", "Tanggal"
+    "Nama Bisnis", "Kategori", "Sumber Platform", "Skor", "Status",
+    "No. WhatsApp", "Link WA", "Proyeksi Kebutuhan Cetak", "Pemicu Kebutuhan & Konteks",
+    "Alamat", "Rating & Ulasan", "Website", "Link Sumber Asli", "Tanggal"
 ]
 
 HEADERS_MATRIKS_KOMPETITOR = [
@@ -235,8 +236,13 @@ def process_leads(raw_data: list[dict]) -> list[dict]:
     processed = []
     
     for item in raw_data:
+        nama = item.get("nama_bisnis", "")
+        if is_national_franchise(nama):
+            log.debug(f"BLOCKED franchise: {nama}")
+            continue
+
         kategori_kode = detect_category(
-            nama_bisnis=item.get("nama_bisnis", ""),
+            nama_bisnis=nama,
             alamat="",
             kategori_gmaps=""
         )

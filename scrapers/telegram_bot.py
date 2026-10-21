@@ -6,11 +6,16 @@ mobile tanpa perlu menunggu deployment Vercel selesai.
 
 Perintah yang didukung:
 /menu, /help   : Tampilkan daftar perintah
-/semua         : Jalankan seluruh pipeline (Maps, FB, IG, TikTok, Matrix)
-/prospek       : Jalankan pencarian prospek Google Maps
-/pasar_fb      : Jalankan scraping Facebook Marketplace Makassar
+/maps          : Jalankan scraping Google Maps Makassar
+/gofood        : Jalankan scraping GoFood merchant kuliner
+/facebook      : Jalankan scraping Facebook Marketplace Makassar
+/instagram     : Jalankan scraping Instagram Intelligence
+/threads       : Jalankan scraping Threads Intelligence
+/tiktok        : Jalankan pemantauan tren TikTok & produk printing
 /kompetitor    : Jalankan analisis matriks kompetitor
-/tren          : Jalankan pemantauan tren TikTok & produk printing
+/semua         : Jalankan seluruh pipeline (seluruh platform)
+/enrich        : Pengayaan nomor WhatsApp calon pelanggan
+/dedup         : Periksa duplikasi data pada histori prospek
 /bersihkan     : Bersihkan data lama di Google Sheets
 /status        : Tampilkan status sistem dan tautan spreadsheet
 
@@ -74,7 +79,7 @@ def execute_command_async(cmd: str, chat_id: str, token: str):
     log.info(f"Menjalankan perintah pipeline: {cmd}")
 
     if cmd == "/semua":
-        send_message(token, chat_id, f"Perintah /semua diterima.\nSistem sedang menjalankan pipeline lengkap (Maps, FB Marketplace, IG, TikTok, Matrix).\nMohon tunggu beberapa saat...")
+        send_message(token, chat_id, "Perintah /semua diterima.\nSistem sedang menjalankan pipeline lengkap (Maps, FB, IG, Threads, GoFood, TikTok, Matrix).\nMohon tunggu beberapa saat...")
         from run_pipeline import run_all
         try:
             run_all(limit=2, dry_run=False, notify_telegram=True)
@@ -82,50 +87,68 @@ def execute_command_async(cmd: str, chat_id: str, token: str):
         except Exception as e:
             send_message(token, chat_id, f"Error saat menjalankan /semua: {e}")
 
-    elif cmd == "/prospek":
-        send_message(token, chat_id, f"Perintah /prospek diterima.\nMenjalankan scraper Google Maps untuk 9 sektor...")
+    elif cmd in ("/maps", "/gmaps", "/prospek"):
+        send_message(token, chat_id, "Perintah /maps diterima.\nMenjalankan scraper Google Maps untuk 9 sektor usaha Makassar...")
         from run_pipeline import run_gmaps
         try:
             run_gmaps()
             send_message(token, chat_id, f"Scraper Google Maps selesai.\nData masuk ke tab Radar Prospek:\n{SPREADSHEET_URL}")
         except Exception as e:
-            send_message(token, chat_id, f"Error saat menjalankan /prospek: {e}")
+            send_message(token, chat_id, f"Error saat menjalankan /maps: {e}")
 
-    elif cmd == "/pasar_fb":
-        send_message(token, chat_id, f"Perintah /pasar_fb diterima.\nMenjalankan scraping Facebook Marketplace Makassar...")
+    elif cmd in ("/gofood", "/kuliner"):
+        send_message(token, chat_id, "Perintah /gofood diterima.\nMenjalankan pencarian merchant kuliner GoFood Makassar...")
+        from run_pipeline import run_food
+        try:
+            run_food()
+            send_message(token, chat_id, f"Scraper GoFood selesai.\nMerchant kuliner baru masuk ke tab Radar Prospek:\n{SPREADSHEET_URL}")
+        except Exception as e:
+            send_message(token, chat_id, f"Error saat menjalankan /gofood: {e}")
+
+    elif cmd in ("/facebook", "/fb", "/pasar_fb"):
+        send_message(token, chat_id, "Perintah /facebook diterima.\nMenjalankan scraping Facebook Marketplace Makassar...")
         from run_pipeline import run_facebook
         try:
             run_facebook()
             send_message(token, chat_id, f"Facebook Marketplace selesai.\nData prospek, harga kompetitor, dan tren diperbarui:\n{SPREADSHEET_URL}")
         except Exception as e:
-            send_message(token, chat_id, f"Error saat menjalankan /pasar_fb: {e}")
+            send_message(token, chat_id, f"Error saat menjalankan /facebook: {e}")
 
-    elif cmd == "/kompetitor":
-        send_message(token, chat_id, f"Perintah /kompetitor diterima.\nMenganalisis matriks strategi kompetitor percetakan Makassar...")
-        from run_pipeline import run_matrix
+    elif cmd in ("/instagram", "/ig"):
+        send_message(token, chat_id, "Perintah /instagram diterima.\nMenjalankan scraping Instagram Intelligence Makassar...")
+        from run_pipeline import run_instagram
         try:
-            run_matrix()
-            send_message(token, chat_id, f"Analisis kompetitor selesai.\nData masuk ke tab Matriks Kompetitor:\n{SPREADSHEET_URL}")
+            run_instagram()
+            send_message(token, chat_id, f"Instagram Intelligence selesai.\nData prospek, kompetitor, dan tren masuk ke spreadsheet:\n{SPREADSHEET_URL}")
         except Exception as e:
-            send_message(token, chat_id, f"Error saat menjalankan /kompetitor: {e}")
+            send_message(token, chat_id, f"Error saat menjalankan /instagram: {e}")
 
-    elif cmd == "/tren":
-        send_message(token, chat_id, f"Perintah /tren diterima.\nMemindai tren viral percetakan di TikTok...")
-        from run_pipeline import run_tiktok
-        try:
-            run_tiktok()
-            send_message(token, chat_id, f"Pemindaian tren selesai.\nData masuk ke tab Market Signals:\n{SPREADSHEET_URL}")
-        except Exception as e:
-            send_message(token, chat_id, f"Error saat menjalankan /tren: {e}")
-
-    elif cmd == "/threads":
-        send_message(token, chat_id, f"Perintah /threads diterima.\nMenjalankan scraping Threads Intelligence Makassar...")
+    elif cmd in ("/threads", "/th"):
+        send_message(token, chat_id, "Perintah /threads diterima.\nMenjalankan scraping Threads Intelligence Makassar...")
         from run_pipeline import run_threads
         try:
             run_threads()
             send_message(token, chat_id, f"Threads Intelligence selesai.\nData masuk ke spreadsheet:\n{SPREADSHEET_URL}")
         except Exception as e:
             send_message(token, chat_id, f"Error saat menjalankan /threads: {e}")
+
+    elif cmd in ("/tiktok", "/tt", "/tren"):
+        send_message(token, chat_id, "Perintah /tiktok diterima.\nMemindai tren viral percetakan di TikTok...")
+        from run_pipeline import run_tiktok
+        try:
+            run_tiktok()
+            send_message(token, chat_id, f"Pemindaian TikTok selesai.\nData masuk ke tab Market Signals:\n{SPREADSHEET_URL}")
+        except Exception as e:
+            send_message(token, chat_id, f"Error saat menjalankan /tiktok: {e}")
+
+    elif cmd in ("/kompetitor", "/matrix"):
+        send_message(token, chat_id, "Perintah /kompetitor diterima.\nMenganalisis matriks strategi kompetitor percetakan Makassar...")
+        from run_pipeline import run_matrix
+        try:
+            run_matrix()
+            send_message(token, chat_id, f"Analisis kompetitor selesai.\nData masuk ke tab Matriks Kompetitor:\n{SPREADSHEET_URL}")
+        except Exception as e:
+            send_message(token, chat_id, f"Error saat menjalankan /kompetitor: {e}")
 
     elif cmd == "/enrich":
         send_message(token, chat_id, "Perintah /enrich diterima.\nMenjalankan pengayaan nomor WhatsApp dari website calon pelanggan...")
@@ -169,17 +192,8 @@ def execute_command_async(cmd: str, chat_id: str, token: str):
         except Exception as e:
             send_message(token, chat_id, f"Error saat menjalankan /dedup: {e}")
 
-    elif cmd in ("/kuliner", "/gofood"):
-        send_message(token, chat_id, "Perintah /kuliner diterima.\nMenjalankan pencarian merchant GoFood Makassar...")
-        from run_pipeline import run_food
-        try:
-            run_food()
-            send_message(token, chat_id, f"Scraper GoFood selesai.\nMerchant kuliner baru masuk ke tab Radar Prospek:\n{SPREADSHEET_URL}")
-        except Exception as e:
-            send_message(token, chat_id, f"Error saat menjalankan /kuliner: {e}")
-
     elif cmd == "/bersihkan":
-        send_message(token, chat_id, f"Perintah /bersihkan diterima.\nMembersihkan baris data lama di Google Sheets...")
+        send_message(token, chat_id, "Perintah /bersihkan diterima.\nMembersihkan baris data lama di Google Sheets...")
         from run_pipeline import run_clean_sheets
         try:
             run_clean_sheets()
@@ -234,17 +248,20 @@ def run_polling_loop():
                         "<b>RUANG VISUAL — Market Intelligence Pipeline</b>",
                         "Pusat Komando Mobile Makassar Focus",
                         "--------------------------------------------------",
-                        "<b>Daftar Perintah:</b>",
-                        "<b>/semua</b> : Jalankan seluruh pipeline (Maps, FB, Threads, TikTok, Matrix)",
-                        "<b>/prospek</b> : Jalankan pencarian prospek bisnis baru",
-                        "<b>/pasar_fb</b> : Jalankan scraping khusus Facebook Marketplace",
-                        "<b>/threads</b> : Jalankan pemantauan prospek dan tren Threads",
-                        "<b>/kompetitor</b> : Analisis harga dan matriks percetakan kompetitor",
-                        "<b>/tren</b> : Pemantauan produk printing viral & sinyal pasar",
-                        "<b>/kuliner</b> : Jalankan scraping merchant kuliner GoFood Makassar",
+                        "<b>Perintah Khusus Platform:</b>",
+                        "<b>/maps</b> : Scraping bisnis & UMKM dari Google Maps",
+                        "<b>/gofood</b> : Scraping merchant kuliner dari GoFood Makassar",
+                        "<b>/facebook</b> : Scraping prospek & harga di FB Marketplace",
+                        "<b>/instagram</b> : Scraping prospek & tren visual Instagram",
+                        "<b>/threads</b> : Scraping diskusi & kebutuhan cetak Threads",
+                        "<b>/tiktok</b> : Pemantauan produk viral & tren pasar TikTok",
+                        "--------------------------------------------------",
+                        "<b>Perintah Analisis & Operasional:</b>",
+                        "<b>/semua</b> : Jalankan seluruh pipeline (semua platform)",
+                        "<b>/kompetitor</b> : Analisis matriks percetakan kompetitor",
                         "<b>/enrich</b> : Pengayaan nomor WhatsApp dari website calon pelanggan",
                         "<b>/dedup</b> : Periksa duplikasi data pada histori prospek",
-                        "<b>/bersihkan</b> : Bersihkan data lama di Google Sheets",
+                        "<b>/bersihkan</b> : Bersihkan baris data lama di Google Sheets",
                         "<b>/status</b> : Tampilkan link Google Sheets & status sistem",
                         "--------------------------------------------------",
                         f'<a href="{SPREADSHEET_URL}">Buka Google Spreadsheet</a>',
@@ -261,7 +278,16 @@ def run_polling_loop():
                     ]
                     send_message(token, chat_id, "\n".join(status_text))
 
-                elif cmd in ["/semua", "/prospek", "/pasar_fb", "/threads", "/kompetitor", "/tren", "/kuliner", "/gofood", "/enrich", "/dedup", "/bersihkan"]:
+                elif cmd in [
+                    "/semua", "/maps", "/gmaps", "/prospek",
+                    "/gofood", "/kuliner",
+                    "/facebook", "/fb", "/pasar_fb",
+                    "/instagram", "/ig",
+                    "/threads", "/th",
+                    "/tiktok", "/tt", "/tren",
+                    "/kompetitor", "/matrix",
+                    "/enrich", "/dedup", "/bersihkan"
+                ]:
                     t = threading.Thread(
                         target=execute_command_async,
                         args=(cmd, chat_id, token),

@@ -511,7 +511,7 @@ def run_all(limit: int = 2, dry_run: bool = False, notify_telegram: bool = True)
 
     # 4. Food Delivery Makassar (GoFood Merchant Leads)
     try:
-        log.info("\n--- [4/7] Scraping Merchant Kuliner Makassar (GoFood) ---")
+        log.info("\n--- [4/8] Scraping Merchant Kuliner Makassar (GoFood) ---")
         from scrapers.food_delivery_scraper import scrape_gofood_merchants, enrich_with_contact
         from scrapers.utils import deduplicate_leads
         food_raw = scrape_gofood_merchants(limit=limit)
@@ -528,9 +528,59 @@ def run_all(limit: int = 2, dry_run: bool = False, notify_telegram: bool = True)
     except Exception as e:
         log.warning(f"GoFood Merchant Scraper dilewati (bukan blocking error): {e}")
 
-    # 5. Competitor Matrix
+    # 5. Instagram Intelligence Scraper (Leads, Competitors & Trends)
     try:
-        log.info("\n--- [5/7] Menganalisis Matriks Kompetitor Makassar ---")
+        log.info("\n--- [5/8] Scraping Instagram Intelligence Makassar ---")
+        from scrapers.instagram_scraper import (
+            scrape_instagram_profile, process_ig_leads, export_ig_leads_to_sheet,
+            process_ig_competitors, export_ig_competitors_to_sheet,
+            process_ig_trends, export_ig_signals_to_sheet
+        )
+        from scrapers.config import IG_HASHTAGS, IG_COMPETITOR_TARGETS
+        from patchright.sync_api import sync_playwright
+        from scrapers.utils import launch_stealth_browser
+
+        ig_lead_targets = ["kulinermakassar", "makassardagang", "butikmakassar"][:limit]
+        ig_leads_raw = []
+        ig_comps_raw = []
+
+        with sync_playwright() as p:
+            browser = launch_stealth_browser(p, headless=True)
+            page = browser.new_page()
+            for u in ig_lead_targets:
+                data = scrape_instagram_profile(u, page)
+                if data:
+                    ig_leads_raw.append(data)
+            for u in IG_COMPETITOR_TARGETS[:limit]:
+                data = scrape_instagram_profile(u, page)
+                if data:
+                    ig_comps_raw.append(data)
+            browser.close()
+
+        if ig_leads_raw:
+            ig_leads = process_ig_leads(ig_leads_raw)
+            leads_count += len(ig_leads)
+            hot_leads.extend([l for l in ig_leads if float(l.get("skor", 0)) >= 8.0])
+            if not dry_run:
+                export_ig_leads_to_sheet(ig_leads)
+
+        if ig_comps_raw and not dry_run:
+            ig_comps = process_ig_competitors(ig_comps_raw)
+            export_ig_competitors_to_sheet(ig_comps)
+
+        ig_trends = process_ig_trends(IG_HASHTAGS)
+        if ig_trends:
+            signals_count += len(ig_trends)
+            if not dry_run:
+                export_ig_signals_to_sheet(ig_trends)
+
+        log.info(f"Instagram selesai: {len(ig_leads_raw)} leads, {len(ig_comps_raw)} kompetitor, {len(ig_trends)} tren")
+    except Exception as e:
+        log.warning(f"Instagram Intelligence dilewati (bukan blocking error): {e}")
+
+    # 6. Competitor Matrix
+    try:
+        log.info("\n--- [6/8] Menganalisis Matriks Kompetitor Makassar ---")
         comp_files = sorted(PROCESSED_DIR.glob("competitors_*.json"), key=lambda f: f.stat().st_mtime, reverse=True)
         if comp_files:
             with open(comp_files[0], "r", encoding="utf-8") as f:
@@ -550,9 +600,9 @@ def run_all(limit: int = 2, dry_run: bool = False, notify_telegram: bool = True)
         except Exception:
             pass
 
-    # 6. Market Signals (TikTok Trends)
+    # 7. Market Signals (TikTok Trends)
     try:
-        log.info("\n--- [6/7] Memindai Tren Pasar (Market Signals) ---")
+        log.info("\n--- [7/8] Memindai Tren Pasar (Market Signals) ---")
         signals = scan_market_signals(TIKTOK_KEYWORDS)
         signals_count = len(signals)
         sig_file = PROCESSED_DIR / f"market_signals_{datetime.now(WITA).strftime('%Y%m%d_%H%M%S')}.json"
@@ -568,9 +618,9 @@ def run_all(limit: int = 2, dry_run: bool = False, notify_telegram: bool = True)
         except Exception:
             pass
 
-    # 7. Export CSV
+    # 8. Export CSV
     try:
-        log.info("\n--- [7/7] Mengekspor Data ke CSV Lokal ---")
+        log.info("\n--- [8/8] Mengekspor Data ke CSV Lokal ---")
         run_export_csv()
     except Exception as e:
         log.warning(f"Gagal ekspor CSV: {e}")
@@ -618,7 +668,7 @@ def main():
     # Remove module name dari argv agar argparse di sub-module bekerja
     sys.argv = [sys.argv[0]] + sys.argv[2:]
 
-    if module == "gmaps":
+    if module in ("gmaps", "maps"):
         print_banner()
         run_gmaps()
     elif module in ("facebook", "fb"):

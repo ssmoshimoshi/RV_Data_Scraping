@@ -35,6 +35,7 @@ from scrapers.lead_scorer import (
     get_score_label,
     is_near_rv,
 )
+from scrapers.franchise_filter import is_national_franchise
 from scrapers.utils import (
     get_logger,
     rate_limit,
@@ -48,9 +49,9 @@ from scrapers.utils import (
 log = get_logger("fb-marketplace")
 
 HEADERS_RADAR_PROSPEK = [
-    "Nama Bisnis", "Kategori", "Skor", "Status", "No. WhatsApp",
-    "Link WA", "Proyeksi Kebutuhan Cetak", "Alamat", "Rating & Ulasan",
-    "Website", "Peta Lokasi", "Tanggal"
+    "Nama Bisnis", "Kategori", "Sumber Platform", "Skor", "Status",
+    "No. WhatsApp", "Link WA", "Proyeksi Kebutuhan Cetak", "Pemicu Kebutuhan & Konteks",
+    "Alamat", "Rating & Ulasan", "Website", "Link Sumber Asli", "Tanggal"
 ]
 
 HEADERS_MATRIKS_KOMPETITOR = [
@@ -181,6 +182,10 @@ def process_fb_leads(items: list[dict]) -> list[dict]:
     leads = []
     for item in items:
         title = item["title"]
+        if is_national_franchise(title):
+            log.debug(f"BLOCKED franchise: {title}")
+            continue
+
         location = item.get("location", "Makassar")
         cat = detect_category(title, bio=item.get("raw_text", ""))
         if cat == "lainnya":

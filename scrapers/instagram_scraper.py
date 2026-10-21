@@ -29,6 +29,7 @@ from scrapers.config import (
     PROCESSED_DIR,
 )
 from scrapers.lead_scorer import detect_category, score_and_format
+from scrapers.franchise_filter import is_national_franchise
 from scrapers.utils import (
     get_logger,
     rate_limit,
@@ -42,9 +43,9 @@ from scrapers.utils import (
 log = get_logger("instagram")
 
 HEADERS_RADAR_PROSPEK = [
-    "Nama Bisnis", "Kategori", "Skor", "Status", "No. WhatsApp",
-    "Link WA", "Proyeksi Kebutuhan Cetak", "Alamat", "Rating & Ulasan",
-    "Website", "Peta Lokasi", "Tanggal"
+    "Nama Bisnis", "Kategori", "Sumber Platform", "Skor", "Status",
+    "No. WhatsApp", "Link WA", "Proyeksi Kebutuhan Cetak", "Pemicu Kebutuhan & Konteks",
+    "Alamat", "Rating & Ulasan", "Website", "Link Sumber Asli", "Tanggal"
 ]
 
 HEADERS_MATRIKS_KOMPETITOR = [
@@ -215,6 +216,11 @@ def process_ig_leads(profiles: list[dict]) -> list[dict]:
     """Hitung skor prospek dan proyeksi kebutuhan cetak untuk leads Instagram."""
     processed = []
     for p in profiles:
+        nama = p.get("nama_display") or p.get("username", "")
+        if is_national_franchise(nama):
+            log.debug(f"BLOCKED franchise: {nama}")
+            continue
+
         kategori = p.get("kategori_kode", "fnb")
         followers = p.get("jumlah_followers", 0)
         pemicu = f"Akun Instagram aktif Makassar ({followers} followers)"

@@ -24,6 +24,7 @@ from patchright.sync_api import sync_playwright
 from scrapers.config import RAW_DIR, PROCESSED_DIR, GMAPS_DELAY_SECONDS
 from scrapers.contact_enricher import classify_phone_number
 from scrapers.lead_scorer import score_and_format
+from scrapers.franchise_filter import is_national_franchise
 from scrapers.utils import get_logger, rate_limit, today_wita, launch_stealth_browser, append_rows_to_sheet, WITA
 
 log = get_logger("food-delivery")
@@ -91,7 +92,11 @@ def scrape_gofood_merchants(limit: int = 10) -> list:
                     name = lines[1] if len(lines) > 1 else f"Merchant GoFood #{count+1}"
                     subcat = lines[2] if len(lines) > 2 else "Kuliner F&B"
                     district = next((d for d in MAKASSAR_DISTRICTS if d.lower() in name.lower()), "Makassar")
-                    
+
+                    if is_national_franchise(name):
+                        log.info(f"  [BLOCKED FRANCHISE] {name}")
+                        continue
+
                     results.append({
                         "nama_bisnis": name,
                         "kategori": "fnb",

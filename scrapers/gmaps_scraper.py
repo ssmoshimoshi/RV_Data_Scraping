@@ -9,9 +9,16 @@ Fitur:
     - Scroll feed interaktif untuk mengambil batch listings
     - Ekstraksi Rating, Review Count, Kategori, Alamat, dan Link GMaps
     - Scoring otomatis via Lead Scoring Engine (Module E)
+    - Franchise filter (blokir waralaba nasional 100%)
     - Export ke Google Sheets atau simpan lokal di data/raw/ & data/processed/
     - Rate limiting & deduplikasi otomatis
 """
+
+import sys
+from pathlib import Path
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 import re
 import json
@@ -19,7 +26,6 @@ import time
 import argparse
 import urllib.parse
 from datetime import datetime
-from pathlib import Path
 
 from patchright.sync_api import sync_playwright
 
@@ -34,6 +40,7 @@ from scrapers.config import (
     RV_LONGITUDE,
 )
 from scrapers.lead_scorer import detect_category, score_and_format, is_near_rv
+from scrapers.franchise_filter import is_national_franchise, filter_franchise_from_leads
 from scrapers.utils import (
     get_logger,
     rate_limit,
@@ -262,24 +269,34 @@ def scrape_gmaps(queries: list[str], max_queries: int = None, mode: str = "leads
 # ─── Post-processing & Scoring ───────────────────────────────────────────────
 def process_leads(raw_results: list[dict]) -> list[dict]:
     """
-    Process raw Google Maps results menjadi scored leads.
-    Auto-detect kategori dan hitung skor prospek.
+    Process raw Google Maps results menjadi scored leads dengan:
+    1. Franchise filter (blokir waralaba nasional 100%)
+    2. Cross-platform matching (jejak digital 360 derajat)
+    3. Auto-detect kategori dan hitung skor prospek
     """
     processed = []
+    blocked_count = 0
+    
     for r in raw_results:
-        kategori = detect_category(r["nama_bisnis"], r.get("kategori", ""))
+        nama = r.get("nama_bisnis", "")
+        
+        if is_national_franchise(nama):
+            blocked_count += 1
+            log.debug(f"BLOCKED franchise: {nama}")
+            continue
+        
+        kategori = detect_category(nama, r.get("kategori", ""))
         r["kategori_kode"] = kategori
 
-        # Bisnis terindikasi baru jika ulasan sedikit (<25) atau query mengandung 'baru'
         reviews = r.get("jumlah_review", 0)
         query = r.get("query_used", "").lower()
         is_new = reviews <= 25 or "baru" in query
 
         alamat = r.get("alamat", "")
-        near_rv = is_near_rv(alamat, r["nama_bisnis"], query)
+        near_rv = is_near_rv(alamat, nama, query)
 
         lead = {
-            "nama_bisnis": r["nama_bisnis"],
+            "nama_bisnis": nama,
             "kategori": kategori,
             "telepon": r.get("telepon", ""),
             "website": r.get("website", ""),
@@ -315,28 +332,31 @@ def process_leads(raw_results: list[dict]) -> list[dict]:
             "lainnya": "Banner promosi, brosur kilat, kartu nama, stempel flash",
         }
         r["proyeksi_kebutuhan"] = kebutuhan_map.get(kategori, "Banner promosi & media cetak")
-        
+
         pemicu = f"Bisnis terdaftar di koridor {alamat.split(',')[0] if ',' in alamat else 'Makassar'}"
         if is_new:
             pemicu = f"Bisnis baru di {alamat.split(',')[0] if ',' in alamat else 'Makassar'} - potensi tinggi butuh branding awal"
         elif near_rv:
             pemicu = f"Lokasi dekat workshop Bua Kana - peluang servis kilat same-day"
-        
+
         r["platform_sumber"] = "Google Maps"
         r["url_sumber"] = r.get("url_gmaps", "") or r.get("gmaps_url", "")
         r["pemicu_kebutuhan"] = pemicu
         r["rekomendasi_produk"] = r["proyeksi_kebutuhan"]
 
         processed.append(r)
+    
+    if blocked_count > 0:
+        log.info(f"Franchise filter: {blocked_count} waralaba nasional diblokir")
 
     processed.sort(key=lambda x: x.get("skor", 0), reverse=True)
     return processed
 
 
 HEADERS_RADAR_PROSPEK = [
-    "Nama Bisnis", "Kategori", "Sumber Platform", "Skor", "Status", "No. WhatsApp",
-    "Link WA", "Proyeksi Kebutuhan Cetak", "Pemicu Kebutuhan & Konteks", "Alamat",
-    "Rating & Ulasan", "Website", "Link Sumber Asli", "Tanggal"
+    "Nama Bisnis", "Kategori", "Sumber Platform", "Skor", "Status",
+    "No. WhatsApp", "Link WA", "Proyeksi Kebutuhan Cetak", "Pemicu Kebutuhan & Konteks",
+    "Alamat", "Rating & Ulasan", "Website", "Link Sumber Asli", "Tanggal"
 ]
 
 HEADERS_MARKET_SIGNALS = [
@@ -388,7 +408,7 @@ def format_web_hyperlink(url: str) -> str:
 
 # ─── Export to Google Sheets ──────────────────────────────────────────────────
 def export_leads_to_sheet(leads: list[dict], action: str = "append"):
-    """Export processed leads ke sheet 'Radar Prospek'."""
+    """Export processed leads ke sheet 'Radar Prospek' dengan format 14 kolom."""
     if not leads:
         log.info("Tidak ada leads baru untuk di-export.")
         return
@@ -416,35 +436,38 @@ def export_leads_to_sheet(leads: list[dict], action: str = "append"):
         else:
             wa_link = format_wa_hyperlink(phone)
 
-        platform = lead.get("platform_sumber", "Google Maps")
-        pemicu = lead.get("pemicu_kebutuhan", "-")
-        source_url = lead.get("url_sumber", "") or lead.get("url_gmaps", "")
-        source_link = format_source_hyperlink(source_url, platform, lead.get("nama_bisnis", ""), lead.get("alamat", ""))
-        web_link = format_web_hyperlink(lead.get("website", "").strip())
         kebutuhan = lead.get("proyeksi_kebutuhan") or lead.get("rekomendasi_produk") or "Banner dan Media Promosi"
+        pemicu = lead.get("pemicu_kebutuhan", "-")
         rating_str = f"{lead.get('rating', 0)} ({lead.get('jumlah_review', 0)} ulasan)"
+        
+        source_url = lead.get("url_gmaps", "") or lead.get("url_sumber", "")
+        source_link = format_gmaps_hyperlink(source_url, lead.get("nama_bisnis", ""), lead.get("alamat", ""))
+        web_link = format_web_hyperlink(lead.get("website", ""))
 
         row = [
-            lead.get("nama_bisnis", ""),         # A: Nama Bisnis
-            kategori_label,                       # B: Kategori
-            platform,                             # C: Sumber Platform
-            str(lead.get("skor", 7)),             # D: Skor
-            lead.get("skor_label", "WARM"),      # E: Status
-            phone or "-",                         # F: No. WhatsApp
-            wa_link,                              # G: Link WA
-            kebutuhan,                            # H: Proyeksi Kebutuhan Cetak
-            pemicu,                               # I: Pemicu Kebutuhan & Konteks
-            lead.get("alamat", "-") or "-",       # J: Alamat
-            rating_str,                           # K: Rating dan Ulasan
-            web_link,                             # L: Website
-            source_link,                          # M: Link Sumber Asli
-            lead.get("scrape_date", today_wita()),# N: Tanggal
+            lead.get("nama_bisnis", ""),
+            kategori_label,
+            lead.get("platform_sumber", "Google Maps"),
+            str(lead.get("skor", 7)),
+            lead.get("skor_label", "WARM"),
+            phone or "-",
+            wa_link,
+            kebutuhan,
+            pemicu,
+            lead.get("alamat", "-") or "-",
+            rating_str,
+            web_link,
+            source_link,
+            lead.get("scrape_date", today_wita()),
         ]
         rows.append(row)
 
     try:
-        append_rows_to_sheet("Radar Prospek", rows, action=action, headers=HEADERS_RADAR_PROSPEK)
+        append_rows_to_sheet("Radar Prospek", rows, action=action)
         log.info(f"{len(rows)} leads berhasil di-export ke 'Radar Prospek'")
+    except Exception as e:
+        log.warning(f"Belum bisa export ke Google Sheets: {e}")
+        log.info("Data tetap aman tersimpan di folder data/processed/")
     except Exception as e:
         log.warning(f"Belum bisa export ke Google Sheets: {e}")
         log.info("Data tetap aman tersimpan di folder data/processed/")

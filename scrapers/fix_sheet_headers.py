@@ -26,7 +26,7 @@ log = get_logger("fix-headers")
 
 HEADERS_RADAR_PROSPEK_14_KOLOM = [
     "Nama Bisnis",
-    "Kategori", 
+    "Kategori",
     "Sumber Platform",
     "Skor",
     "Status",
@@ -83,15 +83,15 @@ def clear_and_rewrite_headers():
 
 def main():
     log.info("=== RUANG VISUAL - Fix Sheet Headers ===")
-    log.info(f"Target: Tab 'Radar Prospek' -> 14 kolom standar")
+    log.info(f"Target: Tab 'Radar Prospek' -> 14 kolom resmi")
     log.info(f"Header: {', '.join(HEADERS_RADAR_PROSPEK_14_KOLOM[:3])}... (14 total)")
     
     success = clear_and_rewrite_headers()
     
     if success:
         log.info("\n=== SELESAI ===")
-        log.info("Tab 'Radar Prospek' sudah siap menerima data dengan format 14 kolom.")
-        log.info("Lanjutkan dengan eksekusi scraping live: python3 scrapers/food_delivery_scraper.py --limit 10")
+        log.info("Tab 'Radar Prospek' sudah siap menerima data dengan format 14 kolom resmi.")
+        log.info("Lanjutkan dengan: python3 run_pipeline.py gmaps --mode leads --limit 3")
     else:
         log.error("\n=== GAGAL ===")
         log.error("Periksa GOOGLE_SHEET_WEBHOOK_URL di .env dan koneksi internet.")
