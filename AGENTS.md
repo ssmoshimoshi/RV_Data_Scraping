@@ -123,3 +123,15 @@ Setelah menyelesaikan penulisan atau pengubahan kode, Kilo harus:
    python3 -m py_compile <file_yang_diubah>
 2. Menjalankan pengetesan lokal dengan opsi --dry-run.
 3. Memberikan laporan ringkas kepada pengguna dan merekomendasikan agar Antigravity melakukan audit dan integrasi ke pipeline utama.
+
+---
+
+## 6. Standar Efisiensi Kode (Ponytail Lean Code Standard)
+
+Sesuai aturan di .agents/rules/ponytail_lean_code.md dan skill ponytail di .agents/skills/ponytail/:
+1. Filosofi Inti: "The best code is the code you never wrote." Selesaikan masalah dengan penambahan kode seminimal mungkin.
+2. Daur Ulang Pustaka Internal: Wajib menggunakan fungsi yang sudah ada di scrapers/utils.py dan scrapers/contact_enricher.py. Dilarang menulis ulang fungsi regex telepon, delay, logging, atau normalisasi.
+3. Utamakan Standard Library: Gunakan urllib, re, json, pathlib sebelum mengusulkan dependensi baru.
+4. Tolak Over-Engineering: Dilarang membuat abstraksi atau class wrapper berlebihan jika sebuah fungsi sederhana sudah cukup.
+5. Ketersediaan Skill: Agen dapat mengaktifkan skill `.agents/skills/ponytail/`, `.agents/skills/ponytail-review/`, dan `.agents/skills/test-driven-development/` untuk memandu penulisan dan peninjauan kode bersih.
+
