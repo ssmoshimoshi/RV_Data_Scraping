@@ -23,7 +23,8 @@ from patchright.sync_api import sync_playwright
 
 from scrapers.config import RAW_DIR, PROCESSED_DIR, GMAPS_DELAY_SECONDS
 from scrapers.contact_enricher import classify_phone_number
-from scrapers.utils import get_logger, rate_limit, today_wita, launch_stealth_browser, WITA
+from scrapers.lead_scorer import score_and_format
+from scrapers.utils import get_logger, rate_limit, today_wita, launch_stealth_browser, append_rows_to_sheet, WITA
 
 log = get_logger("food-delivery")
 
@@ -146,9 +147,54 @@ def enrich_with_contact(leads: list) -> list:
     return enriched
 
 
+def export_to_sheets(leads: list):
+    """
+    Export leads ke Google Sheets tab 'Radar Prospek' dengan format 14 kolom.
+    """
+    if not leads:
+        log.info("Tidak ada leads untuk di-export ke Sheets")
+        return
+    
+    rows = []
+    for lead in leads:
+        phone = lead.get("no_whatsapp", "-")
+        wa_link = lead.get("whatsapp_link", "-")
+        if wa_link == "-" and phone != "-":
+            contact_info = classify_phone_number(phone)
+            wa_link = contact_info["wa_link"]
+        
+        platform = lead.get("platform_sumber", "GoFood")
+        source_url = lead.get("url_sumber", "")
+        source_link = f'=HYPERLINK("{source_url}", "Buka Menu GoFood")' if source_url else "-"
+        
+        row = [
+            lead.get("nama_bisnis", ""),
+            "F&B/Kuliner",
+            platform,
+            str(lead.get("skor", 7)),
+            lead.get("skor_label", "WARM"),
+            phone,
+            wa_link,
+            lead.get("rekomendasi_produk", "Stiker label cup & kemasan foodgrade"),
+            lead.get("pemicu_kebutuhan", "Merchant kuliner aktif"),
+            lead.get("alamat", "Makassar"),
+            f"{lead.get('rating', 0)} ({lead.get('jumlah_review', 0)} ulasan)",
+            "-",
+            source_link,
+            lead.get("scrape_date", today_wita()),
+        ]
+        rows.append(row)
+    
+    try:
+        append_rows_to_sheet("Radar Prospek", rows, action="append")
+        log.info(f"{len(rows)} leads GoFood berhasil di-export ke 'Radar Prospek'")
+    except Exception as e:
+        log.warning(f"Belum bisa export ke Google Sheets: {e}")
+
+
 def save_results(results: list, platform: str, dry_run: bool = False):
     """
-    Simpan hasil scraping ke data/raw/ dan data/processed/.
+    Simpan hasil scraping ke data/raw/, data/processed/, dan Google Sheets.
     """
     if dry_run:
         log.info(f"[DRY-RUN] Akan menyimpan {len(results)} leads dari {platform}")
@@ -167,8 +213,7 @@ def save_results(results: list, platform: str, dry_run: bool = False):
         json.dump(enriched, f, ensure_ascii=False, indent=2)
     log.info(f"Processed data disimpan: {processed_file}")
 
-    from scrapers.gmaps_scraper import export_leads_to_sheet
-    export_leads_to_sheet(enriched, action="append")
+    export_to_sheets(enriched)
 
 
 def main():

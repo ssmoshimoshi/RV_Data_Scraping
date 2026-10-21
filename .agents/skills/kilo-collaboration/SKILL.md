@@ -18,7 +18,7 @@ Skill ini digunakan oleh Antigravity untuk meninjau, menguji, dan mengintegrasik
 
 2. **Pemeriksaan Skema Data Google Sheets**:
    Pastikan header yang digunakan di modul scraper tepat 100% mengikuti standar:
-   - Radar Prospek (12 kolom)
+   - Radar Prospek (14 kolom: Nama Bisnis, Kategori, Sumber Platform, Skor, Status, No. WhatsApp, Link WA, Proyeksi Kebutuhan Cetak, Pemicu Kebutuhan & Konteks, Alamat, Rating & Ulasan, Website, Link Sumber Asli, Tanggal)
    - Matriks Kompetitor (11 kolom)
    - Market Signals (6 kolom, dengan Kolom E sebagai Link Referensi URL)
 
