@@ -170,9 +170,9 @@ function cleanAllSheetsData() {
   var leadSheet = ss.getSheetByName("Radar Prospek");
   if (leadSheet) {
     cleanTabContent(leadSheet, [
-      "Nama Bisnis", "Kategori", "Skor", "Status", "No. WhatsApp",
-      "Link WA", "Proyeksi Kebutuhan Cetak", "Alamat", "Rating & Ulasan",
-      "Website", "Peta Lokasi", "Tanggal"
+      "Nama Bisnis", "Kategori", "Sumber Platform", "Skor", "Status", "No. WhatsApp",
+      "Link WA", "Proyeksi Kebutuhan Cetak", "Pemicu Kebutuhan & Konteks", "Alamat", "Rating & Ulasan",
+      "Website", "Link Sumber Asli", "Tanggal"
     ]);
   }
 
@@ -236,7 +236,7 @@ function cleanTabContent(sheet, correctHeaders) {
       // Prioritaskan rumus hyperlink yang sudah ada, jika tidak ada gunakan teks nilai
       var rawCell = cellForm ? cellForm : cellVal;
       var entityName = String(rowVals[0] || "").trim();
-      var addressName = (c >= 7 && c < rowVals.length) ? String(rowVals[7] || "").trim() : "";
+      var addressName = (sheetName === "Radar Prospek" && rowVals.length > 9) ? String(rowVals[9] || "").trim() : ((c >= 7 && c < rowVals.length) ? String(rowVals[7] || "").trim() : "");
 
       var sanitized = sanitizeCell(rawCell, c, sheetName, entityName, addressName);
       cleanRow.push(sanitized);
@@ -291,13 +291,23 @@ function sanitizeCell(content, colIndex, sheetName, entityName, addressName) {
       return '=HYPERLINK("' + str + '", "Lihat Tren")';
     } else if (str.indexOf("wa.me") !== -1) {
       return '=HYPERLINK("' + str + '", "Chat WA")';
+    } else if (str.indexOf("gofood") !== -1) {
+      return '=HYPERLINK("' + str + '", "Buka Menu GoFood")';
+    } else if (str.indexOf("grab") !== -1) {
+      return '=HYPERLINK("' + str + '", "Buka Menu GrabFood")';
+    } else if (str.indexOf("facebook.com") !== -1) {
+      return '=HYPERLINK("' + str + '", "Buka Listing FB")';
+    } else if (str.indexOf("instagram.com") !== -1) {
+      return '=HYPERLINK("' + str + '", "Buka Profil IG")';
+    } else if (str.indexOf("threads.net") !== -1) {
+      return '=HYPERLINK("' + str + '", "Buka Threads")';
     } else {
       return '=HYPERLINK("' + str + '", "Buka Web")';
     }
   }
 
-  // 4. Khusus kolom Peta Lokasi di Radar Prospek (Kolom K / indeks 10)
-  if (sheetName === "Radar Prospek" && colIndex === 10) {
+  // 4. Khusus kolom Link Sumber Asli di Radar Prospek (Kolom M / indeks 12)
+  if (sheetName === "Radar Prospek" && colIndex === 12) {
     if (!str || str === "-" || str === "Buka GMaps" || str === "Buka Peta") {
       if (entityName) {
         var query = encodeURIComponent((entityName + " " + addressName + " Makassar").trim());
@@ -370,14 +380,15 @@ function formatSheet(sheet, sheetName) {
 
     if (sheetName === "Radar Prospek") {
       sheet.getRange(2, 2, lastRow - 1, 1).setHorizontalAlignment("center"); // Kategori
-      sheet.getRange(2, 3, lastRow - 1, 1).setHorizontalAlignment("center"); // Skor
-      sheet.getRange(2, 4, lastRow - 1, 1).setHorizontalAlignment("center"); // Status
-      sheet.getRange(2, 5, lastRow - 1, 1).setHorizontalAlignment("center"); // Telp
-      sheet.getRange(2, 6, lastRow - 1, 1).setHorizontalAlignment("center"); // Link WA
-      sheet.getRange(2, 9, lastRow - 1, 1).setHorizontalAlignment("center"); // Rating
-      sheet.getRange(2, 10, lastRow - 1, 1).setHorizontalAlignment("center"); // Website
-      sheet.getRange(2, 11, lastRow - 1, 1).setHorizontalAlignment("center"); // Peta
-      sheet.getRange(2, 12, lastRow - 1, 1).setHorizontalAlignment("center"); // Tanggal
+      sheet.getRange(2, 3, lastRow - 1, 1).setHorizontalAlignment("center"); // Sumber Platform
+      sheet.getRange(2, 4, lastRow - 1, 1).setHorizontalAlignment("center"); // Skor
+      sheet.getRange(2, 5, lastRow - 1, 1).setHorizontalAlignment("center"); // Status
+      sheet.getRange(2, 6, lastRow - 1, 1).setHorizontalAlignment("center"); // No. WhatsApp
+      sheet.getRange(2, 7, lastRow - 1, 1).setHorizontalAlignment("center"); // Link WA
+      sheet.getRange(2, 11, lastRow - 1, 1).setHorizontalAlignment("center"); // Rating & Ulasan
+      sheet.getRange(2, 12, lastRow - 1, 1).setHorizontalAlignment("center"); // Website
+      sheet.getRange(2, 13, lastRow - 1, 1).setHorizontalAlignment("center"); // Link Sumber Asli
+      sheet.getRange(2, 14, lastRow - 1, 1).setHorizontalAlignment("center"); // Tanggal
     } else if (sheetName === "Matriks Kompetitor") {
       sheet.getRange(2, 3, lastRow - 1, 1).setHorizontalAlignment("center"); // Kapasitas
       sheet.getRange(2, 4, lastRow - 1, 1).setHorizontalAlignment("center"); // Rating

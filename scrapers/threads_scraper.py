@@ -241,6 +241,9 @@ def process_leads(raw_data: list[dict]) -> list[dict]:
             kategori_gmaps=""
         )
         
+        pemicu = f"Postingan Threads aktif keyword '{item.get('keyword', '')}' - mencari vendor cetak"
+        rekomendasi = "Banner roll-up & kartu nama finishing doff" if "bisnis" in item.get("keyword", "") else "Stiker kemasan waterproof & box packaging custom"
+        
         scored = score_and_format(
             nama_bisnis=item.get("nama_bisnis", ""),
             kategori_kode=kategori_kode,
@@ -252,11 +255,15 @@ def process_leads(raw_data: list[dict]) -> list[dict]:
             alamat="Makassar",
             gmaps_url="",
         )
-        
+
         scored["threads_url"] = item.get("profile_url", "")
         scored["post_preview"] = item.get("post_text", "")[:200]
         scored["engagement"] = item.get("engagement", "")
         scored["scrape_date"] = item.get("scrape_date", today_wita())
+        scored["platform_sumber"] = "Threads"
+        scored["url_sumber"] = item.get("profile_url", "")
+        scored["pemicu_kebutuhan"] = pemicu
+        scored["rekomendasi_produk"] = rekomendasi
         
         processed.append(scored)
     
@@ -268,41 +275,8 @@ def export_leads_to_sheet(leads: list[dict]):
     if not leads:
         log.info("Tidak ada leads untuk di-export")
         return
-    
-    rows = []
-    for lead in leads:
-        kategori_label = {
-            "fnb": "F&B/Kuliner",
-            "klinik_estetika": "Klinik/Estetika",
-            "butik_fashion": "Butik/Fashion",
-            "event_organizer": "Event Organizer",
-            "property": "Developer/Properti",
-        }.get(lead.get("kategori_kode"), "Lainnya")
-        
-        wa_link = f'=HYPERLINK("https://wa.me/{lead.get("no_telepon", "").replace("0", "62", 1)}", "Chat WA")' if lead.get("no_telepon") else "-"
-        threads_link = f'=HYPERLINK("{lead.get("threads_url", "")}", "Profil")' if lead.get("threads_url") else "-"
-        
-        row = [
-            lead.get("nama_bisnis", ""),
-            kategori_label,
-            lead.get("skor", 0),
-            lead.get("skor_label", ""),
-            lead.get("no_telepon", "-"),
-            wa_link,
-            lead.get("proyeksi_kebutuhan", ""),
-            "Makassar",
-            f"Engagement: {lead.get('engagement', '-')}",
-            threads_link,
-            "-",
-            today_wita(),
-        ]
-        rows.append(row)
-    
-    try:
-        append_rows_to_sheet("Radar Prospek", rows, action="append", headers=HEADERS_RADAR_PROSPEK)
-        log.info(f"{len(rows)} leads berhasil di-export ke 'Radar Prospek'")
-    except Exception as e:
-        log.warning(f"Belum bisa export ke Google Sheets: {e}")
+    from scrapers.gmaps_scraper import export_leads_to_sheet as gmaps_export
+    gmaps_export(leads, action="append")
 
 
 def export_competitors_to_sheet(competitors: list[dict]):

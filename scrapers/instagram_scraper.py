@@ -216,6 +216,13 @@ def process_ig_leads(profiles: list[dict]) -> list[dict]:
     processed = []
     for p in profiles:
         kategori = p.get("kategori_kode", "fnb")
+        followers = p.get("jumlah_followers", 0)
+        pemicu = f"Akun Instagram aktif Makassar ({followers} followers)"
+        if followers < 1000:
+            pemicu = f"Bisnis baru Instagram (<1K followers) - potensi upgrade branding visual"
+        elif followers > 5000:
+            pemicu = f"Akun mapan ({followers} followers) - peluang kontrak cetak rutin bulanan"
+        
         lead = {
             "nama_bisnis": p["nama_display"] or f"@{p['username']}",
             "kategori": kategori,
@@ -232,6 +239,10 @@ def process_ig_leads(profiles: list[dict]) -> list[dict]:
             "lokasi_makassar_kota": True,
             "url_referensi": p.get("url_profil", ""),
             "scrape_date": p.get("scrape_date", today_wita()),
+            "platform_sumber": "Instagram",
+            "url_sumber": p.get("url_profil", ""),
+            "pemicu_kebutuhan": pemicu,
+            "rekomendasi_produk": project_ig_lead_needs(kategori),
         }
 
         scored = score_and_format(lead)
@@ -299,46 +310,8 @@ def export_ig_leads_to_sheet(leads: list[dict]):
     """Export Instagram leads ke Google Sheets 'Radar Prospek'."""
     if not leads:
         return
-    rows = []
-    for l in leads:
-        kategori_label = {
-            "property": "Developer/Properti",
-            "emas_jewelry": "Toko Emas/Jewelry",
-            "kantor_agensi": "Kantor/Agensi",
-            "klinik_estetika": "Klinik/Skincare",
-            "fashion_butik": "Fashion/Butik",
-            "fnb": "F&B/Kuliner",
-            "eo": "Event/WO",
-            "pendidikan": "Pendidikan",
-            "retail": "Retail/UMKM",
-        }.get(l.get("kategori_kode", ""), "Retail/UMKM")
-
-        phone = l.get("telepon", "").strip()
-        wa_link = format_wa_hyperlink(phone)
-        web_link = format_link_hyperlink(l.get("website", ""), "Buka Web") if l.get("website") else "-"
-        profile_link = format_link_hyperlink(l.get("url_referensi", ""), "Buka Profil IG")
-
-        row = [
-            l.get("nama_bisnis", ""),
-            kategori_label,
-            str(l.get("skor", 7)),
-            l.get("skor_label", "WARM"),
-            phone or "-",
-            wa_link,
-            l.get("proyeksi_kebutuhan", "Brosur & Stiker"),
-            l.get("alamat", "Makassar"),
-            f"Instagram ({l.get('jumlah_review', 0)} followers)",
-            web_link,
-            profile_link,
-            l.get("scrape_date", today_wita()),
-        ]
-        rows.append(row)
-
-    try:
-        append_rows_to_sheet("Radar Prospek", rows, action="append", headers=HEADERS_RADAR_PROSPEK)
-        log.info(f"{len(rows)} IG leads berhasil diekspor ke 'Radar Prospek'")
-    except Exception as e:
-        log.warning(f"Gagal export IG leads ke Sheets: {e}")
+    from scrapers.gmaps_scraper import export_leads_to_sheet
+    export_leads_to_sheet(leads, action="append")
 
 
 def export_ig_competitors_to_sheet(competitors: list[dict]):

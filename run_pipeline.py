@@ -89,10 +89,9 @@ def run_init_sheets():
     # Sheets yang dibutuhkan sesuai PRD §12
     required_sheets = {
         "Radar Prospek": [
-            "Entitas Bisnis", "Kategori Segmen", "Trigger Event",
-            "Sumber Data", "Kontak", "Proyeksi Kebutuhan",
-            "Skor Prospek", "Status Akuisisi", "URL Referensi",
-            "Tanggal Scrape", "Catatan"
+            "Nama Bisnis", "Kategori", "Sumber Platform", "Skor", "Status", "No. WhatsApp",
+            "Link WA", "Proyeksi Kebutuhan Cetak", "Pemicu Kebutuhan & Konteks", "Alamat",
+            "Rating & Ulasan", "Website", "Link Sumber Asli", "Tanggal"
         ],
         "Matriks Kompetitor": [
             "Nama Kompetitor", "Fokus Layanan Utama", "Celah Kualitas",
@@ -174,6 +173,12 @@ def run_threads():
     threads_main()
 
 
+def run_food():
+    """Jalankan GoFood/GrabFood Merchant Scraper untuk sektor kuliner Makassar."""
+    from scrapers.food_delivery_scraper import main as food_main
+    food_main()
+
+
 def run_clean_sheets():
     """Kirim perintah pembersihan data uji coba ke 3 tab utama Google Sheets."""
     from scrapers.utils import get_logger, append_rows_to_sheet
@@ -227,10 +232,10 @@ def run_export_csv():
         csv_no_phone = proc_dir / "leads_butuh_pengayaan.csv"
 
         headers = [
-            "Nama Bisnis", "Kategori", "Skor", "Status", "No. WhatsApp",
+            "Nama Bisnis", "Kategori", "Sumber Platform", "Skor", "Status", "No. WhatsApp",
             "Link WA", "Tipe Kontak", "Klaster Wilayah", "Tier Bisnis",
-            "Proyeksi Kebutuhan Cetak", "Alamat", "Rating & Ulasan",
-            "Website", "Peta Lokasi", "Tanggal"
+            "Proyeksi Kebutuhan Cetak", "Pemicu & Konteks", "Alamat", "Rating & Ulasan",
+            "Website", "Link Sumber Asli", "Tanggal"
         ]
 
         rows_all = []
@@ -244,10 +249,14 @@ def run_export_csv():
             phone_display = phone_info["formatted"]
             wa_url = l.get("whatsapp_link") or (f"https://wa.me/{phone_info['clean_number']}" if phone_info["is_wa_ready"] else "-")
             rating_str = f"{l.get('rating', 0)} ({l.get('jumlah_review', 0)} ulasan)"
+            platform = l.get("platform_sumber", "Google Maps")
+            pemicu = l.get("pemicu_kebutuhan", "-")
+            source_url = l.get("url_sumber", "") or l.get("url_gmaps", "-")
 
             row = [
                 l.get("nama_bisnis", ""),
                 l.get("kategori", "Umum").upper(),
+                platform,
                 l.get("skor", 7),
                 l.get("skor_label", "WARM"),
                 phone_display,
@@ -256,10 +265,11 @@ def run_export_csv():
                 l.get("klaster_wilayah", "Makassar"),
                 l.get("tier_bisnis", "Tier 2"),
                 l.get("proyeksi_kebutuhan", "Banner dan Media Promosi"),
+                pemicu,
                 l.get("alamat", "-") or "-",
                 rating_str,
                 l.get("website", "-") or "-",
-                l.get("url_gmaps", "-") or "-",
+                source_url,
                 l.get("scrape_date", ""),
             ]
 
@@ -499,9 +509,28 @@ def run_all(limit: int = 2, dry_run: bool = False, notify_telegram: bool = True)
     except Exception as e:
         log.warning(f"Threads Intelligence dilewati (bukan blocking error): {e}")
 
-    # 4. Competitor Matrix
+    # 4. Food Delivery Makassar (GoFood Merchant Leads)
     try:
-        log.info("\n--- [4/6] Menganalisis Matriks Kompetitor Makassar ---")
+        log.info("\n--- [4/7] Scraping Merchant Kuliner Makassar (GoFood) ---")
+        from scrapers.food_delivery_scraper import scrape_gofood_merchants, enrich_with_contact
+        from scrapers.utils import deduplicate_leads
+        food_raw = scrape_gofood_merchants(limit=limit)
+        if food_raw:
+            food_leads = enrich_with_contact(food_raw)
+            clean_food, dup_food = deduplicate_leads(food_leads)
+            log.info(f"Deduplikasi GoFood: {len(clean_food)} baru, {dup_food} duplikat disaring")
+            if clean_food:
+                leads_count += len(clean_food)
+                hot_leads.extend([l for l in clean_food if float(l.get("skor", 0)) >= 8.0])
+                if not dry_run:
+                    export_leads_to_sheet(clean_food)
+            log.info(f"GoFood selesai: {len(clean_food)} merchant kuliner baru ditambahkan")
+    except Exception as e:
+        log.warning(f"GoFood Merchant Scraper dilewati (bukan blocking error): {e}")
+
+    # 5. Competitor Matrix
+    try:
+        log.info("\n--- [5/7] Menganalisis Matriks Kompetitor Makassar ---")
         comp_files = sorted(PROCESSED_DIR.glob("competitors_*.json"), key=lambda f: f.stat().st_mtime, reverse=True)
         if comp_files:
             with open(comp_files[0], "r", encoding="utf-8") as f:
@@ -521,9 +550,9 @@ def run_all(limit: int = 2, dry_run: bool = False, notify_telegram: bool = True)
         except Exception:
             pass
 
-    # 5. Market Signals (TikTok Trends)
+    # 6. Market Signals (TikTok Trends)
     try:
-        log.info("\n--- [5/6] Memindai Tren Pasar (Market Signals) ---")
+        log.info("\n--- [6/7] Memindai Tren Pasar (Market Signals) ---")
         signals = scan_market_signals(TIKTOK_KEYWORDS)
         signals_count = len(signals)
         sig_file = PROCESSED_DIR / f"market_signals_{datetime.now(WITA).strftime('%Y%m%d_%H%M%S')}.json"
@@ -539,9 +568,9 @@ def run_all(limit: int = 2, dry_run: bool = False, notify_telegram: bool = True)
         except Exception:
             pass
 
-    # 6. Export CSV
+    # 7. Export CSV
     try:
-        log.info("\n--- [6/6] Mengekspor Data ke CSV Lokal ---")
+        log.info("\n--- [7/7] Mengekspor Data ke CSV Lokal ---")
         run_export_csv()
     except Exception as e:
         log.warning(f"Gagal ekspor CSV: {e}")
@@ -626,6 +655,9 @@ def main():
     elif module in ("dedup", "deduplicate"):
         print_banner()
         run_dedup()
+    elif module in ("food", "gofood", "kuliner"):
+        print_banner()
+        run_food()
     elif module in ("help", "--help", "-h"):
         print_help()
     else:

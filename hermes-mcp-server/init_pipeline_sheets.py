@@ -25,9 +25,9 @@ WEBHOOK_URL = os.getenv("GOOGLE_SHEET_WEBHOOK_URL", "").strip()
 
 TARGET_SHEETS = {
     "Radar Prospek": [
-        "Nama Bisnis", "Kategori", "Skor", "Status", "No. WhatsApp",
-        "Link WA", "Proyeksi Kebutuhan Cetak", "Alamat", "Rating & Ulasan",
-        "Website", "Peta Lokasi", "Tanggal"
+        "Nama Bisnis", "Kategori", "Sumber Platform", "Skor", "Status", "No. WhatsApp",
+        "Link WA", "Proyeksi Kebutuhan Cetak", "Pemicu Kebutuhan & Konteks", "Alamat", "Rating & Ulasan",
+        "Website", "Link Sumber Asli", "Tanggal"
     ],
     "Matriks Kompetitor": [
         "Nama Percetakan", "Fokus Layanan Utama", "Kapasitas / Skala",

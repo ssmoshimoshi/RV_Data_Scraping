@@ -315,6 +315,17 @@ def process_leads(raw_results: list[dict]) -> list[dict]:
             "lainnya": "Banner promosi, brosur kilat, kartu nama, stempel flash",
         }
         r["proyeksi_kebutuhan"] = kebutuhan_map.get(kategori, "Banner promosi & media cetak")
+        
+        pemicu = f"Bisnis terdaftar di koridor {alamat.split(',')[0] if ',' in alamat else 'Makassar'}"
+        if is_new:
+            pemicu = f"Bisnis baru di {alamat.split(',')[0] if ',' in alamat else 'Makassar'} - potensi tinggi butuh branding awal"
+        elif near_rv:
+            pemicu = f"Lokasi dekat workshop Bua Kana - peluang servis kilat same-day"
+        
+        r["platform_sumber"] = "Google Maps"
+        r["url_sumber"] = r.get("url_gmaps", "") or r.get("gmaps_url", "")
+        r["pemicu_kebutuhan"] = pemicu
+        r["rekomendasi_produk"] = r["proyeksi_kebutuhan"]
 
         processed.append(r)
 
@@ -323,9 +334,9 @@ def process_leads(raw_results: list[dict]) -> list[dict]:
 
 
 HEADERS_RADAR_PROSPEK = [
-    "Nama Bisnis", "Kategori", "Skor", "Status", "No. WhatsApp",
-    "Link WA", "Proyeksi Kebutuhan Cetak", "Alamat", "Rating & Ulasan",
-    "Website", "Peta Lokasi", "Tanggal"
+    "Nama Bisnis", "Kategori", "Sumber Platform", "Skor", "Status", "No. WhatsApp",
+    "Link WA", "Proyeksi Kebutuhan Cetak", "Pemicu Kebutuhan & Konteks", "Alamat",
+    "Rating & Ulasan", "Website", "Link Sumber Asli", "Tanggal"
 ]
 
 HEADERS_MARKET_SIGNALS = [
@@ -340,13 +351,33 @@ def format_wa_hyperlink(phone: str) -> str:
     return info["wa_link"]
 
 
-def format_gmaps_hyperlink(url: str, nama_bisnis: str = "", alamat: str = "") -> str:
-    if not url and nama_bisnis:
+def format_source_hyperlink(url: str, platform: str = "", nama_bisnis: str = "", alamat: str = "") -> str:
+    if not url and platform == "Google Maps" and nama_bisnis:
         query = f"{nama_bisnis} {alamat} Makassar".strip()
         url = f"https://www.google.com/maps/search/?api=1&query={urllib.parse.quote(query)}"
-    if not url:
+    if not url or url == "-":
         return "-"
-    return f'=HYPERLINK("{url}", "Buka Peta")'
+    url_lower = url.lower()
+    label = "Buka Tautan"
+    if "gofood" in url_lower:
+        label = "Buka Menu GoFood"
+    elif "grab" in url_lower:
+        label = "Buka Menu GrabFood"
+    elif "facebook.com" in url_lower:
+        label = "Buka Listing FB"
+    elif "instagram.com" in url_lower:
+        label = "Buka Profil IG"
+    elif "threads.net" in url_lower:
+        label = "Buka Threads"
+    elif "google.com/maps" in url_lower or "maps.google" in url_lower:
+        label = "Buka Peta"
+    elif "tiktok.com" in url_lower:
+        label = "Buka TikTok"
+    return f'=HYPERLINK("{url}", "{label}")'
+
+
+def format_gmaps_hyperlink(url: str, nama_bisnis: str = "", alamat: str = "") -> str:
+    return format_source_hyperlink(url, "Google Maps", nama_bisnis, alamat)
 
 
 def format_web_hyperlink(url: str) -> str:
@@ -384,25 +415,30 @@ def export_leads_to_sheet(leads: list[dict], action: str = "append"):
             wa_link = f'=HYPERLINK("{wa_url}", "Chat WA")'
         else:
             wa_link = format_wa_hyperlink(phone)
-        gmaps_url = lead.get("url_gmaps", "").strip()
-        gmaps_link = format_gmaps_hyperlink(gmaps_url, lead.get("nama_bisnis", ""), lead.get("alamat", ""))
+
+        platform = lead.get("platform_sumber", "Google Maps")
+        pemicu = lead.get("pemicu_kebutuhan", "-")
+        source_url = lead.get("url_sumber", "") or lead.get("url_gmaps", "")
+        source_link = format_source_hyperlink(source_url, platform, lead.get("nama_bisnis", ""), lead.get("alamat", ""))
         web_link = format_web_hyperlink(lead.get("website", "").strip())
-        kebutuhan = lead.get("proyeksi_kebutuhan", "Banner dan Media Promosi")
+        kebutuhan = lead.get("proyeksi_kebutuhan") or lead.get("rekomendasi_produk") or "Banner dan Media Promosi"
         rating_str = f"{lead.get('rating', 0)} ({lead.get('jumlah_review', 0)} ulasan)"
 
         row = [
             lead.get("nama_bisnis", ""),         # A: Nama Bisnis
             kategori_label,                       # B: Kategori
-            str(lead.get("skor", 7)),             # C: Skor
-            lead.get("skor_label", "WARM"),      # D: Status
-            phone or "-",                         # E: No. WhatsApp
-            wa_link,                              # F: Link WA
-            kebutuhan,                            # G: Proyeksi Kebutuhan Cetak
-            lead.get("alamat", "-") or "-",       # H: Alamat
-            rating_str,                           # I: Rating dan Ulasan
-            web_link,                             # J: Website
-            gmaps_link,                           # K: Peta Lokasi
-            lead.get("scrape_date", today_wita()),# L: Tanggal
+            platform,                             # C: Sumber Platform
+            str(lead.get("skor", 7)),             # D: Skor
+            lead.get("skor_label", "WARM"),      # E: Status
+            phone or "-",                         # F: No. WhatsApp
+            wa_link,                              # G: Link WA
+            kebutuhan,                            # H: Proyeksi Kebutuhan Cetak
+            pemicu,                               # I: Pemicu Kebutuhan & Konteks
+            lead.get("alamat", "-") or "-",       # J: Alamat
+            rating_str,                           # K: Rating dan Ulasan
+            web_link,                             # L: Website
+            source_link,                          # M: Link Sumber Asli
+            lead.get("scrape_date", today_wita()),# N: Tanggal
         ]
         rows.append(row)
 

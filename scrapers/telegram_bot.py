@@ -169,6 +169,15 @@ def execute_command_async(cmd: str, chat_id: str, token: str):
         except Exception as e:
             send_message(token, chat_id, f"Error saat menjalankan /dedup: {e}")
 
+    elif cmd in ("/kuliner", "/gofood"):
+        send_message(token, chat_id, "Perintah /kuliner diterima.\nMenjalankan pencarian merchant GoFood Makassar...")
+        from run_pipeline import run_food
+        try:
+            run_food()
+            send_message(token, chat_id, f"Scraper GoFood selesai.\nMerchant kuliner baru masuk ke tab Radar Prospek:\n{SPREADSHEET_URL}")
+        except Exception as e:
+            send_message(token, chat_id, f"Error saat menjalankan /kuliner: {e}")
+
     elif cmd == "/bersihkan":
         send_message(token, chat_id, f"Perintah /bersihkan diterima.\nMembersihkan baris data lama di Google Sheets...")
         from run_pipeline import run_clean_sheets
@@ -232,6 +241,7 @@ def run_polling_loop():
                         "<b>/threads</b> : Jalankan pemantauan prospek dan tren Threads",
                         "<b>/kompetitor</b> : Analisis harga dan matriks percetakan kompetitor",
                         "<b>/tren</b> : Pemantauan produk printing viral & sinyal pasar",
+                        "<b>/kuliner</b> : Jalankan scraping merchant kuliner GoFood Makassar",
                         "<b>/enrich</b> : Pengayaan nomor WhatsApp dari website calon pelanggan",
                         "<b>/dedup</b> : Periksa duplikasi data pada histori prospek",
                         "<b>/bersihkan</b> : Bersihkan data lama di Google Sheets",
@@ -251,7 +261,7 @@ def run_polling_loop():
                     ]
                     send_message(token, chat_id, "\n".join(status_text))
 
-                elif cmd in ["/semua", "/prospek", "/pasar_fb", "/threads", "/kompetitor", "/tren", "/enrich", "/dedup", "/bersihkan"]:
+                elif cmd in ["/semua", "/prospek", "/pasar_fb", "/threads", "/kompetitor", "/tren", "/kuliner", "/gofood", "/enrich", "/dedup", "/bersihkan"]:
                     t = threading.Thread(
                         target=execute_command_async,
                         args=(cmd, chat_id, token),

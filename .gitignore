@@ -33,3 +33,7 @@ hermes-mcp-server/logs/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Agent workspaces
+.kilo/
+

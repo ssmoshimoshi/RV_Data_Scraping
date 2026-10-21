@@ -50,19 +50,21 @@ Gunakan bahasa formal, bersih, profesional, dan berbasis teks biasa tanpa orname
 
 Seluruh modul yang melakukan ekspor data ke Google Sheets WAJIB mematuhi skema baku berikut:
 
-### Tab 1: "Radar Prospek" (12 Kolom)
+### Tab 1: "Radar Prospek" (14 Kolom)
 Kolom A: Nama Bisnis
 Kolom B: Kategori
-Kolom C: Skor
-Kolom D: Status
-Kolom E: No. WhatsApp
-Kolom F: Link WA
-Kolom G: Proyeksi Kebutuhan Cetak
-Kolom H: Alamat
-Kolom I: Rating & Ulasan
-Kolom J: Website
-Kolom K: Peta Lokasi
-Kolom L: Tanggal
+Kolom C: Sumber Platform
+Kolom D: Skor
+Kolom E: Status
+Kolom F: No. WhatsApp
+Kolom G: Link WA
+Kolom H: Proyeksi Kebutuhan Cetak
+Kolom I: Pemicu Kebutuhan & Konteks
+Kolom J: Alamat
+Kolom K: Rating & Ulasan
+Kolom L: Website
+Kolom M: Link Sumber Asli
+Kolom N: Tanggal
 
 ### Tab 2: "Matriks Kompetitor" (11 Kolom)
 Kolom A: Nama Percetakan

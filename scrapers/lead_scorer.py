@@ -233,11 +233,16 @@ def generate_whatsapp_pitch(lead: dict) -> str:
     return encoded_message
 
 
-def score_and_format(lead: dict) -> dict:
+def score_and_format(lead: dict = None, **kwargs) -> dict:
     """
     Hitung skor dan tambahkan ke lead dict.
+    Mendukung argumen berupa dictionary atau keyword arguments.
     Returns lead dict dengan tambahan keys: skor, skor_label, skor_reasons, tier_bisnis, klaster_wilayah
     """
+    if lead is None:
+        lead = dict(kwargs)
+    elif kwargs:
+        lead.update(kwargs)
     lead = enrich_lead_record(lead)
     score, reasons = calculate_score(lead)
     lead["skor"] = score

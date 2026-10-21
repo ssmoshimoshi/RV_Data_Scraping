@@ -188,6 +188,7 @@ def process_fb_leads(items: list[dict]) -> list[dict]:
 
         needs = project_fb_lead_needs(title, cat)
         near_rv = is_near_rv(location, name=title)
+        pemicu = f"Listing produk aktif FB Marketplace {location} - potensi kebutuhan upgrade kemasan profesional"
 
         lead = {
             "nama_bisnis": f"{title} (Seller FB)",
@@ -205,6 +206,10 @@ def process_fb_leads(items: list[dict]) -> list[dict]:
             "url_referensi": item["url"],
             "harga_produk": item.get("price", "-"),
             "scrape_date": item.get("scrape_date", today_wita()),
+            "platform_sumber": "Facebook Marketplace",
+            "url_sumber": item["url"],
+            "pemicu_kebutuhan": pemicu,
+            "rekomendasi_produk": needs,
         }
 
         score, reasons = calculate_score(lead)
@@ -297,41 +302,8 @@ def export_fb_leads_to_sheet(leads: list[dict]):
     """Export prospek FB Marketplace ke Google Sheets 'Radar Prospek'."""
     if not leads:
         return
-    rows = []
-    for l in leads:
-        kategori_label = {
-            "property": "Developer/Properti",
-            "emas_jewelry": "Toko Emas/Jewelry",
-            "kantor_agensi": "Kantor/Agensi",
-            "klinik_estetika": "Klinik/Skincare",
-            "fashion_butik": "Fashion/Butik",
-            "fnb": "F&B/Kuliner",
-            "eo": "Event/WO",
-            "pendidikan": "Pendidikan",
-            "retail": "Retail/UMKM",
-        }.get(l.get("kategori_kode", ""), "Retail/UMKM")
-
-        row = [
-            l.get("nama_bisnis", ""),
-            kategori_label,
-            str(l.get("skor", 7)),
-            l.get("skor_label", "WARM"),
-            "-",
-            "-",
-            l.get("proyeksi_kebutuhan", "Stiker Kemasan"),
-            l.get("alamat", "Makassar"),
-            f"Listing FB ({l.get('harga_produk', '-')})",
-            "-",
-            format_link_hyperlink(l.get("url_referensi", ""), "Buka Listing FB"),
-            l.get("scrape_date", today_wita()),
-        ]
-        rows.append(row)
-
-    try:
-        append_rows_to_sheet("Radar Prospek", rows, action="append", headers=HEADERS_RADAR_PROSPEK)
-        log.info(f"{len(rows)} prospek FB Marketplace berhasil diekspor ke 'Radar Prospek'")
-    except Exception as e:
-        log.warning(f"Gagal export ke Google Sheets: {e}")
+    from scrapers.gmaps_scraper import export_leads_to_sheet
+    export_leads_to_sheet(leads, action="append")
 
 
 def export_fb_competitors_to_sheet(competitors: list[dict]):
