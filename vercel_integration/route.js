@@ -101,12 +101,17 @@ export async function POST(req) {
           "<b>RUANG VISUAL — Market Intelligence Pipeline</b>",
           "Pusat Komando Mobile Makassar Focus",
           "--------------------------------------------------",
-          "<b>Daftar Perintah:</b>",
-          "<b>/semua</b> : Jalankan seluruh pipeline (Maps, FB, IG, TikTok, Matrix)",
-          "<b>/prospek</b> : Jalankan pencarian prospek bisnis baru",
-          "<b>/pasar_fb</b> : Jalankan scraping khusus Facebook Marketplace",
-          "<b>/kompetitor</b> : Analisis harga dan matriks percetakan kompetitor",
-          "<b>/tren</b> : Pemantauan produk printing viral & sinyal pasar",
+          "<b>Perintah Khusus Platform:</b>",
+          "<b>/maps</b> : Scraping bisnis & UMKM dari Google Maps",
+          "<b>/gofood</b> : Scraping merchant kuliner GoFood Makassar",
+          "<b>/facebook</b> : Scraping prospek & harga FB Marketplace",
+          "<b>/instagram</b> : Scraping prospek & tren visual Instagram",
+          "<b>/threads</b> : Scraping diskusi & kebutuhan cetak Threads",
+          "<b>/tiktok</b> : Pemantauan tren produk printing viral TikTok",
+          "--------------------------------------------------",
+          "<b>Perintah Analisis & Sistem:</b>",
+          "<b>/semua</b> : Jalankan seluruh pipeline (semua platform)",
+          "<b>/kompetitor</b> : Analisis matriks percetakan kompetitor",
           "<b>/bersihkan</b> : Bersihkan data lama di Google Sheets",
           "<b>/status</b> : Tampilkan link Google Sheets & status sistem",
           "--------------------------------------------------",
@@ -119,20 +124,42 @@ export async function POST(req) {
         await triggerGitHubWorkflow("all", "Seluruh Rangkaian Pipeline Multi-Platform");
         break;
 
+      case "/maps":
+      case "/gmaps":
       case "/prospek":
         await triggerGitHubWorkflow("gmaps", "Scraper Prospek Google Maps (Radius Workshop)");
         break;
 
+      case "/gofood":
+      case "/kuliner":
+        await triggerGitHubWorkflow("food", "Scraper Merchant Kuliner GoFood Makassar");
+        break;
+
+      case "/facebook":
+      case "/fb":
       case "/pasar_fb":
         await triggerGitHubWorkflow("facebook", "Facebook Marketplace Scraper Makassar");
         break;
 
-      case "/kompetitor":
-        await triggerGitHubWorkflow("matrix", "Analisis Matriks Kompetitor Percetakan");
+      case "/instagram":
+      case "/ig":
+        await triggerGitHubWorkflow("instagram", "Instagram Intelligence Scraper Makassar");
         break;
 
+      case "/threads":
+      case "/th":
+        await triggerGitHubWorkflow("threads", "Threads Intelligence Scraper Makassar");
+        break;
+
+      case "/tiktok":
+      case "/tt":
       case "/tren":
         await triggerGitHubWorkflow("tiktok", "TikTok & Market Signals Trend Scraper");
+        break;
+
+      case "/kompetitor":
+      case "/matrix":
+        await triggerGitHubWorkflow("matrix", "Analisis Matriks Kompetitor Percetakan");
         break;
 
       case "/bersihkan":
@@ -141,7 +168,7 @@ export async function POST(req) {
 
       case "/status":
         await sendTelegramMessage(
-          `*Status Sistem RUANG VISUAL*\nSemua layanan operasional aktif.\nData terbaru dapat dilihat langsung di Google Sheets:\n${sheetUrl}`
+          `<b>Status Sistem RUANG VISUAL</b>\nSemua layanan operasional aktif.\nData terbaru dapat dilihat langsung di Google Sheets:\n${sheetUrl}`
         );
         break;
 
