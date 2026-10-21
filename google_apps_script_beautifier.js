@@ -66,8 +66,8 @@ function doPost(e) {
         var rawRow = data.rows[j];
         var rowName = String(rawRow[0] || "").trim().toLowerCase();
         if (rowName && !existingNames.has(rowName) &&
-            rowName !== "nama bisnis" && rowName !== "entitas bisnis" &&
-            rowName !== "nama percetakan" && rowName.indexOf("sinyal") === -1) {
+          rowName !== "nama bisnis" && rowName !== "entitas bisnis" &&
+          rowName !== "nama percetakan" && rowName.indexOf("sinyal") === -1) {
           sheet.appendRow(sanitizeRow(rawRow, sheetName));
           existingNames.add(rowName);
           addedCount++;
@@ -216,9 +216,9 @@ function cleanTabContent(sheet, correctHeaders) {
 
     // Lewati baris header yang terulang di tengah data (seperti baris 2)
     if (firstCol === "nama bisnis" || firstCol === "entitas bisnis" ||
-        firstCol === "nama percetakan" || firstCol === "nama kompetitor" ||
-        firstCol.indexOf("sinyal") !== -1 || firstCol.indexOf("signal") !== -1 ||
-        firstCol.indexOf("tren produk") !== -1) {
+      firstCol === "nama percetakan" || firstCol === "nama kompetitor" ||
+      firstCol.indexOf("sinyal") !== -1 || firstCol.indexOf("signal") !== -1 ||
+      firstCol.indexOf("tren produk") !== -1) {
       continue;
     }
 

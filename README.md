@@ -7,14 +7,18 @@
 
 ## Modul yang Tersedia
 
-| Modul | Status | Fungsi Utama |
+Setiap platform mengumpulkan **3 jenis data**: Calon Customer (Leads), Kompetitor, dan Tren Pasar (Market Signals).
+
+| Platform | Status | Data yang Dikumpulkan |
 | :--- | :---: | :--- |
-| **Module B: Google Maps** | Siap Pakai | Ekstraksi calon customer (F&B, retail, EO) & percetakan kompetitor lengkap dengan **nomor WhatsApp/telepon** & alamat. |
-| **Module E: Lead Scoring Engine** | Siap Pakai | Scoring otomatis 1–10 (HOT / WARM / COOL) & proyeksi kebutuhan cetak (kemasan, banner, stiker cup, dll). |
-| **Module F: Competitor Matrix** | Siap Pakai | Pemetaan skala kapasitas kompetitor, analisis celah pelayanan/kualitas, dan strategi positioning RUANG VISUAL. |
-| **Module C: Instagram Scraper** | Siap Pakai | Ekstraksi profil bisnis publik tanpa login (follower, bio, link bio WhatsApp, kategori). |
-| **Module D: TikTok Market Signals** | Siap Pakai | Monitoring tren produk printing viral (packaging box, stiker die-cut) dan kebutuhan pasar terkini. |
-| **Module A: Google Sheets Sync** | Siap Terhubung | Auto-sync data terstruktur ke 4 tab Google Sheets (Radar Prospek, Matriks Kompetitor, Market Signals, Scrape Log). |
+| **Google Maps** | Siap Pakai | **Leads**: F&B, retail, EO, klinik dengan nomor WhatsApp<br>**Competitors**: Percetakan lokal dengan rating & kontak<br>**Trends**: Supplier packaging & bahan printing |
+| **Instagram** | Siap Pakai | **Leads**: Bisnis lokal UMKM dengan profil publik<br>**Competitors**: Akun percetakan Makassar<br>**Trends**: Hashtag & estetika branding populer |
+| **TikTok** | Siap Pakai | **Leads**: Kreator UMKM & usaha baru Makassar<br>**Competitors**: Vendor cetak aktif promosi<br>**Trends**: Produk printing viral (stiker hologram, box custom) |
+| **Facebook Marketplace** | Siap Pakai | **Leads**: Penjual kuliner & produk fisik<br>**Competitors**: Jasa percetakan di Marketplace<br>**Trends**: Produk terlaris & rentang harga |
+| **Threads** | Siap Pakai | **Leads**: Post bisnis lokal promosi<br>**Competitors**: Vendor percetakan aktif di Threads<br>**Trends**: Tren branding & packaging viral |
+| **Lead Scoring Engine** | Siap Pakai | Scoring otomatis 1–10 (HOT / WARM / COOL) & proyeksi kebutuhan cetak |
+| **Competitor Matrix** | Siap Pakai | Analisis celah kompetitor & strategi positioning RUANG VISUAL |
+| **Google Sheets Sync** | Siap Terhubung | Auto-sync ke 3 tab: Radar Prospek, Matriks Kompetitor, Market Signals |
 
 ---
 
@@ -25,37 +29,50 @@ Aktifkan virtual environment terlebih dahulu:
 source scrapers/.venv/bin/activate
 ```
 
-### 1. Scrape Calon Customer (Leads) Baru di Makassar
-```bash
-# Uji coba 3 query (tanpa menulis ke Sheets)
-python run_pipeline.py gmaps --mode leads --limit 3 --dry-run
+### 1. Scrape dari Semua Platform (Mode Lengkap)
 
-# Jalankan live (ekspor ke Google Sheets)
-python run_pipeline.py gmaps --mode leads --limit 5
+Setiap platform dapat scrape **leads**, **competitors**, dan **trends** secara bersamaan:
+
+```bash
+# Google Maps: leads + competitors + trends
+python run_pipeline.py gmaps --mode all --limit 3 --dry-run
+
+# Instagram: leads + competitors + trends
+python run_pipeline.py instagram --mode all --dry-run
+
+# TikTok: leads + competitors + trends
+python run_pipeline.py tiktok --mode all --dry-run
+
+# Facebook Marketplace: leads + competitors + trends
+python run_pipeline.py facebook --mode all --dry-run
+
+# Threads: leads + competitors + trends
+python run_pipeline.py threads --mode all --dry-run
 ```
 
-### 2. Scrape Kompetitor Percetakan di Makassar
+### 2. Scrape Per Kategori Data
+
+Atau scrape hanya kategori tertentu:
+
 ```bash
-# Ekstraksi percetakan kompetitor beserta nomor telepon & rating
-python run_pipeline.py gmaps --mode competitors --limit 3 --dry-run
+# Hanya Leads (Calon Customer)
+python run_pipeline.py gmaps --mode leads --limit 5
+python run_pipeline.py instagram --mode leads --dry-run
+python run_pipeline.py threads --mode leads --dry-run
+
+# Hanya Competitors
+python run_pipeline.py gmaps --mode competitors --limit 3
+python run_pipeline.py tiktok --mode competitors --dry-run
+
+# Hanya Trends (Market Signals)
+python run_pipeline.py gmaps --mode trends --limit 3
+python run_pipeline.py facebook --mode trends --dry-run
 ```
 
 ### 3. Analisis Kelemahan Kompetitor & Matriks Strategi
 ```bash
-# Analisis 16 kompetitor teratas dan rekomendasikan selling point RUANG VISUAL
+# Analisis kompetitor teratas dan rekomendasikan selling point RUANG VISUAL
 python run_pipeline.py matrix --dry-run
-```
-
-### 4. Scrape Profil Publik Instagram
-```bash
-# Ekstraksi profil target / UMKM lokal Makassar
-python run_pipeline.py instagram --profiles ruangvisual.id,kulinermakassar --dry-run
-```
-
-### 5. Pindai Tren & Sinyal Pasar TikTok
-```bash
-# Pindai tren produk printing viral & proyeksi demand
-python run_pipeline.py tiktok --dry-run
 ```
 
 ---

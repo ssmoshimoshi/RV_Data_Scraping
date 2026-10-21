@@ -42,6 +42,134 @@ def rate_limit(delay_range: tuple[int, int]):
     return delay
 
 
+# ─── Lead Deduplication Engine ───────────────────────────────────────────────
+def normalize_business_name(name: str) -> str:
+    """
+    Normalize business name for deduplication.
+    Remove PT, CV, UD prefixes and convert to lowercase.
+    """
+    if not name:
+        return ""
+    
+    name_lower = name.lower().strip()
+    
+    # Remove common business entity prefixes
+    prefixes = ["pt ", "pt. ", "cv ", "cv. ", "ud ", "ud. ", "toko ", "warung ", "resto "]
+    for prefix in prefixes:
+        if name_lower.startswith(prefix):
+            name_lower = name_lower[len(prefix):].strip()
+    
+    return name_lower
+
+
+def deduplicate_leads(new_leads: list, history_file_pattern: str = "data/processed/leads_scored_*.json") -> tuple[list, int]:
+    """
+    Remove duplicate leads based on existing history files.
+    
+    Args:
+        new_leads: List of new lead dictionaries to check
+        history_file_pattern: Glob pattern for historical lead files
+    
+    Returns:
+        Tuple of (clean_leads, duplicate_count)
+    """
+    logger = get_logger("deduplicator")
+    
+    # Collect existing leads from history
+    existing_phones = set()
+    existing_names = set()
+    
+    history_files = sorted(PROCESSED_DIR.glob("leads_scored_*.json"), key=lambda f: f.stat().st_mtime, reverse=True)
+    
+    total_historical_leads = 0
+    for history_file in history_files:
+        try:
+            with open(history_file, 'r', encoding='utf-8') as f:
+                historical_leads = json.load(f)
+                total_historical_leads += len(historical_leads)
+                
+                for lead in historical_leads:
+                    # Extract and normalize phone numbers
+                    phone = lead.get('no_whatsapp', '') or lead.get('telepon', '')
+                    if phone:
+                        # Normalize to 628xxx format
+                        phone_clean = ''.join(c for c in str(phone) if c.isdigit())
+                        if phone_clean.startswith('08'):
+                            phone_clean = '62' + phone_clean[1:]
+                        elif phone_clean.startswith('8'):
+                            phone_clean = '62' + phone_clean
+                        
+                        if phone_clean and len(phone_clean) >= 10:
+                            existing_phones.add(phone_clean)
+                    
+                    # Extract and normalize business names
+                    name = lead.get('nama_bisnis', '')
+                    if name:
+                        normalized_name = normalize_business_name(name)
+                        if normalized_name:
+                            existing_names.add(normalized_name)
+        
+        except Exception as e:
+            logger.warning(f"Could not read history file {history_file.name}: {e}")
+    
+    logger.info(f"Loaded {total_historical_leads} historical leads from {len(history_files)} files")
+    logger.info(f"Found {len(existing_phones)} unique phone numbers and {len(existing_names)} unique business names")
+    
+    # Filter new leads
+    clean_leads = []
+    duplicate_count = 0
+    
+    for lead in new_leads:
+        is_duplicate = False
+        
+        # Check phone number
+        phone = lead.get('no_whatsapp', '') or lead.get('telepon', '')
+        if phone:
+            phone_clean = ''.join(c for c in str(phone) if c.isdigit())
+            if phone_clean.startswith('08'):
+                phone_clean = '62' + phone_clean[1:]
+            elif phone_clean.startswith('8'):
+                phone_clean = '62' + phone_clean
+            
+            if phone_clean in existing_phones:
+                is_duplicate = True
+                logger.debug(f"Duplicate phone: {lead.get('nama_bisnis', 'Unknown')} ({phone_clean})")
+        
+        # Check business name if phone not duplicate
+        if not is_duplicate:
+            name = lead.get('nama_bisnis', '')
+            if name:
+                normalized_name = normalize_business_name(name)
+                if normalized_name in existing_names:
+                    is_duplicate = True
+                    logger.debug(f"Duplicate name: {name}")
+        
+        if is_duplicate:
+            duplicate_count += 1
+        else:
+            clean_leads.append(lead)
+            
+            # Add to existing sets to prevent intra-batch duplicates
+            if phone:
+                phone_clean = ''.join(c for c in str(phone) if c.isdigit())
+                if phone_clean.startswith('08'):
+                    phone_clean = '62' + phone_clean[1:]
+                elif phone_clean.startswith('8'):
+                    phone_clean = '62' + phone_clean
+                if phone_clean and len(phone_clean) >= 10:
+                    existing_phones.add(phone_clean)
+            
+            name = lead.get('nama_bisnis', '')
+            if name:
+                normalized_name = normalize_business_name(name)
+                if normalized_name:
+                    existing_names.add(normalized_name)
+    
+    logger.info(f"Deduplication complete: {len(clean_leads)} new leads, {duplicate_count} duplicates filtered")
+    
+    return clean_leads, duplicate_count
+
+
 # ─── Browser Helper ──────────────────────────────────────────────────────────
 def launch_stealth_browser(p, headless: bool = True):
     """
@@ -94,16 +222,25 @@ def load_raw_json(filepath: Path) -> list[dict]:
 def get_env_var(key: str, default: str = "") -> str:
     """Ambil env var dari root .env atau hermes-mcp-server/.env."""
     import os
-    from dotenv import load_dotenv
-
-    # Cek root .env dulu, lalu hermes-mcp-server/.env
-    root_env = Path(__file__).parent.parent / ".env"
-    hermes_env = Path(__file__).parent.parent / "hermes-mcp-server" / ".env"
-
-    if root_env.exists():
-        load_dotenv(root_env)
-    if hermes_env.exists():
-        load_dotenv(hermes_env)
+    try:
+        from dotenv import load_dotenv
+        root_env = Path(__file__).parent.parent / ".env"
+        hermes_env = Path(__file__).parent.parent / "hermes-mcp-server" / ".env"
+        if root_env.exists():
+            load_dotenv(root_env)
+        if hermes_env.exists():
+            load_dotenv(hermes_env)
+    except ImportError:
+        # Fallback manual jika dijalankan di luar venv tanpa modul python-dotenv
+        for env_file in [Path(__file__).parent.parent / ".env", Path(__file__).parent.parent / "hermes-mcp-server" / ".env"]:
+            if env_file.exists():
+                with open(env_file, "r", encoding="utf-8") as f:
+                    for line in f:
+                        sline = line.strip()
+                        if sline and not sline.startswith("#") and "=" in sline:
+                            k, v = sline.split("=", 1)
+                            if k.strip() not in os.environ:
+                                os.environ[k.strip()] = v.strip().strip("'\"")
 
     return os.getenv(key, default).strip()
 

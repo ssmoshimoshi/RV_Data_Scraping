@@ -118,7 +118,7 @@ def send_pipeline_summary(
             kategori = lead.get("kategori", "Umum").upper()
             skor = lead.get("skor", 8.0)
             telepon = lead.get("telepon", "")
-            wa_link = format_wa_link(telepon)
+            wa_link = lead.get("whatsapp_link") or format_wa_link(telepon)
             kebutuhan = lead.get("proyeksi_kebutuhan", "Kemasan dan Display Promosi")
 
             lead_str = f"<b>{i}. {nama}</b> [Skor: {skor:.1f} | {kategori}]"

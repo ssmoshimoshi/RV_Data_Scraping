@@ -75,6 +75,11 @@ GMAPS_LEAD_QUERIES = [
     "wedding venue Makassar",
     "studio foto Makassar",
     "hotel resto Losari Makassar",
+    
+    # RING 4: Ekspansi Sektor Bisnis Baru (Distribusi, Event, Advertising)
+    "kantor distributor Makassar",
+    "toko perlengkapan event Makassar",
+    "agensi periklanan Makassar",
 ]
 
 GMAPS_COMPETITOR_QUERIES = [
@@ -85,6 +90,17 @@ GMAPS_COMPETITOR_QUERIES = [
     "cetak kartu nama Makassar",
     "percetakan offset Makassar",
     "printing Makassar",
+]
+
+GMAPS_TREND_QUERIES = [
+    "toko packaging Makassar",
+    "toko kemasan Makassar",
+    "supplier stiker Makassar",
+    "toko bahan printing Makassar",
+    "grosir box makanan Makassar",
+    "supplier hampers Makassar",
+    "toko label produk Makassar",
+    "perlengkapan branding Makassar",
 ]
 
 # ─── Facebook Marketplace Makassar Config ─────────────────────────────────────
@@ -168,6 +184,40 @@ TIKTOK_TREND_KEYWORDS = [
 ]
 
 TIKTOK_KEYWORDS = TIKTOK_COMPETITOR_KEYWORDS + TIKTOK_TREND_KEYWORDS
+
+# ─── Threads Config ──────────────────────────────────────────────────────────
+THREADS_DELAY_SECONDS = (5, 10)
+THREADS_MAX_PAGES_PER_SESSION = 15
+
+THREADS_LEAD_KEYWORDS = [
+    "usaha baru makassar",
+    "bisnis makassar",
+    "kuliner makassar",
+    "cafe makassar buka",
+    "umkm makassar",
+    "brand lokal makassar",
+    "frozen food makassar",
+    "klinik baru makassar",
+]
+
+THREADS_COMPETITOR_KEYWORDS = [
+    "percetakan makassar",
+    "cetak murah makassar",
+    "digital printing makassar",
+    "sablon makassar",
+    "cetak banner makassar",
+    "cetak stiker makassar",
+]
+
+THREADS_TREND_KEYWORDS = [
+    "packaging viral",
+    "stiker aesthetic",
+    "box kemasan custom",
+    "label produk",
+    "branding umkm",
+    "desain kemasan",
+    "standing pouch custom",
+]
 
 # ─── Lead Scoring Rules ──────────────────────────────────────────────────────
 SCORING_RULES = {

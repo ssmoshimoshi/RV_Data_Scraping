@@ -41,14 +41,16 @@ def print_help():
     print()
     print("Modules yang tersedia:")
     print("  all            Jalankan SELURUH pipeline & kirim rekap ke Telegram (Mode Cloud)")
-    print("  gmaps          Google Maps scraper — Leads & Competitors (Module B)")
+    print("  gmaps          Google Maps scraper — Leads, Competitors & Trends (Module B)")
     print("  facebook       Facebook Marketplace Makassar — Leads, Competitors & Trends")
     print("  instagram      Instagram Intelligence Scraper — Leads, Competitors & Trends (Module C)")
     print("  tiktok         TikTok Intelligence Engine — Leads, Competitors & Trends (Module D)")
+    print("  threads        Threads Intelligence Scraper — Leads, Competitors & Trends")
     print("  matrix         Competitor Intelligence & Strategy Matrix (Module F)")
     print("  clean-sheets   Bersihkan baris data uji coba di 3 tab utama Google Sheets")
     print("  bot            Jalankan Telegram Bot Listener langsung di terminal")
     print("  export-csv     Ekspor seluruh data terbaru ke format CSV")
+    print("  enrich-web     Pengayaan kontak WhatsApp dari website/bio link calon customer")
     print("  init-sheets    Inisialisasi/update Google Sheets")
     print()
     print("Contoh:")
@@ -57,6 +59,7 @@ def print_help():
     print("  python run_pipeline.py gmaps --mode leads --limit 3 --dry-run")
     print("  python run_pipeline.py instagram --mode all --dry-run")
     print("  python run_pipeline.py tiktok --mode all --dry-run")
+    print("  python run_pipeline.py threads --mode all --dry-run")
     print("  python run_pipeline.py matrix --dry-run")
     print("  python run_pipeline.py clean-sheets")
     print()
@@ -165,6 +168,12 @@ def run_facebook():
     fb_main()
 
 
+def run_threads():
+    """Jalankan Threads Intelligence Scraper."""
+    from scrapers.threads_scraper import main as threads_main
+    threads_main()
+
+
 def run_clean_sheets():
     """Kirim perintah pembersihan data uji coba ke 3 tab utama Google Sheets."""
     from scrapers.utils import get_logger, append_rows_to_sheet
@@ -175,6 +184,21 @@ def run_clean_sheets():
         log.info("Google Sheets berhasil dibersihkan. Hanya 3 tab utama dengan header terformat rapi yang dipertahankan.")
     except Exception as e:
         log.error(f"Gagal membersihkan Google Sheets: {e}")
+
+
+def run_dedup():
+    """Jalankan Lead Deduplication Engine untuk menganalisis data prospek lokal."""
+    from scrapers.utils import get_logger, deduplicate_leads, PROCESSED_DIR
+    log = get_logger("dedup-runner")
+    leads_files = sorted(PROCESSED_DIR.glob("leads_scored_*.json"), key=lambda f: f.stat().st_mtime, reverse=True)
+    if not leads_files:
+        log.info("Tidak ada file riwayat prospek di data/processed/")
+        return
+    with open(leads_files[0], "r", encoding="utf-8") as f:
+        leads = json.load(f)
+    log.info(f"Menganalisis file terbaru: {leads_files[0].name} ({len(leads)} leads)...")
+    clean, dups = deduplicate_leads(leads)
+    log.info(f"Hasil deduplikasi: {len(clean)} prospek unik/bersih, {dups} prospek terdeteksi duplikat.")
 
 
 def run_telegram_bot():
@@ -190,44 +214,75 @@ def run_export_csv():
     log = get_logger("export-csv")
     proc_dir = Path("data/processed")
 
-    # 1. Leads to CSV
+    # 1. Leads to CSV (Termasuk Segmentasi WhatsApp Ready vs Telepon Kantor)
+    from scrapers.contact_enricher import classify_phone_number, enrich_lead_record
     leads_files = sorted(proc_dir.glob("leads_scored_*.json"), key=lambda f: f.stat().st_mtime, reverse=True)
     if leads_files:
         with open(leads_files[0], "r", encoding="utf-8") as f:
             leads = json.load(f)
-        csv_file = proc_dir / "leads_calon_customer.csv"
-        with open(csv_file, "w", newline="", encoding="utf-8-sig") as f:
-            w = csv.writer(f)
-            w.writerow([
-                "Nama Bisnis", "Kategori", "Skor", "Status", "No. WhatsApp",
-                "Link WA", "Proyeksi Kebutuhan Cetak", "Alamat", "Rating & Ulasan",
-                "Website", "Peta Lokasi", "Tanggal"
-            ])
-            for l in leads:
-                phone = l.get("telepon", "").strip()
-                clean_phone = "".join([c for c in phone if c.isdigit()])
-                if clean_phone.startswith("08"):
-                    clean_phone = "62" + clean_phone[1:]
-                elif clean_phone.startswith("8"):
-                    clean_phone = "62" + clean_phone
-                wa_link = f"https://wa.me/{clean_phone}" if clean_phone else "-"
 
-                rating_str = f"{l.get('rating', 0)} ({l.get('jumlah_review', 0)} ulasan)"
-                w.writerow([
-                    l.get("nama_bisnis", ""),
-                    l.get("kategori", "Umum").upper(),
-                    l.get("skor", 7),
-                    l.get("skor_label", "WARM"),
-                    phone or "-",
-                    wa_link,
-                    l.get("proyeksi_kebutuhan", "Banner dan Media Promosi"),
-                    l.get("alamat", "-") or "-",
-                    rating_str,
-                    l.get("website", "-") or "-",
-                    l.get("url_gmaps", "-") or "-",
-                    l.get("scrape_date", ""),
-                ])
-        log.info(f"Leads diekspor: {csv_file}")
+        csv_all = proc_dir / "leads_calon_customer.csv"
+        csv_wa = proc_dir / "leads_whatsapp_ready.csv"
+        csv_office = proc_dir / "leads_telepon_kantor.csv"
+        csv_no_phone = proc_dir / "leads_butuh_pengayaan.csv"
+
+        headers = [
+            "Nama Bisnis", "Kategori", "Skor", "Status", "No. WhatsApp",
+            "Link WA", "Tipe Kontak", "Klaster Wilayah", "Tier Bisnis",
+            "Proyeksi Kebutuhan Cetak", "Alamat", "Rating & Ulasan",
+            "Website", "Peta Lokasi", "Tanggal"
+        ]
+
+        rows_all = []
+        rows_wa = []
+        rows_office = []
+        rows_no_phone = []
+
+        for l in leads:
+            l = enrich_lead_record(l)
+            phone_info = classify_phone_number(l.get("telepon", ""))
+            phone_display = phone_info["formatted"]
+            wa_url = l.get("whatsapp_link") or (f"https://wa.me/{phone_info['clean_number']}" if phone_info["is_wa_ready"] else "-")
+            rating_str = f"{l.get('rating', 0)} ({l.get('jumlah_review', 0)} ulasan)"
+
+            row = [
+                l.get("nama_bisnis", ""),
+                l.get("kategori", "Umum").upper(),
+                l.get("skor", 7),
+                l.get("skor_label", "WARM"),
+                phone_display,
+                wa_url,
+                phone_info["label"],
+                l.get("klaster_wilayah", "Makassar"),
+                l.get("tier_bisnis", "Tier 2"),
+                l.get("proyeksi_kebutuhan", "Banner dan Media Promosi"),
+                l.get("alamat", "-") or "-",
+                rating_str,
+                l.get("website", "-") or "-",
+                l.get("url_gmaps", "-") or "-",
+                l.get("scrape_date", ""),
+            ]
+
+            rows_all.append(row)
+            if phone_info["is_wa_ready"]:
+                rows_wa.append(row)
+            elif phone_info["type"] == "landline":
+                rows_office.append(row)
+            else:
+                rows_no_phone.append(row)
+
+        for filepath, data_rows in [
+            (csv_all, rows_all),
+            (csv_wa, rows_wa),
+            (csv_office, rows_office),
+            (csv_no_phone, rows_no_phone),
+        ]:
+            with open(filepath, "w", newline="", encoding="utf-8-sig") as f:
+                w = csv.writer(f)
+                w.writerow(headers)
+                w.writerows(data_rows)
+
+        log.info(f"Leads diekspor: {len(rows_all)} total, {len(rows_wa)} WhatsApp Ready, {len(rows_office)} Telepon Kantor, {len(rows_no_phone)} Butuh Pengayaan")
 
     # 2. Competitor Matrix to CSV
     matrix_files = sorted(proc_dir.glob("competitor_matrix_*.json"), key=lambda f: f.stat().st_mtime, reverse=True)
@@ -329,16 +384,23 @@ def run_all(limit: int = 2, dry_run: bool = False, notify_telegram: bool = True)
         if raw_leads:
             processed = process_leads(raw_leads)
             leads_only = [l for l in processed if l.get("kategori_kode") != "percetakan"]
-            leads_count = len(leads_only)
-            hot_leads = [l for l in leads_only if float(l.get("skor", 0)) >= 8.0]
+            from scrapers.utils import deduplicate_leads
+            clean_leads, dup_count = deduplicate_leads(leads_only)
+            log.info(f"Deduplikasi Leads: {len(clean_leads)} baru, {dup_count} duplikat disaring")
 
-            proc_path = PROCESSED_DIR / f"leads_scored_{datetime.now(WITA).strftime('%Y%m%d_%H%M%S')}.json"
-            with open(proc_path, "w", encoding="utf-8") as f:
-                json.dump(leads_only, f, ensure_ascii=False, indent=2)
+            if clean_leads:
+                leads_count = len(clean_leads)
+                hot_leads = [l for l in clean_leads if float(l.get("skor", 0)) >= 8.0]
 
-            if not dry_run:
-                export_leads_to_sheet(leads_only)
-            log.info(f"Leads selesai: {leads_count} ditemukan ({len(hot_leads)} hot leads)")
+                proc_path = PROCESSED_DIR / f"leads_scored_{datetime.now(WITA).strftime('%Y%m%d_%H%M%S')}.json"
+                with open(proc_path, "w", encoding="utf-8") as f:
+                    json.dump(clean_leads, f, ensure_ascii=False, indent=2)
+
+                if not dry_run:
+                    export_leads_to_sheet(clean_leads)
+                log.info(f"Leads selesai: {leads_count} baru ditemukan ({len(hot_leads)} hot leads)")
+            else:
+                log.info("Semua prospek yang ditemukan sudah ada di database riwayat.")
     except Exception as e:
         log.error(f"Error saat scraping leads: {e}")
         try:
@@ -403,9 +465,43 @@ def run_all(limit: int = 2, dry_run: bool = False, notify_telegram: bool = True)
     except Exception as e:
         log.warning(f"Facebook Marketplace dilewati (bukan blocking error): {e}")
 
-    # 3. Competitor Matrix
+    # 3. Threads Intelligence Scraper (Leads, Competitors & Trends)
     try:
-        log.info("\n--- [3/5] Menganalisis Matriks Kompetitor Makassar ---")
+        log.info("\n--- [3/6] Scraping Threads Intelligence Makassar ---")
+        from scrapers.threads_scraper import (
+            scrape_threads, process_leads as process_th_leads,
+            export_leads_to_sheet as export_th_leads,
+            export_competitors_to_sheet as export_th_comps,
+            export_trends_to_sheet as export_th_trends
+        )
+        from scrapers.config import THREADS_LEAD_KEYWORDS, THREADS_COMPETITOR_KEYWORDS, THREADS_TREND_KEYWORDS
+
+        th_limit = max(1, min(1, limit))
+        th_leads_raw = scrape_threads(THREADS_LEAD_KEYWORDS, mode="leads", max_keywords=th_limit)
+        if th_leads_raw:
+            th_leads = process_th_leads(th_leads_raw)
+            leads_count += len(th_leads)
+            hot_leads.extend([l for l in th_leads if float(l.get("skor", 0)) >= 8.0])
+            if not dry_run:
+                export_th_leads(th_leads)
+
+        th_comps_raw = scrape_threads(THREADS_COMPETITOR_KEYWORDS, mode="competitors", max_keywords=th_limit)
+        if th_comps_raw and not dry_run:
+            export_th_comps(th_comps_raw)
+
+        th_trends_raw = scrape_threads(THREADS_TREND_KEYWORDS, mode="trends", max_keywords=th_limit)
+        if th_trends_raw:
+            signals_count += len(th_trends_raw)
+            if not dry_run:
+                export_th_trends(th_trends_raw)
+
+        log.info(f"Threads selesai: {len(th_leads_raw)} leads, {len(th_comps_raw)} kompetitor, {len(th_trends_raw)} tren")
+    except Exception as e:
+        log.warning(f"Threads Intelligence dilewati (bukan blocking error): {e}")
+
+    # 4. Competitor Matrix
+    try:
+        log.info("\n--- [4/6] Menganalisis Matriks Kompetitor Makassar ---")
         comp_files = sorted(PROCESSED_DIR.glob("competitors_*.json"), key=lambda f: f.stat().st_mtime, reverse=True)
         if comp_files:
             with open(comp_files[0], "r", encoding="utf-8") as f:
@@ -425,9 +521,9 @@ def run_all(limit: int = 2, dry_run: bool = False, notify_telegram: bool = True)
         except Exception:
             pass
 
-    # 4. Market Signals (TikTok Trends)
+    # 5. Market Signals (TikTok Trends)
     try:
-        log.info("\n--- [4/5] Memindai Tren Pasar (Market Signals) ---")
+        log.info("\n--- [5/6] Memindai Tren Pasar (Market Signals) ---")
         signals = scan_market_signals(TIKTOK_KEYWORDS)
         signals_count = len(signals)
         sig_file = PROCESSED_DIR / f"market_signals_{datetime.now(WITA).strftime('%Y%m%d_%H%M%S')}.json"
@@ -443,9 +539,9 @@ def run_all(limit: int = 2, dry_run: bool = False, notify_telegram: bool = True)
         except Exception:
             pass
 
-    # 5. Export CSV
+    # 6. Export CSV
     try:
-        log.info("\n--- [5/5] Mengekspor Data ke CSV Lokal ---")
+        log.info("\n--- [6/6] Mengekspor Data ke CSV Lokal ---")
         run_export_csv()
     except Exception as e:
         log.warning(f"Gagal ekspor CSV: {e}")
@@ -505,6 +601,9 @@ def main():
     elif module in ("tiktok", "tt"):
         print_banner()
         run_tiktok()
+    elif module in ("threads", "th"):
+        print_banner()
+        run_threads()
     elif module == "matrix":
         print_banner()
         run_matrix()
@@ -520,6 +619,13 @@ def main():
     elif module == "init-sheets":
         print_banner()
         run_init_sheets()
+    elif module in ("enrich-web", "enrich"):
+        print_banner()
+        from scrapers.web_enricher import main as run_web_enricher
+        run_web_enricher()
+    elif module in ("dedup", "deduplicate"):
+        print_banner()
+        run_dedup()
     elif module in ("help", "--help", "-h"):
         print_help()
     else:

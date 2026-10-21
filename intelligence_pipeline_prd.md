@@ -1,11 +1,11 @@
 # PRD: RUANG VISUAL — Market Intelligence & Lead Generation Pipeline
-### Versi 2.0 — Dokumen Rujukan Utama
+### Versi 2.1 — Dokumen Rujukan Utama
 
-**Entity:** PT Estetika Ruang Visual / RUANG VISUAL  
-**Lokasi:** Makassar, Sulawesi Selatan  
-**Industri:** Percetakan (B2B & Retail)  
-**Tanggal:** 14 Oktober 2026  
-**Status:** [SELESAI] APPROVED — Siap Eksekusi
+**Entity:** PT Estetika Ruang Visual / RUANG VISUAL
+**Lokasi:** Makassar, Sulawesi Selatan
+**Industri:** Percetakan (B2B & Retail)
+**Tanggal:** 21 Oktober 2026
+**Status:** [UPDATED] Multi-Platform Unified Architecture
 
 > [!IMPORTANT]
 > **INSTRUKSI UNTUK AGENT:** Dokumen ini adalah **single source of truth** untuk seluruh project.
@@ -22,18 +22,19 @@
 4. [Arsitektur Sistem](#4-arsitektur-sistem)
 5. [Tech Stack](#5-tech-stack)
 6. [Module A — Infrastructure & MCP (SELESAI)](#6-module-a--infrastructure--mcp-selesai)
-7. [Module B — Google Maps Scraper](#7-module-b--google-maps-scraper)
+7. [Module B — Google Maps Scraper (UPDATED)](#7-module-b--google-maps-scraper)
 8. [Module C — Instagram Scraper](#8-module-c--instagram-scraper)
 9. [Module D — TikTok Scraper](#9-module-d--tiktok-scraper)
-10. [Module E — Lead Scoring Engine](#10-module-e--lead-scoring-engine)
-11. [Module F — Competitor Matrix](#11-module-f--competitor-matrix)
-12. [Data Schema (Google Sheets)](#12-data-schema-google-sheets)
-13. [Struktur Direktori](#13-struktur-direktori)
-14. [Fase Implementasi](#14-fase-implementasi)
-15. [Risk Register](#15-risk-register)
-16. [Success Metrics](#16-success-metrics)
-17. [Keputusan Arsitektur (ADR)](#17-keputusan-arsitektur-adr)
-18. [Referensi & Repo Open-Source](#18-referensi--repo-open-source)
+10. [Module G — Threads Scraper (NEW)](#10-module-g--threads-scraper)
+11. [Module E — Lead Scoring Engine](#11-module-e--lead-scoring-engine)
+12. [Module F — Competitor Matrix](#12-module-f--competitor-matrix)
+13. [Data Schema (Google Sheets)](#13-data-schema-google-sheets)
+14. [Struktur Direktori](#14-struktur-direktori)
+15. [Fase Implementasi](#15-fase-implementasi)
+16. [Risk Register](#16-risk-register)
+17. [Success Metrics](#17-success-metrics)
+18. [Keputusan Arsitektur (ADR)](#18-keputusan-arsitektur-adr)
+19. [Referensi & Repo Open-Source](#19-referensi--repo-open-source)
 
 ---
 

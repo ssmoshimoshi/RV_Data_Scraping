@@ -26,6 +26,7 @@ from patchright.sync_api import sync_playwright
 from scrapers.config import (
     GMAPS_LEAD_QUERIES,
     GMAPS_COMPETITOR_QUERIES,
+    GMAPS_TREND_QUERIES,
     GMAPS_DELAY_SECONDS,
     RAW_DIR,
     PROCESSED_DIR,
@@ -294,6 +295,11 @@ def process_leads(raw_results: list[dict]) -> list[dict]:
         r["skor"] = scored["skor"]
         r["skor_label"] = scored["skor_label"]
         r["skor_reasons"] = scored["skor_reasons"]
+        r["no_whatsapp"] = scored.get("no_whatsapp", "")
+        r["whatsapp_link"] = scored.get("whatsapp_link", "")
+        r["is_wa_ready"] = scored.get("is_wa_ready", False)
+        r["tier_bisnis"] = scored.get("tier_bisnis", "Tier 2")
+        r["klaster_wilayah"] = scored.get("klaster_wilayah", "Makassar")
 
         kebutuhan_map = {
             "property": "Brosur lipat 3 mewah, booklet site plan, roll banner pameran, map serah terima kunci",
@@ -322,16 +328,16 @@ HEADERS_RADAR_PROSPEK = [
     "Website", "Peta Lokasi", "Tanggal"
 ]
 
+HEADERS_MARKET_SIGNALS = [
+    "Sinyal / Tren Produk", "Platform", "Tingkat Demand",
+    "Peluang untuk RUANG VISUAL", "Link Referensi", "Tanggal"
+]
+
 
 def format_wa_hyperlink(phone: str) -> str:
-    if not phone:
-        return "-"
-    clean = "".join([c for c in phone if c.isdigit()])
-    if clean.startswith("08"):
-        clean = "62" + clean[1:]
-    elif clean.startswith("8"):
-        clean = "62" + clean
-    return f'=HYPERLINK("https://wa.me/{clean}", "Chat WA")' if clean else "-"
+    from scrapers.contact_enricher import classify_phone_number
+    info = classify_phone_number(phone)
+    return info["wa_link"]
 
 
 def format_gmaps_hyperlink(url: str, nama_bisnis: str = "", alamat: str = "") -> str:
@@ -372,8 +378,12 @@ def export_leads_to_sheet(leads: list[dict], action: str = "append"):
             "lainnya": "Lainnya",
         }.get(lead.get("kategori_kode", ""), "Lainnya")
 
-        phone = lead.get("telepon", "").strip()
-        wa_link = format_wa_hyperlink(phone)
+        phone = lead.get("no_whatsapp", "") or lead.get("telepon", "").strip()
+        wa_url = lead.get("whatsapp_link")
+        if wa_url:
+            wa_link = f'=HYPERLINK("{wa_url}", "Chat WA")'
+        else:
+            wa_link = format_wa_hyperlink(phone)
         gmaps_url = lead.get("url_gmaps", "").strip()
         gmaps_link = format_gmaps_hyperlink(gmaps_url, lead.get("nama_bisnis", ""), lead.get("alamat", ""))
         web_link = format_web_hyperlink(lead.get("website", "").strip())
@@ -399,6 +409,39 @@ def export_leads_to_sheet(leads: list[dict], action: str = "append"):
     try:
         append_rows_to_sheet("Radar Prospek", rows, action=action, headers=HEADERS_RADAR_PROSPEK)
         log.info(f"{len(rows)} leads berhasil di-export ke 'Radar Prospek'")
+    except Exception as e:
+        log.warning(f"Belum bisa export ke Google Sheets: {e}")
+        log.info("Data tetap aman tersimpan di folder data/processed/")
+
+
+def export_trends_to_sheet(trends: list[dict]):
+    """Export market signal trends ke sheet 'Market Signals'."""
+    if not trends:
+        log.info("Tidak ada trends baru untuk di-export")
+        return
+
+    rows = []
+    for item in trends:
+        nama = item.get("nama_bisnis", "")
+        kategori = item.get("kategori", "kemasan")
+        signal = f"Toko {kategori}: {nama}"
+        tingkat_demand = f"Rating {item.get('rating', 0)} ({item.get('jumlah_review', 0)} ulasan)"
+        peluang = f"Supplier bahan printing & kemasan di {item.get('alamat', 'Makassar')}. Potensi efisiensi biaya."
+        link_ref = item.get("url_gmaps") or f"https://www.google.com/maps/search/?api=1&query={urllib.parse.quote_plus(nama + ' Makassar')}"
+
+        row = [
+            signal,
+            "Google Maps",
+            tingkat_demand,
+            peluang,
+            f'=HYPERLINK("{link_ref}"; "Buka Maps")',
+            today_wita(),
+        ]
+        rows.append(row)
+
+    try:
+        append_rows_to_sheet("Market Signals", rows, action="append", headers=HEADERS_MARKET_SIGNALS)
+        log.info(f"{len(rows)} trends berhasil di-export ke 'Market Signals'")
     except Exception as e:
         log.warning(f"Belum bisa export ke Google Sheets: {e}")
         log.info("Data tetap aman tersimpan di folder data/processed/")
@@ -443,9 +486,9 @@ def main():
     )
     parser.add_argument(
         "--mode",
-        choices=["leads", "competitors", "all"],
+        choices=["leads", "competitors", "trends", "all"],
         default="leads",
-        help="Mode scraping: leads (calon customer), competitors, atau all",
+        help="Mode scraping: leads (calon customer), competitors, trends (market signals), atau all",
     )
     parser.add_argument(
         "--limit",
@@ -475,18 +518,24 @@ def main():
 
             processed = process_leads(raw_leads)
             leads_only = [l for l in processed if l.get("kategori_kode") != "percetakan"]
+            from scrapers.utils import deduplicate_leads
+            clean_leads, dup_count = deduplicate_leads(leads_only)
+            log.info(f"Deduplikasi Leads: {len(clean_leads)} baru, {dup_count} duplikat disaring")
 
-            proc_path = PROCESSED_DIR / f"leads_scored_{datetime.now(WITA).strftime('%Y%m%d_%H%M%S')}.json"
-            with open(proc_path, "w", encoding="utf-8") as f:
-                json.dump(leads_only, f, ensure_ascii=False, indent=2)
-            log.info(f"Processed & scored data disimpan: {proc_path}")
+            if clean_leads:
+                proc_path = PROCESSED_DIR / f"leads_scored_{datetime.now(WITA).strftime('%Y%m%d_%H%M%S')}.json"
+                with open(proc_path, "w", encoding="utf-8") as f:
+                    json.dump(clean_leads, f, ensure_ascii=False, indent=2)
+                log.info(f"Processed & scored data disimpan: {proc_path}")
 
-            if not args.dry_run:
-                export_leads_to_sheet(leads_only)
+                if not args.dry_run:
+                    export_leads_to_sheet(clean_leads)
+                else:
+                    log.info(f"[DRY RUN] {len(clean_leads)} leads baru siap di-export:")
+                    for l in clean_leads[:5]:
+                        log.info(f"  -> {l['nama_bisnis']} | Skor: {l['skor']}/10 ({l['skor_label']}) | Alamat: {l.get('alamat')}")
             else:
-                log.info(f"[DRY RUN] {len(leads_only)} leads siap di-export:")
-                for l in leads_only[:5]:
-                    log.info(f"  -> {l['nama_bisnis']} | Skor: {l['skor']}/10 ({l['skor_label']}) | Alamat: {l.get('alamat')}")
+                log.info("Semua prospek yang ditemukan sudah ada di database riwayat (0 prospek baru).")
 
     if args.mode in ("competitors", "all"):
         log.info("\nSCRAPING COMPETITORS...")
@@ -509,6 +558,28 @@ def main():
                 log.info(f"[DRY RUN] {len(raw_competitors)} kompetitor siap di-export:")
                 for c in raw_competitors[:5]:
                     log.info(f"  -> {c['nama_bisnis']} | Rating: {c['rating']} ({c['jumlah_review']} ulasan) | Alamat: {c.get('alamat')}")
+
+    if args.mode in ("trends", "all"):
+        log.info("\nSCRAPING TRENDS (Market Signals)...")
+        raw_trends = scrape_gmaps(
+            GMAPS_TREND_QUERIES, max_queries=args.limit, mode="trends"
+        )
+
+        if raw_trends:
+            raw_path = save_raw_json(raw_trends, "gmaps_trends")
+            log.info(f"Raw data disimpan: {raw_path}")
+
+            proc_path = PROCESSED_DIR / f"trends_{datetime.now(WITA).strftime('%Y%m%d_%H%M%S')}.json"
+            with open(proc_path, "w", encoding="utf-8") as f:
+                json.dump(raw_trends, f, ensure_ascii=False, indent=2)
+            log.info(f"Trends data disimpan: {proc_path}")
+
+            if not args.dry_run:
+                export_trends_to_sheet(raw_trends)
+            else:
+                log.info(f"[DRY RUN] {len(raw_trends)} trends siap di-export:")
+                for t in raw_trends[:5]:
+                    log.info(f"  -> {t.get('nama_bisnis')} | {t.get('kategori')} | Rating: {t.get('rating')} ({t.get('jumlah_review')} ulasan)")
 
     log.info("\nSelesai.")
 

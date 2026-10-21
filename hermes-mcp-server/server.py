@@ -1,275 +1,250 @@
 """
 Hermes MCP Server — Module A: Infrastructure & MCP
 ====================================================
-Menghubungkan agen Hermes ke Google Sheets via Model Context Protocol (stdio).
+Menghubungkan agen AI ke Google Sheets pipeline intelijen bisnis PT Estetika Ruang Visual.
+
+Mendukung 2 mode koneksi:
+  1. Google Apps Script Webhook (Instant, tanpa GCP Console service-account.json)
+  2. Google Sheets API v4 (Service Account JSON)
 
 Tools yang diekspos:
-  - create_sheet   : Membuat worksheet baru di spreadsheet
-  - read_sheet     : Membaca semua baris dari sebuah sheet
-  - append_row     : Menambahkan baris baru ke sheet
-  - update_cell    : Memperbarui nilai satu sel spesifik
+  - create_sheet       : Membuat worksheet baru di spreadsheet
+  - read_sheet         : Membaca data baris dari worksheet
+  - append_row         : Menambahkan 1 baris baru ke sheet
+  - append_rows        : Menambahkan sekumpulan baris ke sheet
+  - clear_sheet_data   : Mengosongkan data sheet (menjaga header)
+  - get_pipeline_summary: Menampilkan ringkasan jumlah lead & status di setiap sheet
 """
 
-import os
+import csv
+import io
 import json
 import logging
-from typing import Any
+import os
+import sys
+import urllib.parse
+import urllib.request
+from pathlib import Path
+from typing import Any, List, Optional
 
 from dotenv import load_dotenv
-from mcp.server import Server
-from mcp.server.stdio import stdio_server
-from mcp import types
-
-from googleapiclient.discovery import build
-from google.oauth2 import service_account
+from mcp.server.mcpserver import MCPServer
 
 # ─── Load Environment Variables ───────────────────────────────────────────────
-load_dotenv()
+BASE_DIR = Path(__file__).resolve().parent
+# Load hermes-mcp-server/.env first, then root .env as fallback
+load_dotenv(BASE_DIR / ".env")
+load_dotenv(BASE_DIR.parent / ".env")
 
-SERVICE_ACCOUNT_FILE = os.getenv("GOOGLE_SERVICE_ACCOUNT_FILE", "credentials/service-account.json")
-SPREADSHEET_ID       = os.getenv("SPREADSHEET_ID", "")
-LOG_LEVEL            = os.getenv("LOG_LEVEL", "INFO")
+SERVICE_ACCOUNT_FILE = os.getenv("GOOGLE_SERVICE_ACCOUNT_FILE", str(BASE_DIR / "credentials" / "service-account.json"))
+SPREADSHEET_ID = os.getenv("SPREADSHEET_ID", "1mDx0aQcz95iPN6KwdmRgb2RE2xVNIhAgiuoq96k6dAU").strip()
+SPREADSHEET_URL = os.getenv("SPREADSHEET_URL", f"https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/edit").strip()
+WEBHOOK_URL = os.getenv("GOOGLE_SHEET_WEBHOOK_URL", "").strip()
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 
-# ─── Logging Setup ────────────────────────────────────────────────────────────
+# ─── Logging Setup (Only to stderr & file to prevent corrupting stdio MCP) ────
+LOG_DIR = BASE_DIR / "logs"
+LOG_DIR.mkdir(parents=True, exist_ok=True)
+LOG_FILE = LOG_DIR / "hermes_mcp.log"
+
 logging.basicConfig(
     level=getattr(logging, LOG_LEVEL.upper(), logging.INFO),
     format="%(asctime)s [%(levelname)s] %(name)s — %(message)s",
     handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler("logs/hermes_mcp.log", encoding="utf-8"),
+        logging.StreamHandler(sys.stderr),
+        logging.FileHandler(str(LOG_FILE), encoding="utf-8"),
     ],
 )
 log = logging.getLogger("hermes-mcp")
 
-# ─── Google Sheets Client ─────────────────────────────────────────────────────
+# ─── Service Account Helpers (Optional Fallback) ──────────────────────────────
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 
-def get_sheets_service():
-    """Membuat dan mengembalikan Google Sheets API service menggunakan Service Account."""
-    if not os.path.exists(SERVICE_ACCOUNT_FILE):
-        raise FileNotFoundError(
-            f"Service Account file tidak ditemukan: '{SERVICE_ACCOUNT_FILE}'. "
-            "Letakkan file JSON GCP di folder credentials/ dan update .env Anda."
-        )
-    credentials = service_account.Credentials.from_service_account_file(
-        SERVICE_ACCOUNT_FILE, scopes=SCOPES
-    )
-    return build("sheets", "v4", credentials=credentials)
+def _get_service_account_path() -> Optional[Path]:
+    p = Path(SERVICE_ACCOUNT_FILE)
+    if not p.is_absolute():
+        p = BASE_DIR / p
+    return p if p.exists() else None
 
-
-# ─── MCP Server Instance ──────────────────────────────────────────────────────
-app = Server("hermes-gsheets-server")
-
-
-# ─── Tool Definitions ─────────────────────────────────────────────────────────
-
-@app.list_tools()
-async def list_tools() -> list[types.Tool]:
-    """Mendaftarkan semua tools yang tersedia ke MCP host (Hermes/Antigravity IDE)."""
-    return [
-        types.Tool(
-            name="create_sheet",
-            description=(
-                "Membuat worksheet (tab) baru di dalam Google Spreadsheet yang sudah dikonfigurasi. "
-                "Gunakan ini untuk menginisialisasi 'Radar Prospek' atau 'Matriks Kompetitor'."
-            ),
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "sheet_title": {
-                        "type": "string",
-                        "description": "Nama tab/worksheet baru yang akan dibuat.",
-                    }
-                },
-                "required": ["sheet_title"],
-            },
-        ),
-        types.Tool(
-            name="read_sheet",
-            description=(
-                "Membaca semua baris dari sebuah worksheet. "
-                "Mengembalikan data dalam format list of lists."
-            ),
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "sheet_name": {
-                        "type": "string",
-                        "description": "Nama tab worksheet yang ingin dibaca.",
-                    },
-                    "range_notation": {
-                        "type": "string",
-                        "description": "Rentang sel opsional, contoh: 'A1:F100'. Default: seluruh sheet.",
-                        "default": "",
-                    },
-                },
-                "required": ["sheet_name"],
-            },
-        ),
-        types.Tool(
-            name="append_row",
-            description=(
-                "Menambahkan satu baris baru di akhir data pada sebuah worksheet. "
-                "Gunakan ini untuk memasukkan data lead baru atau entri kompetitor."
-            ),
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "sheet_name": {
-                        "type": "string",
-                        "description": "Nama tab worksheet tujuan.",
-                    },
-                    "row_values": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "List nilai untuk setiap kolom dalam satu baris.",
-                    },
-                },
-                "required": ["sheet_name", "row_values"],
-            },
-        ),
-        types.Tool(
-            name="update_cell",
-            description=(
-                "Memperbarui nilai satu sel spesifik menggunakan notasi A1. "
-                "Gunakan ini untuk mengubah Skor Prospek atau Status Akuisisi pada baris tertentu."
-            ),
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "sheet_name": {
-                        "type": "string",
-                        "description": "Nama tab worksheet.",
-                    },
-                    "cell_notation": {
-                        "type": "string",
-                        "description": "Notasi sel A1, contoh: 'F3' atau 'C10'.",
-                    },
-                    "value": {
-                        "type": "string",
-                        "description": "Nilai baru yang akan ditulis ke sel tersebut.",
-                    },
-                },
-                "required": ["sheet_name", "cell_notation", "value"],
-            },
-        ),
-    ]
-
-
-# ─── Tool Handlers ────────────────────────────────────────────────────────────
-
-@app.call_tool()
-async def call_tool(name: str, arguments: dict[str, Any]) -> list[types.TextContent]:
-    """Router utama: meneruskan panggilan tool ke handler yang sesuai."""
-    log.info(f"Tool dipanggil: '{name}' | Args: {json.dumps(arguments, ensure_ascii=False)}")
+def _get_sheets_service():
+    sa_path = _get_service_account_path()
+    if not sa_path:
+        return None
     try:
-        if name == "create_sheet":
-            return await _create_sheet(arguments)
-        elif name == "read_sheet":
-            return await _read_sheet(arguments)
-        elif name == "append_row":
-            return await _append_row(arguments)
-        elif name == "update_cell":
-            return await _update_cell(arguments)
-        else:
-            raise ValueError(f"Tool tidak dikenal: '{name}'")
+        from google.oauth2 import service_account
+        from googleapiclient.discovery import build
+        credentials = service_account.Credentials.from_service_account_file(
+            str(sa_path), scopes=SCOPES
+        )
+        return build("sheets", "v4", credentials=credentials)
     except Exception as e:
-        log.error(f"Error saat menjalankan tool '{name}': {e}", exc_info=True)
-        return [types.TextContent(type="text", text=f"ERROR: {str(e)}")]
+        log.warning(f"Gagal inisialisasi Service Account Google Sheets: {e}")
+        return None
 
-
-async def _create_sheet(args: dict) -> list[types.TextContent]:
-    """Membuat worksheet baru di spreadsheet."""
-    title = args["sheet_title"]
-    service = get_sheets_service()
-    body = {"requests": [{"addSheet": {"properties": {"title": title}}}]}
-    response = service.spreadsheets().batchUpdate(
-        spreadsheetId=SPREADSHEET_ID, body=body
-    ).execute()
-    sheet_id = response["replies"][0]["addSheet"]["properties"]["sheetId"]
-    msg = f"Sheet '{title}' berhasil dibuat (sheetId: {sheet_id})."
-    log.info(msg)
-    return [types.TextContent(type="text", text=msg)]
-
-
-async def _read_sheet(args: dict) -> list[types.TextContent]:
-    """Membaca data dari worksheet."""
-    sheet_name = args["sheet_name"]
-    range_notation = args.get("range_notation", "")
-    range_str = f"{sheet_name}!{range_notation}" if range_notation else sheet_name
-    service = get_sheets_service()
-    result = (
-        service.spreadsheets()
-        .values()
-        .get(spreadsheetId=SPREADSHEET_ID, range=range_str)
-        .execute()
+# ─── Webhook Helpers ──────────────────────────────────────────────────────────
+def _send_webhook_request(payload: dict) -> dict:
+    if not WEBHOOK_URL:
+        raise ValueError("GOOGLE_SHEET_WEBHOOK_URL belum diset di file .env")
+    
+    data = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(
+        WEBHOOK_URL,
+        data=data,
+        headers={"Content-Type": "application/json"},
     )
-    rows = result.get("values", [])
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        content = resp.read().decode("utf-8")
+        try:
+            return json.loads(content)
+        except json.JSONDecodeError:
+            return {"status": "ok", "raw": content}
+
+def _fetch_sheet_csv(sheet_name: str, range_notation: str = "") -> list[list[str]]:
+    encoded_sheet = urllib.parse.quote(sheet_name)
+    url = f"https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/gviz/tq?tqx=out:csv&sheet={encoded_sheet}"
+    if range_notation:
+        url += f"&range={urllib.parse.quote(range_notation)}"
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"})
+    with urllib.request.urlopen(req, timeout=20) as resp:
+        content = resp.read().decode("utf-8")
+        reader = csv.reader(io.StringIO(content))
+        return [row for row in reader if any(cell.strip() for cell in row)]
+
+# ─── Initialize MCP Server ────────────────────────────────────────────────────
+mcp = MCPServer("hermes-gsheets")
+
+@mcp.tool()
+def get_pipeline_summary() -> str:
+    """Mendapatkan ringkasan status lembar data Ruang Visual (Radar Prospek, Matriks Kompetitor, Market Signals)."""
+    tabs = ["Radar Prospek", "Matriks Kompetitor", "Market Signals"]
+    summary = []
+    summary.append(f"**Google Sheets Status**: [Buka Spreadsheet]({SPREADSHEET_URL})")
+    summary.append(f"Spreadsheet ID: `{SPREADSHEET_ID}`")
+    summary.append(f"Koneksi: {'Webhook Google Apps Script' if WEBHOOK_URL else 'GCP Service Account'}")
+    summary.append("\n**Data Lembar Kerja:**")
+    
+    for tab in tabs:
+        try:
+            rows = _fetch_sheet_csv(tab)
+            count = max(0, len(rows) - 1)
+            summary.append(f"- **{tab}**: {count} baris data tercatat")
+        except Exception as e:
+            summary.append(f"- **{tab}**: Error membaca data ({str(e)})")
+            
+    return "\n".join(summary)
+
+@mcp.tool()
+def create_sheet(sheet_title: str) -> str:
+    """Membuat worksheet (tab) baru di dalam Google Spreadsheet Ruang Visual."""
+    log.info(f"create_sheet dipanggil: {sheet_title}")
+    service = _get_sheets_service()
+    if service:
+        body = {"requests": [{"addSheet": {"properties": {"title": sheet_title}}}]}
+        response = service.spreadsheets().batchUpdate(
+            spreadsheetId=SPREADSHEET_ID, body=body
+        ).execute()
+        sheet_id = response["replies"][0]["addSheet"]["properties"]["sheetId"]
+        return f"Sheet '{sheet_title}' berhasil dibuat via API (sheetId: {sheet_id})."
+    
+    if WEBHOOK_URL:
+        # Webhook otomatis membuat tab jika belum ada saat diberi action append
+        res = _send_webhook_request({"sheet_name": sheet_title, "action": "append", "rows": []})
+        return f"Sheet '{sheet_title}' dipastikan aktif via Webhook (status: {res.get('status', 'ok')})."
+    
+    raise ValueError("Tidak ada koneksi aktif (Service Account JSON maupun GOOGLE_SHEET_WEBHOOK_URL tidak ditemukan).")
+
+@mcp.tool()
+def read_sheet(sheet_name: str, range_notation: str = "") -> str:
+    """Membaca baris data dari sebuah worksheet (misal 'Radar Prospek' atau 'Matriks Kompetitor')."""
+    log.info(f"read_sheet dipanggil: {sheet_name} (range: {range_notation})")
+    service = _get_sheets_service()
+    if service:
+        range_str = f"{sheet_name}!{range_notation}" if range_notation else sheet_name
+        result = (
+            service.spreadsheets()
+            .values()
+            .get(spreadsheetId=SPREADSHEET_ID, range=range_str)
+            .execute()
+        )
+        rows = result.get("values", [])
+    else:
+        rows = _fetch_sheet_csv(sheet_name, range_notation)
+        
     if not rows:
-        return [types.TextContent(type="text", text=f"Sheet '{sheet_name}' kosong atau tidak ada data.")]
+        return f"Sheet '{sheet_name}' kosong atau belum ada data."
+    
     formatted = json.dumps(rows, ensure_ascii=False, indent=2)
-    msg = f"Data dari '{sheet_name}' ({len(rows)} baris):\n```json\n{formatted}\n```"
-    log.info(f"Berhasil membaca {len(rows)} baris dari '{sheet_name}'.")
-    return [types.TextContent(type="text", text=msg)]
+    return f"Data dari '{sheet_name}' ({len(rows)} baris):\n```json\n{formatted}\n```"
 
+@mcp.tool()
+def append_row(sheet_name: str, row_values: List[str]) -> str:
+    """Menambahkan satu baris baru ke dalam worksheet di Google Sheets."""
+    return append_rows(sheet_name=sheet_name, rows=[row_values])
 
-async def _append_row(args: dict) -> list[types.TextContent]:
-    """Menambahkan satu baris baru ke worksheet."""
-    sheet_name = args["sheet_name"]
-    row_values  = args["row_values"]
-    service = get_sheets_service()
-    body = {"values": [row_values]}
-    result = (
-        service.spreadsheets()
-        .values()
-        .append(
+@mcp.tool()
+def append_rows(sheet_name: str, rows: List[List[str]]) -> str:
+    """Menambahkan beberapa baris baru sekaligus ke dalam worksheet (otomatis deduplikasi di server)."""
+    log.info(f"append_rows dipanggil: sheet='{sheet_name}', {len(rows)} baris")
+    if not rows:
+        return "Tidak ada baris yang dikirim."
+        
+    if WEBHOOK_URL:
+        res = _send_webhook_request({
+            "sheet_name": sheet_name,
+            "action": "append",
+            "rows": rows
+        })
+        return f"Berhasil mengirim {len(rows)} baris ke sheet '{sheet_name}' via Webhook (Response: {res.get('status', 'ok')})."
+        
+    service = _get_sheets_service()
+    if service:
+        body = {"values": rows}
+        result = (
+            service.spreadsheets()
+            .values()
+            .append(
+                spreadsheetId=SPREADSHEET_ID,
+                range=sheet_name,
+                valueInputOption="USER_ENTERED",
+                insertDataOption="INSERT_ROWS",
+                body=body,
+            )
+            .execute()
+        )
+        updated = result.get("updates", {}).get("updatedRows", len(rows))
+        return f"Berhasil menambahkan {updated} baris ke '{sheet_name}' via Google Sheets API."
+        
+    raise ValueError("Tidak dapat menulis: GOOGLE_SHEET_WEBHOOK_URL atau Service Account JSON belum dikonfigurasi.")
+
+@mcp.tool()
+def clear_sheet_data(sheet_name: str) -> str:
+    """Mengosongkan isi data pada worksheet tertentu dengan tetap mempertahankan baris header pertama."""
+    log.info(f"clear_sheet_data dipanggil: {sheet_name}")
+    if WEBHOOK_URL:
+        res = _send_webhook_request({
+            "sheet_name": sheet_name,
+            "action": "clear_data",
+            "rows": []
+        })
+        return f"Data sheet '{sheet_name}' berhasil dikosongkan (header tetap aman)."
+        
+    service = _get_sheets_service()
+    if service:
+        range_str = f"{sheet_name}!A2:Z10000"
+        service.spreadsheets().values().clear(
             spreadsheetId=SPREADSHEET_ID,
-            range=sheet_name,
-            valueInputOption="USER_ENTERED",
-            insertDataOption="INSERT_ROWS",
-            body=body,
-        )
-        .execute()
-    )
-    updates = result.get("updates", {})
-    msg = f"Baris berhasil ditambahkan ke '{sheet_name}'. Baris diperbarui: {updates.get('updatedRows', 1)}."
-    log.info(msg)
-    return [types.TextContent(type="text", text=msg)]
+            range=range_str
+        ).execute()
+        return f"Data di '{sheet_name}' baris 2 ke bawah berhasil dikosongkan."
+        
+    raise ValueError("Tidak ada koneksi aktif untuk mengosongkan sheet.")
 
-
-async def _update_cell(args: dict) -> list[types.TextContent]:
-    """Memperbarui satu sel spesifik."""
-    sheet_name    = args["sheet_name"]
-    cell_notation = args["cell_notation"]
-    value         = args["value"]
-    range_str = f"{sheet_name}!{cell_notation}"
-    service = get_sheets_service()
-    body = {"values": [[value]]}
-    service.spreadsheets().values().update(
-        spreadsheetId=SPREADSHEET_ID,
-        range=range_str,
-        valueInputOption="USER_ENTERED",
-        body=body,
-    ).execute()
-    msg = f"Sel '{range_str}' berhasil diperbarui dengan nilai: '{value}'."
-    log.info(msg)
-    return [types.TextContent(type="text", text=msg)]
-
-
-# ─── Entrypoint ───────────────────────────────────────────────────────────────
-
-async def main():
-    log.info("Hermes MCP Server dimulai (transport: stdio)...")
-    if not SPREADSHEET_ID:
-        log.warning("SPREADSHEET_ID belum diset di file .env!")
-    async with stdio_server() as (read_stream, write_stream):
-        await app.run(
-            read_stream,
-            write_stream,
-            app.create_initialization_options(),
-        )
-
+# ─── Entry Point ──────────────────────────────────────────────────────────────
+def main():
+    log.info("Memulai Hermes MCP Server (transport: stdio)...")
+    log.info(f"Spreadsheet ID: {SPREADSHEET_ID}")
+    log.info(f"Webhook Active: {bool(WEBHOOK_URL)}")
+    mcp.run(transport="stdio")
 
 if __name__ == "__main__":
-    import asyncio
-    asyncio.run(main())
+    main()
