@@ -16,5 +16,8 @@ instagrapi>=2.0.0
 # Fuzzy string matching untuk Entity Matcher (Food Delivery cross-platform)
 jellyfish>=1.0.0
 
+# Supabase Client (Database & Auth)
+supabase>=2.0.0
+
 # Environment variable management
 python-dotenv>=1.0.1

@@ -14,5 +14,8 @@ curl_cffi>=0.7.0
 # Instagram sesi akun (ekstraksi business_phone_number yang tidak tersedia di HTML publik)
 instagrapi>=2.0.0
 
+# Supabase Client
+supabase>=2.0.0
+
 # Environment variable management
 python-dotenv>=1.0.1
