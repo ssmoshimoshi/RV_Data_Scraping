@@ -1,6 +1,7 @@
 # Virtual environment
 .venv/
 scrapers/.venv/
+hermes-mcp-server/.venv
 
 # Environment files & secrets (NEVER COMMIT)
 .env
