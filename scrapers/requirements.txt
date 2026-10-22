@@ -1,16 +1,20 @@
 # ============================================================
-# RUANG VISUAL — Scraper Dependencies
-# Referensi: intelligence_pipeline_prd.md §5
+# RUANG VISUAL — Scraper Module Dependencies
+# Arsitektur: In-House Crawlee Engine + Apify Cloud Actor
+# Referensi: PRD_RUANG_VISUAL_MARKET_INTELLIGENCE.md Bab 4
 # ============================================================
 
-# Core scraping framework (adaptive selectors, stealth, MCP)
-scrapling[fetchers]
-playwright>=1.40.0
-patchright>=1.40.0
+# Apify SDK Client (untuk memanggil Cloud Actor: Instagram, Meta Ads)
+apify-client>=1.8.0
 
-# Google Sheets API (shared with hermes-mcp-server)
-google-auth>=2.27.0
-google-api-python-client>=2.120.0
+# HTTP Client dengan TLS Fingerprint Impersonation (In-House Engine)
+curl_cffi>=0.7.0
+
+# Instagram sesi akun (ekstraksi business_phone_number)
+instagrapi>=2.0.0
+
+# Fuzzy string matching untuk Entity Matcher (Food Delivery cross-platform)
+jellyfish>=1.0.0
 
 # Environment variable management
 python-dotenv>=1.0.1

@@ -1,0 +1,18 @@
+# ============================================================
+# RUANG VISUAL — Market Intelligence Engine
+# Python Dependencies
+# Arsitektur: In-House Crawlee Engine + Apify Cloud Actor
+# ============================================================
+
+# Apify SDK Client (untuk memanggil Cloud Actor: Instagram, Meta Ads)
+apify-client>=1.8.0
+
+# HTTP Client dengan TLS Fingerprint Impersonation (In-House Engine)
+# Menggantikan Playwright untuk ekstraksi ringan yang tidak memerlukan headless browser
+curl_cffi>=0.7.0
+
+# Instagram sesi akun (ekstraksi business_phone_number yang tidak tersedia di HTML publik)
+instagrapi>=2.0.0
+
+# Environment variable management
+python-dotenv>=1.0.1
