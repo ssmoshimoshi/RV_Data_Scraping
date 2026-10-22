@@ -9,6 +9,7 @@ import json
 from datetime import datetime
 from scrapers.gmaps_scraper import search_places, scrape_negative_reviews
 from scrapers.instagram_scraper import run_follower_spider, enrich_profile, validate_recency
+from scrapers.meta_ads_scraper import search_meta_ads
 from scrapers.normalizer import normalize_whatsapp, normalize_address
 from scrapers.lead_scoring import qualify_lead, calculate_score, classify_category
 from scrapers.database import insert_lead, get_supabase_client
@@ -106,6 +107,54 @@ def run_instagram_pipeline(target: str, limit: int, dry_run: bool, save_db: bool
             print(f"Gagal simpan database: {msg}")
 
 
+def run_meta_ads_pipeline(query: str, limit: int, dry_run: bool, save_db: bool):
+    print(f"Menjalankan pipeline Meta Ads: '{query}' (Limit: {limit}, Dry-run: {dry_run})")
+    ads = search_meta_ads(query=query, limit=limit, dry_run=dry_run)
+    
+    if dry_run or not ads:
+        print("Pipeline selesai (mode dry-run aktif atau tidak ada hasil iklan).")
+        return
+    
+    qualified_count = 0
+    saved_count = 0
+    
+    for ad in ads:
+        external_links = ad.get("external_links", [])
+        primary_link = external_links[0] if external_links else ""
+        
+        lead = {
+            "business_name": ad.get("page_name", ""),
+            "platform": "facebook_ads",
+            "platform_id": ad.get("page_id"),
+            "whatsapp_number": ad.get("whatsapp_number"),
+            "is_ad_active": True,
+            "external_website_url": primary_link,
+            "is_active_verified": True
+        }
+        
+        category = classify_category(lead["business_name"], ad.get("ad_creative_body", ""), [])
+        lead["category"] = category
+        
+        is_qualified, reason = qualify_lead(lead)
+        if not is_qualified:
+            print(f"Prospek gugur: {lead['business_name']} - Alasan: {reason}")
+            continue
+        
+        qualified_count += 1
+        score = calculate_score(lead)
+        print(f"Prospek lolos: {lead['business_name']} | Kategori: {category} | Skor: {score}")
+        
+        if save_db:
+            ok, msg = insert_lead(lead, score=score, dry_run=dry_run)
+            if ok:
+                saved_count += 1
+                print(f"Tersimpan ke database: {lead['business_name']}")
+            else:
+                print(f"Gagal simpan database: {msg}")
+    
+    print(f"Selesai. Total ditemukan: {len(ads)}, Lolos kualifikasi: {qualified_count}, Tersimpan: {saved_count}")
+
+
 def main():
     parser = argparse.ArgumentParser(description="RUANG VISUAL Market Intelligence Pipeline")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -125,6 +174,13 @@ def main():
     ig_parser.add_argument("--dry-run", action="store_true", help="Uji coba tanpa panggilan berbayar")
     ig_parser.add_argument("--save-db", action="store_true", help="Simpan hasil ke database Supabase")
     
+    # Subcommand: meta-ads
+    meta_parser = subparsers.add_parser("meta-ads", help="Jalankan scraper Meta Ads Library")
+    meta_parser.add_argument("--query", type=str, required=True, help="Kata kunci pencarian iklan")
+    meta_parser.add_argument("--limit", type=int, default=50, help="Jumlah iklan maksimal")
+    meta_parser.add_argument("--dry-run", action="store_true", help="Uji coba tanpa panggilan berbayar")
+    meta_parser.add_argument("--save-db", action="store_true", help="Simpan hasil ke database Supabase")
+    
     # Subcommand: test
     subparsers.add_parser("test", help="Jalankan seluruh rangkaian unit test")
     
@@ -134,6 +190,8 @@ def main():
         run_gmaps_pipeline(args.query, args.city, args.limit, args.dry_run, args.save_db)
     elif args.command == "instagram":
         run_instagram_pipeline(args.target, args.limit, args.dry_run, args.save_db)
+    elif args.command == "meta-ads":
+        run_meta_ads_pipeline(args.query, args.limit, args.dry_run, args.save_db)
     elif args.command == "test":
         import unittest
         loader = unittest.TestLoader()
