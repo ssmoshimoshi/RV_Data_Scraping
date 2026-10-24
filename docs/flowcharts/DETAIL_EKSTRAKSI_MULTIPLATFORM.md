@@ -7,6 +7,74 @@ Dokumen ini membedah setiap titik data (*data points*), parameter logika, dan me
 
 ---
 
+## Diagram Arsitektur Alur Sistem Lengkap (Mermaid Diagram)
+
+```mermaid
+flowchart TD
+    subgraph MultiVector["1. Multi-Vector Data Ingestion"]
+        GMAPS["Google Maps Compass\n(Place ID, Alamat, Rating, Reviews)"]
+        FOOD["Food Delivery Apps\n(GoFood, GrabFood, ShopeeFood)"]
+        IG["Instagram Spider & Profile\n(Tombol WA, Followers, 5 Postingan)"]
+        TIKTOK["TikTok Shop & Creators\n(Etalase, Hashtag Kemasan)"]
+        ADS["Meta Ads Library\n(Iklan Berbayar Aktif, CTA WA/Web)"]
+    end
+
+    subgraph CleaningLayer["2. Data Normalization & Cleaning"]
+        NORM_WA["Normalisasi WhatsApp\n(Baku: 628xxxxxxxxxx)"]
+        NORM_ADDR["Normalisasi Alamat & Wilayah\n(Kecamatan, Kota, Geocoding)"]
+        DATASET_RUN["Extract Dataset ID\n(Kompatibel Pydantic Run modern)"]
+    end
+
+    subgraph EntityMatcherLayer["3. Cross-Platform Entity Matcher"]
+        EXACT_PHONE{"Pencocokan Nomor WA"}
+        FUZZY_NAME{"Fuzzy Matching Nama\n(Jaro-Winkler >= 0.85)"}
+        GEO_DIST{"Verifikasi Radius Geo\n(< 150 meter)"}
+        UNIFIED_LEAD["Unified Customer Dossier Profile"]
+    end
+
+    subgraph IntelligenceEngines["4. RUANG VISUAL Intelligence Engines"]
+        PILLARS_4["Universal 4-Pillars Scoring\n- Legitimasi Fisik (25)\n- Kecepatan Komersial (25)\n- Turnover Kemasan (30)\n- Anggaran Iklan (20)"]
+        PAIN_POINTS["Packaging Pain Points Engine\n(Keyword Matcher: bocor, rembes, robek)\n-> Sudut Penawaran RUANG VISUAL"]
+        COMM_EST["Packaging Commercial Estimator\n- Tier Prioritas 1/2/3\n- Konsumsi Unit Bulanan\n- Estimasi Omzet & Restock"]
+    end
+
+    subgraph LocalDashboard["5. Local Dossier Dashboard (localhost:3000/market-scraping)"]
+        TABLE_DOSSIER["Tabel Intelijen Pasar\n(Anchor Maps, Tier Komersial, Skor)"]
+        DRAWER_MODAL["Detail Drawer Modal CMYK\n(Breakdown 4 Pilar, Pain Points, Commercials)"]
+        CONTENT_INSPECTOR["Deep Content Inspector\n(Top 5 Posts, Engagement Rate, Velocity)"]
+        ONE_CLICK_WA["1-Click WhatsApp Pitch Generator\n(Draft Pesan Khusus Sektor Industri)"]
+    end
+
+    subgraph CloudStorage["6. Persistent Storage Layer"]
+        RAW_JSON["Local Raw Storage\n(data/raw/gmaps_places_*.json)"]
+        SUPABASE_DB["Supabase PostgreSQL 15+\n(leads, lead_insights, crm_outreach)"]
+    end
+
+    GMAPS --> NORM_WA & NORM_ADDR & DATASET_RUN
+    FOOD --> NORM_WA & NORM_ADDR & DATASET_RUN
+    IG --> NORM_WA & DATASET_RUN
+    TIKTOK --> NORM_WA
+    ADS --> NORM_WA & DATASET_RUN
+
+    NORM_WA & NORM_ADDR & DATASET_RUN --> EXACT_PHONE
+    EXACT_PHONE -- Cocok --> UNIFIED_LEAD
+    EXACT_PHONE -- Tidak Cocok --> FUZZY_NAME
+    FUZZY_NAME -- Mirip --> GEO_DIST
+    GEO_DIST -- Dekat --> UNIFIED_LEAD
+    FUZZY_NAME -- Entitas Baru --> UNIFIED_LEAD
+
+    UNIFIED_LEAD --> PILLARS_4
+    UNIFIED_LEAD --> PAIN_POINTS
+    UNIFIED_LEAD --> COMM_EST
+
+    PILLARS_4 & PAIN_POINTS & COMM_EST --> RAW_JSON
+    RAW_JSON --> TABLE_DOSSIER
+    TABLE_DOSSIER --> DRAWER_MODAL & CONTENT_INSPECTOR & ONE_CLICK_WA
+    UNIFIED_LEAD -. Sinkronisasi Database Cloud .-> SUPABASE_DB
+```
+
+---
+
 ## 1. Lane 1: Ekstraksi Instagram (The Relationship & Activity Layer)
 
 Instagram adalah kanal primer penentu keaktifan entitas bisnis. Ekstraksi terbagi menjadi 6 tahapan berurutan:

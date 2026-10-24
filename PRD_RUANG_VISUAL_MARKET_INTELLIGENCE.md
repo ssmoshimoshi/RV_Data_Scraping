@@ -220,6 +220,54 @@ Dengan rincian komponen:
    - Pengikut antara 500 hingga 999: 5 poin.
    - Pengikut > 100.000 (Korporasi besar dengan vendor pusat tetap): 3 poin.
 
+### 5.3 Matriks 4 Dimensi Meta Universal (Universal 4-Pillars Scoring Matrix)
+Untuk memberikan representasi grafis transparan pada antarmuka dashboard, sistem menghitung 4 dimensi independen:
+1. **Legitimasi Fisik (Legitimacy, Bobot 25 Poin)**:
+   - Google Maps Place ID terverifikasi: +15 poin.
+   - Alamat fisik jalan lengkap: +5 poin.
+   - Koordinat latitude dan longitude presisi: +5 poin.
+2. **Kecepatan Komersial (Velocity, Bobot 25 Poin)**:
+   - Terkini (unggahan <= 7 hari): 25 poin.
+   - Aktif (unggahan <= 14 hari): 18 poin.
+   - Moderat (unggahan <= 30 hari): 10 poin.
+   - Pasif (> 30 hari): 0 poin.
+3. **Turnover Kemasan Berulang (Turnover, Bobot 30 Poin)**:
+   - `fnb_beverage`: 30 poin (siklus restock 25-30 hari, konsumsi cup harian tinggi).
+   - `fnb_food_resto`: 30 poin (konsumsi lunch box, food pail, wrapping paper).
+   - `beauty_skincare`: 22 poin (stiker segel botol jar, box kosmetik).
+   - `fashion_retail`: 20 poin (hangtag, polymailer, shopping bag).
+   - `general_commercial` / lainnya: 12 poin.
+4. **Sinyal Anggaran Pemasaran (Budget Signal, Bobot 20 Poin)**:
+   - Iklan Meta Ads aktif: +12 poin.
+   - Website domain berbayar (TLD mandiri non-free): +8 poin.
+
+Total skor 4 dimensi: $S_{\text{pillars}} = \min(100, \text{Legitimasi} + \text{Kecepatan} + \text{Turnover} + \text{Anggaran})$.
+
+### 5.4 Mesin Ekstraksi Keluhan Kemasan Publik (Packaging Pain Points Engine)
+Sistem memindai seluruh teks ulasan publik (Google Maps & Food Delivery reviews) untuk menemukan keluhan kemasan kompetitor:
+- **Kamus Kata Kunci Keluhan**: `bocor`, `rembes`, `tumpah`, `robek`, `sobek`, `rusak`, `lembek`, `pecah`, `meleleh`, `bungkus`, `kemasan`, `plastik`, `cup`, `box`, `kotak`, `kantong`, `tutup`, `seal`, `dingin`, `hancur`.
+- **Ekstraksi Atribut**: Teks ulasan lengkap, rating bintang ulasan, tanggal unggahan, daftar kata kunci unik yang terpicu.
+- **Penyusunan Sudut Penjualan (Sales Angle)**: Otomatis memetakan keluhan ke solusi RUANG VISUAL (contoh: keluhan "tutup cup bocor" dipasangkan dengan penawaran "Cup Cold PET tebal dengan tutup lid presisi anti-rembes").
+
+### 5.5 Estimator Pengadaan Kemasan Komersial (Packaging Commercial Estimator)
+Sistem memproyeksikan kebutuhan fisik dan omzet pengadaan kemasan berkala berdasarkan kategori usaha dan traksi bisnis (multiplikator review/followers):
+- **Tabel Proyeksi Unit dan Nilai**:
+  - `fnb_beverage`: 1.500 - 4.500 unit/bulan | Omzet: Rp 1.800.000 - Rp 5.400.000 | Siklus: 30 hari | Tier 1 (High Value)
+  - `fnb_food_resto`: 1.000 - 3.000 unit/bulan | Omzet: Rp 2.500.000 - Rp 7.500.000 | Siklus: 30 hari | Tier 1 (High Value)
+  - `fashion_retail`: 300 - 1.000 unit/bulan | Omzet: Rp 750.000 - Rp 2.500.000 | Siklus: 60 hari | Tier 2 (Medium Value)
+  - `beauty_skincare`: 500 - 2.000 unit/bulan | Omzet: Rp 1.500.000 - Rp 4.000.000 | Siklus: 45 hari | Tier 2 (Medium Value)
+  - `new_store_opening`: 1 paket pembukaan | Omzet: Rp 3.500.000 - Rp 8.000.000 | Siklus: 0 (Proyek Toko Baru) | Tier 1 (High Value)
+  - `corporate_legal`: 100 - 300 unit/bulan | Omzet: Rp 1.000.000 - Rp 2.500.000 | Siklus: 90 hari | Tier 3 (Standard)
+  - `general_commercial`: 500 unit/bulan | Omzet: Rp 750.000 - Rp 1.500.000 | Siklus: 30 hari | Tier 3 (Standard)
+- **Faktor Skala**: Multiplier > 50.000 unit/ulasan menaikkan estimasi $2\times$; Multiplier > 10.000 menaikkan estimasi $1.5\times$.
+
+### 5.6 Algoritma Penggabungan Entitas Lintas Platform (Cross-Platform Entity Matcher)
+Untuk menghubungkan data dari Google Maps, Food Delivery, dan Media Sosial ke satu entitas tunggal:
+1. **Primary Match (Exact Key)**: Normalisasi nomor WhatsApp (`628xxxxxxxxxx`). Jika nomor sama, entitas langsung digabung (*auto-merged*).
+2. **Secondary Match (Fuzzy String Similarity)**: Menggunakan algoritma *Token Sort Ratio* dan *Jaro-Winkler Distance* pada nama bisnis dengan ambang batas kesamaan $\ge 0.85$ jika berada di kota atau kecamatan yang sama.
+3. **Geospatial Distance Matching**: Jika koordinat tersedia, verifikasi jarak fisik $< 150$ meter memperkuat penggabungan data.
+
+
 ---
 
 ## 6. Skema Lengkap Database Supabase (PostgreSQL DDL)
@@ -539,21 +587,30 @@ Sesuai aturan operasional multi-agen repositori:
 
 ---
 
-## 10. Roadmap Implementasi 4 Tahap (Milestones)
+## 10. Roadmap Implementasi & Status Pencapaian
 
-- **Milestone 1: Database Setup & Local Next.js Dashboard Foundation**
-  - Eksekusi skrip DDL Supabase lengkap (tabel, enum, index, trigger).
-  - Pembangunan kerangka antarmuka lokal Next.js di rute `/market-scraping` dengan styling CMYK RUANG VISUAL.
-  - Verifikasi konektivitas data API Supabase.
-- **Milestone 2: Mesin Ekstraksi Inti (Instagram & Google Maps Engine)**
-  - Implementasi Follower/Following Spider untuk pengikut akun bazar kuliner dan kompetitor.
-  - Implementasi Place Scout Google Maps untuk entitas usaha baru dan alamat fisik.
-  - Pengujian filter keaktifan post < 30 hari dan normalisasi nomor WhatsApp.
-- **Milestone 3: CRM Kanban, 1-Click WhatsApp & Sample Box Tracking**
-  - Penyambungan tabel Supabase ke komponen Kanban Board interaktif.
-  - Generator tautan chat WhatsApp otomatis sesuai sektor bisnis.
-  - Modul pencatatan resi pengiriman *Sample Box* fisik.
-- **Milestone 4: Ekspansi Multi-Platform & Entity Matcher**
-  - Integrasi penjelajah Meta Ads Library dan TikTok Shop seller scraper.
-  - Implementasi algoritma pencocokan nama merchant Food Delivery ke Instagram dan Maps.
-  - Peluncuran sistem penuh untuk tim operasional pemasaran RUANG VISUAL.
+### 10.1 Status Pencapaian Milestone
+- **Milestone 1: Dashboard Intelijen Dossier Lokal (`/market-scraping`) — [SELESAI 100%]**
+  - Dashboard lokal aktif di `http://localhost:3000/market-scraping` dengan styling CMYK RUANG VISUAL.
+  - Tabel dossier interaktif dengan kolom profil usaha, verifikasi Maps, estimasi komersial kemasan, dan skor 4 dimensi.
+  - Detail drawer modal yang membedah 4 pilar, estimasi unit/omzet bulanan, dan deteksi keluhan kemasan publik.
+  - Deep content inspector 5 konten terpopuler dengan kalkulasi rata-rata *engagement rate* dan *commercial velocity*.
+- **Milestone 2: Mesin Ekstraksi Multi-Platform & Standardisasi — [SELESAI 100%]**
+  - Google Maps Compass scraper terintegrasi dengan ekstraksi pain points dan estimasi kebutuhan kemasan.
+  - Food Delivery scraper (GoFood, GrabFood, ShopeeFood) terstandarisasi dengan helper `_process_merchant_data`.
+  - Instagram, Meta Ads, dan Threads scraper di-upgrade agar 100% kompatibel dengan model Pydantic `Run` pada library `apify-client` modern.
+  - Pengujian unit komprehensif (126 tests lulus 100%).
+- **Milestone 3: Ekstraksi Data Nyata Wilayah Makassar — [AKTIF]**
+  - Penarikan data riil pertama di Makassar untuk sektor kafe/kuliner berhasil dieksekusi dan dimuat otomatis ke dashboard dossier.
+
+### 10.2 Empat Prioritas Pekerjaan Berikutnya
+1. **Prioritas 1: Cross-Platform Entity Matcher & Deduplicator**
+   - Mengimplementasikan pencocokan nama merchant (Fuzzy Matching Jaro-Winkler) antara Food Delivery, Google Maps, dan akun Instagram untuk menyatukan data menjadi satu profil dossier utuh.
+2. **Prioritas 2: Fitur Ekspor Data Dossier & Outreach Generator**
+   - Menambahkan tombol ekspor langsung di antarmuka dashboard (format CSV/Excel/JSON terstruktur).
+   - Pembuatan batch pesan WhatsApp dengan parameter dinamis (nama usaha, produk cetak spesifik, dan penawaran sampel fisik).
+3. **Prioritas 3: Eksekusi Scraping Lintas Sektor Wilayah Makassar**
+   - Menjalankan penarikan data nyata untuk sektor F&B Restoran/Katering, Fashion & Butik, serta Skincare/Klinik di Makassar.
+4. **Prioritas 4: Setup Database Produksi Cloud Supabase**
+   - Menghubungkan penyimpanan lokal (`data/raw/`) ke database cloud PostgreSQL Supabase secara permanen saat kredensial `.env` diaktifkan.
+
