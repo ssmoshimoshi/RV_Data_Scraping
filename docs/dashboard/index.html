@@ -130,11 +130,12 @@
           <table class="leads-table">
             <thead>
               <tr>
-                <th style="width: 28%;">Profil Usaha &amp; Lokasi</th>
-                <th style="width: 15%;">Kategori</th>
-                <th style="width: 18%;">Verifikasi Google Maps</th>
-                <th style="width: 22%;">Skor 4 Dimensi Meta</th>
-                <th style="width: 17%; text-align: right;">Aksi Intelijen</th>
+                <th style="width: 25%;">Profil Usaha &amp; Lokasi</th>
+                <th style="width: 14%;">Kategori</th>
+                <th style="width: 16%;">Verifikasi GMaps</th>
+                <th style="width: 18%;">Estimasi Komersial</th>
+                <th style="width: 15%;">Skor Potensi</th>
+                <th style="width: 12%; text-align: right;">Aksi</th>
               </tr>
             </thead>
             <tbody id="leads-table-body">
@@ -360,6 +361,37 @@
           Analisis objektif alasan potensi calon customer.
         </div>
       </div>
+
+      <!-- Section: Estimasi Komersial & Omzet Kemasan -->
+      <div class="drawer-section">
+        <div class="section-mini-label">Estimasi Komersial &amp; Potensi Pesanan Berulang</div>
+        <div class="commercial-grid">
+          <div class="comm-card cyan">
+            <div class="comm-label">Prioritas Nilai Komersial</div>
+            <div class="comm-value" id="drawer-comm-tier">-</div>
+            <div class="comm-sub" id="drawer-comm-cycle">Siklus Restock: -</div>
+          </div>
+          <div class="comm-card magenta">
+            <div class="comm-label">Estimasi Kebutuhan Unit</div>
+            <div class="comm-value" id="drawer-comm-units">-</div>
+            <div class="comm-sub">Konsumsi Bulanan</div>
+          </div>
+          <div class="comm-card yellow">
+            <div class="comm-label">Estimasi Nilai Omzet</div>
+            <div class="comm-value" id="drawer-comm-value">-</div>
+            <div class="comm-sub">Potensi Nilai Pengadaan</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section: Deteksi Keluhan Kemasan Pelanggan -->
+      <div class="drawer-section">
+        <div class="section-mini-label">Deteksi Keluhan Kemasan Publik (Pain Points)</div>
+        <div id="drawer-pain-points-list">
+          <!-- Rendered in app.js -->
+        </div>
+      </div>
+
 
       <!-- Section: Progressive Multi-Channel Linking -->
       <div class="drawer-section">

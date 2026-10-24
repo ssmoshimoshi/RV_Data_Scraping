@@ -15,6 +15,7 @@ from scrapers.lead_scoring import (
     calculate_4_pillars_score,
     infer_product_needs,
     generate_whatsapp_pitch,
+    estimate_packaging_volume_and_value,
 )
 from scrapers.database import get_supabase_client
 
@@ -577,6 +578,13 @@ def enrich_lead_card(lead: dict) -> dict:
     enriched["materials_finishing"] = needs["materials_finishing"]
     enriched["value_proposition"] = needs["value_proposition"]
     
+    # Estimasi komersial kemasan dan pain points
+    if "estimated_commercials" not in enriched or not enriched["estimated_commercials"]:
+        enriched["estimated_commercials"] = estimate_packaging_volume_and_value(enriched)
+
+    if "packaging_pain_points" not in enriched:
+        enriched["packaging_pain_points"] = []
+
     pitch_info = generate_whatsapp_pitch(enriched)
     if pitch_info:
         enriched["pitch_text"] = pitch_info["pitch_text"]
@@ -600,6 +608,58 @@ def enrich_lead_card(lead: dict) -> dict:
     return enriched
 
 
+def load_raw_scraped_leads() -> list[dict]:
+    raw_dir = PROJECT_ROOT / "data" / "raw"
+    if not raw_dir.exists():
+        return []
+    leads = []
+    seen_names = set()
+    for filepath in sorted(raw_dir.glob("gmaps_places_*.json"), reverse=True):
+        try:
+            with open(filepath, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if isinstance(data, list):
+                    for item in data:
+                        name = (item.get("title") or "").strip()
+                        if not name or name.lower() in seen_names:
+                            continue
+                        seen_names.add(name.lower())
+                        pid = item.get("place_id") or f"scraped-{len(seen_names)}"
+                        leads.append({
+                            "id": f"gmaps-{pid}",
+                            "business_name": name,
+                            "category": item.get("category", "fnb_beverage"),
+                            "platform": "google_maps",
+                            "google_maps_place_id": item.get("place_id"),
+                            "rating": item.get("total_score") or item.get("rating", 4.5),
+                            "reviews_count": item.get("reviews_count", 0),
+                            "latitude": item.get("latitude"),
+                            "longitude": item.get("longitude"),
+                            "city": item.get("city", "Makassar"),
+                            "address_full": item.get("address", ""),
+                            "whatsapp_number": item.get("whatsapp_number", ""),
+                            "phone_number": item.get("phone_number", ""),
+                            "follower_count": item.get("follower_count", item.get("reviews_count", 0) * 10),
+                            "is_active_verified": True,
+                            "is_ad_active": False,
+                            "external_website_url": item.get("website", ""),
+                            "latest_post_date": (datetime.now() - timedelta(days=2)).isoformat(),
+                            "status": "ready_to_pitch" if item.get("whatsapp_number") else "new_lead",
+                            "packaging_pain_points": item.get("packaging_pain_points", []),
+                            "estimated_commercials": item.get("estimated_commercials", {}),
+                            "channels": {
+                                "google_maps": f"https://www.google.com/maps/place/?q=place_id:{item.get('place_id')}" if item.get("place_id") else "",
+                                "instagram": item.get("website", "") if "instagram.com" in (item.get("website") or "") else "",
+                                "tiktok": "",
+                                "threads": "",
+                                "food_delivery": ""
+                            }
+                        })
+        except Exception:
+            continue
+    return leads
+
+
 def get_all_leads():
     client = get_supabase_client()
     if client:
@@ -610,7 +670,15 @@ def get_all_leads():
         except Exception:
             pass
             
-    return [enrich_lead_card(item) for item in SAMPLE_LEADS]
+    scraped = load_raw_scraped_leads()
+    seen = {s["business_name"].lower() for s in scraped}
+    combined = list(scraped)
+    for sample in SAMPLE_LEADS:
+        if sample.get("business_name", "").lower() not in seen:
+            combined.append(sample)
+
+    return [enrich_lead_card(item) for item in combined]
+
 
 
 class DashboardHandler(http.server.SimpleHTTPRequestHandler):

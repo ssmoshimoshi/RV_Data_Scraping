@@ -150,7 +150,7 @@ function renderDashboard() {
 
   if (filtered.length === 0) {
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td colspan="5" style="text-align: center; color: var(--text-muted); padding: 32px;">Tidak ditemukan data calon customer yang sesuai dengan filter.</td>`;
+    tr.innerHTML = `<td colspan="6" style="text-align: center; color: var(--text-muted); padding: 32px;">Tidak ditemukan data calon customer yang sesuai dengan filter.</td>`;
     tbody.appendChild(tr);
     return;
   }
@@ -167,6 +167,13 @@ function renderDashboard() {
     const pTurn = Math.round(((lead.score_turnover || 0) / 30) * 100);
     const pBud = Math.round(((lead.score_budget || 0) / 20) * 100);
 
+    const comm = lead.estimated_commercials || {};
+    const tierText = comm.priority_commercial_tier || 'Tier 3 (Standard)';
+    const unitsMin = (comm.est_monthly_units_min || 500).toLocaleString('id-ID');
+    const unitsMax = (comm.est_monthly_units_max || 1500).toLocaleString('id-ID');
+    const painPoints = lead.packaging_pain_points || [];
+    const hasPainPoints = painPoints.length > 0;
+
     tr.innerHTML = `
       <td>
         <div class="lead-title-text">${escapeHtml(lead.business_name)}</div>
@@ -178,6 +185,11 @@ function renderDashboard() {
       <td>
         <div class="maps-verified-badge">Terverifikasi Fisik</div>
         <div class="maps-rating-text">Rating ${lead.rating || '4.5'} (${lead.reviews_count || '100+'} ulasan)</div>
+      </td>
+      <td>
+        <div class="comm-tier-badge ${tierText.includes('Tier 1') ? 'tier-1' : ''}">${escapeHtml(tierText.split(' ')[0])}</div>
+        <div class="comm-units-text">${unitsMin} - ${unitsMax} unit/bln</div>
+        ${hasPainPoints ? `<span class="pain-point-pill warning">${painPoints.length} Keluhan Kemasan</span>` : `<span class="pain-point-pill ok">Kemasan Stabil</span>`}
       </td>
       <td>
         <div class="table-score-wrapper">
@@ -205,6 +217,59 @@ function renderDashboard() {
 function openDrawerById(id) {
   const lead = allLeads.find(l => l.id === id);
   if (lead) openDrawer(lead);
+}
+
+function formatRupiahShort(val) {
+  if (!val || val === 0) return 'Rp 0';
+  if (val >= 1000000) {
+    const jt = (val / 1000000).toFixed(1).replace('.0', '');
+    return `Rp ${jt} Jt`;
+  }
+  if (val >= 1000) {
+    const rb = (val / 1000).toFixed(0);
+    return `Rp ${rb} Rb`;
+  }
+  return `Rp ${val}`;
+}
+
+function renderPainPointsList(painPoints) {
+  const container = document.getElementById('drawer-pain-points-list');
+  if (!container) return;
+  container.innerHTML = '';
+
+  if (!painPoints || painPoints.length === 0) {
+    container.innerHTML = `
+      <div class="pp-empty-state">
+        <div class="pp-empty-title">Kemasan Terpantau Stabil</div>
+        <div class="pp-empty-desc">Tidak ditemukan keluhan kerusakan atau kebocoran kemasan pada ulasan publik. Pelanggan puas dengan kondisi pengemasan saat ini.</div>
+      </div>
+    `;
+    return;
+  }
+
+  painPoints.forEach((pp, idx) => {
+    const card = document.createElement('div');
+    card.className = 'pain-point-card';
+
+    const kwBadges = (pp.detected_keywords || []).map(k => `<span class="pp-kw-badge">${escapeHtml(k)}</span>`).join(' ');
+
+    card.innerHTML = `
+      <div class="pp-card-header">
+        <span class="pp-badge-alert">Keluhan #${idx + 1} &bull; Rating ${pp.rating || '-'}/5</span>
+        <span class="pp-date">${escapeHtml(pp.date || 'Ulasan Terkini')}</span>
+      </div>
+      <div class="pp-review-text">"${escapeHtml(pp.review_text)}"</div>
+      <div class="pp-keywords-row">
+        <span class="pp-kw-label">Kata Kunci:</span>
+        <div>${kwBadges}</div>
+      </div>
+      <div class="pp-angle-box">
+        <div class="pp-angle-title">Sudut Pendekatan Penjualan (Sales Angle):</div>
+        <div class="pp-angle-text">${escapeHtml(pp.sales_angle || 'Tawarkan solusi kemasan presisi anti-bocor RUANG VISUAL.')}</div>
+      </div>
+    `;
+    container.appendChild(card);
+  });
 }
 
 function openDrawer(lead) {
@@ -251,6 +316,26 @@ function openDrawer(lead) {
   // Explainable Intelligence Narrative
   document.getElementById('drawer-reason-summary').textContent = lead.reason_summary || 'Analisis 4 dimensi telah terhitung.';
 
+  // Commercial Estimates
+  const comm = lead.estimated_commercials || {};
+  const commTierEl = document.getElementById('drawer-comm-tier');
+  if (commTierEl) commTierEl.textContent = comm.priority_commercial_tier || 'Tier 3 (Standard)';
+  const commCycleEl = document.getElementById('drawer-comm-cycle');
+  if (commCycleEl) commCycleEl.textContent = `Siklus Restock: ${comm.restock_cycle_days || 30} Hari`;
+  
+  const minU = (comm.est_monthly_units_min || 0).toLocaleString('id-ID');
+  const maxU = (comm.est_monthly_units_max || 0).toLocaleString('id-ID');
+  const commUnitsEl = document.getElementById('drawer-comm-units');
+  if (commUnitsEl) commUnitsEl.textContent = `${minU} - ${maxU} Unit`;
+
+  const minV = formatRupiahShort(comm.est_monthly_value_min_idr || 0);
+  const maxV = formatRupiahShort(comm.est_monthly_value_max_idr || 0);
+  const commValEl = document.getElementById('drawer-comm-value');
+  if (commValEl) commValEl.textContent = `${minV} - ${maxV} / Bln`;
+
+  // Packaging Pain Points List
+  renderPainPointsList(lead.packaging_pain_points || []);
+
   // Multi-Channel Status
   renderChannelsList(lead);
 
@@ -284,6 +369,7 @@ function openDrawer(lead) {
   } else {
     document.getElementById('drawer-wa-section').style.display = 'none';
   }
+
 
   document.getElementById('overlay').style.display = 'block';
   document.getElementById('detail-drawer').classList.add('open');
