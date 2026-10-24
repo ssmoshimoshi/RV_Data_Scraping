@@ -271,7 +271,7 @@ def run_food_delivery_pipeline(platform: str, city: str, limit: int, dry_run: bo
             "address_full": item.get("address_full"),
             "district_area": item.get("district_area"),
             "city": item.get("city") or city,
-            "category": item.get("category", "Food & Beverage"),
+            "category": classify_category(item.get("merchant_name", ""), item.get("category", ""), []),
             "is_active_verified": True
         }
 

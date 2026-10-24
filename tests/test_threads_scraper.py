@@ -101,12 +101,60 @@ class TestThreadsScraper(unittest.TestCase):
     @patch('scrapers.threads_scraper.os.getenv')
     def test_missing_api_token(self, mock_getenv):
         mock_getenv.return_value = None
-        
+
         with self.assertRaises(ValueError) as context:
             scrape_threads_profile('testuser', dry_run=False)
-        
+
         self.assertIn('APIFY_API_TOKEN', str(context.exception))
 
+    @patch('scrapers.threads_scraper.ApifyClient')
+    @patch('scrapers.threads_scraper.os.getenv')
+    def test_bio_regex_phone_extraction(self, mock_getenv, mock_apify):
+        mock_getenv.return_value = 'test_token'
+
+        mock_client = MagicMock()
+        mock_apify.return_value = mock_client
+
+        mock_run = {'defaultDatasetId': 'dataset123'}
+        mock_client.actor.return_value.call.return_value = mock_run
+
+        mock_dataset = MagicMock()
+        mock_client.dataset.return_value = mock_dataset
+
+        mock_dataset.iterate_items.return_value = iter([{
+            'full_name': 'Bio Phone Business',
+            'biography': 'Hubungi WA 081234567890',
+            'posts': []
+        }])
+
+        result = scrape_threads_profile('biouser', dry_run=False)
+
+        self.assertEqual(result['whatsapp_number'], '6281234567890')
+
+    @patch('scrapers.threads_scraper.ApifyClient')
+    @patch('scrapers.threads_scraper.os.getenv')
+    def test_old_post_inactive(self, mock_getenv, mock_apify):
+        mock_getenv.return_value = 'test_token'
+
+        mock_client = MagicMock()
+        mock_apify.return_value = mock_client
+
+        mock_run = {'defaultDatasetId': 'dataset123'}
+        mock_client.actor.return_value.call.return_value = mock_run
+
+        mock_dataset = MagicMock()
+        mock_client.dataset.return_value = mock_dataset
+
+        mock_dataset.iterate_items.return_value = iter([{
+            'full_name': 'Old Business',
+            'posts': [
+                {'timestamp': '2025-01-01T10:00:00Z'}
+            ]
+        }])
+
+        result = scrape_threads_profile('olduser', dry_run=False)
+
+        self.assertFalse(result['is_active'])
 
 if __name__ == '__main__':
     unittest.main()

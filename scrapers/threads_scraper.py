@@ -7,6 +7,7 @@ if str(PROJECT_ROOT) not in sys.path:
 import argparse
 import json
 import os
+import re
 from datetime import datetime
 from typing import Optional
 from apify_client import ApifyClient
@@ -56,12 +57,31 @@ def scrape_threads_profile(username: str, limit: int = 10, dry_run: bool = False
     bio = profile_data.get('biography', '') or profile_data.get('bio', '')
     raw_phone = profile_data.get('phone_number') or profile_data.get('contact_phone_number')
     whatsapp_number = normalize_whatsapp(raw_phone) if raw_phone else None
+    
+    if not whatsapp_number and bio:
+        phone_patterns = [
+            r'(\+?62\s?8\d{8,12})',
+            r'(08\d{8,12})',
+            r'(62\d{9,12})'
+        ]
+        for pattern in phone_patterns:
+            match = re.search(pattern, bio)
+            if match:
+                whatsapp_number = normalize_whatsapp(match.group(1))
+                if whatsapp_number:
+                    break
+
+    is_active = False
+    if last_post_date:
+        days_diff = (datetime.now().date() - last_post_date).days
+        if days_diff <= 30:
+            is_active = True
 
     return {
         'business_name': profile_data.get('full_name', '') or username,
         'platform_handle': username,
         'whatsapp_number': whatsapp_number,
-        'is_active': bool(last_post_date),
+        'is_active': is_active,
         'last_post_date': last_post_date.isoformat() if last_post_date else None,
         'biography': bio,
         'followers_count': profile_data.get('follower_count', 0),
