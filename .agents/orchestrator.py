@@ -86,8 +86,12 @@ def execute_kilo_task(task: dict, max_retries: int = 2):
             "--auto"
         ]
         
-        proc = subprocess.run(cmd, cwd=PROJECT_ROOT, capture_output=True, text=True)
-        print(f"[ORCHESTRATOR] Kilo selesai merespons. Memulai verifikasi otomatis...")
+        try:
+            proc = subprocess.run(cmd, cwd=PROJECT_ROOT, capture_output=True, text=True, timeout=180)
+            print(f"[ORCHESTRATOR] Kilo selesai merespons. Memulai verifikasi otomatis...")
+        except subprocess.TimeoutExpired:
+            print(f"[ORCHESTRATOR WARNING] Kilo melebihi batas waktu 180 detik (timeout). Melakukan retry...")
+            continue
         
         # 1. Cek file keberadaan & Anti-slop / Emoji
         ok_target, msg_target = check_anti_slop_and_emoji(target_file)
