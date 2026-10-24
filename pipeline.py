@@ -11,6 +11,8 @@ from scrapers.gmaps_scraper import search_places, scrape_negative_reviews
 from scrapers.instagram_scraper import run_follower_spider, enrich_profile, validate_recency
 from scrapers.meta_ads_scraper import search_meta_ads
 from scrapers.tiktok_scraper import scrape_tiktok_search, transform_to_lead_format as transform_tiktok_leads
+from scrapers.threads_scraper import scrape_threads_profile
+from scrapers.food_delivery_scraper import scrape_gofood, scrape_grabfood, scrape_shopeefood
 from scrapers.normalizer import normalize_whatsapp, normalize_address
 from scrapers.lead_scoring import qualify_lead, calculate_score, classify_category
 from scrapers.database import insert_lead, get_supabase_client
@@ -203,6 +205,96 @@ def run_tiktok_pipeline(keyword: str, limit: int, dry_run: bool, save_db: bool):
     print(f"Selesai. Total ditemukan: {len(leads)}, Lolos kualifikasi: {qualified_count}, Tersimpan: {saved_count}")
 
 
+def run_threads_pipeline(username: str, limit: int, dry_run: bool, save_db: bool):
+    print(f"Menjalankan pipeline Threads untuk @{username} (Limit: {limit}, Dry-run: {dry_run})")
+    profile = scrape_threads_profile(username=username, limit=limit, dry_run=dry_run)
+    if dry_run or not profile:
+        print("Pipeline selesai (mode dry-run aktif atau tidak ada hasil).")
+        return
+
+    lead = {
+        "business_name": profile.get("business_name", ""),
+        "platform": "threads",
+        "platform_handle": username,
+        "platform_profile_url": f"https://threads.net/@{username}",
+        "whatsapp_number": profile.get("whatsapp_number"),
+        "biography": profile.get("biography", ""),
+        "last_post_date": profile.get("last_post_date"),
+        "is_active_verified": profile.get("is_active", False)
+    }
+
+    category = classify_category(lead["business_name"], lead["biography"], [])
+    lead["category"] = category
+
+    is_qualified, reason = qualify_lead(lead)
+    if not is_qualified:
+        print(f"Prospek gugur: @{username} - Alasan: {reason}")
+        return
+
+    score = calculate_score(lead)
+    print(f"Prospek lolos: @{username} | Skor: {score} | Aktif: {lead['is_active_verified']}")
+
+    if save_db:
+        ok, msg = insert_lead(lead, score=score, dry_run=dry_run)
+        if ok:
+            print(f"Tersimpan ke database: @{username}")
+        else:
+            print(f"Gagal simpan database: {msg}")
+
+
+def run_food_delivery_pipeline(platform: str, city: str, limit: int, dry_run: bool, save_db: bool):
+    print(f"Menjalankan pipeline {platform.upper()} di {city} (Limit: {limit}, Dry-run: {dry_run})")
+    
+    if platform == "gofood":
+        merchants = scrape_gofood(city=city, limit=limit, dry_run=dry_run)
+    elif platform == "grabfood":
+        merchants = scrape_grabfood(city=city, limit=limit, dry_run=dry_run)
+    elif platform == "shopeefood":
+        merchants = scrape_shopeefood(city=city, limit=limit, dry_run=dry_run)
+    else:
+        print(f"Platform tidak dikenal: {platform}")
+        return
+
+    if dry_run or not merchants:
+        print("Pipeline selesai (mode dry-run aktif atau tidak ada hasil).")
+        return
+
+    qualified_count = 0
+    saved_count = 0
+
+    for item in merchants:
+        lead = {
+            "business_name": item.get("merchant_name", ""),
+            "platform": item.get("platform", platform),
+            "platform_id": item.get("merchant_id"),
+            "whatsapp_number": item.get("phone_number"),
+            "address_full": item.get("address_full"),
+            "district_area": item.get("district_area"),
+            "city": item.get("city") or city,
+            "category": item.get("category", "Food & Beverage"),
+            "is_active_verified": True
+        }
+
+        is_qualified, reason = qualify_lead(lead)
+        if not is_qualified:
+            print(f"Prospek gugur: {lead['business_name']} - Alasan: {reason}")
+            continue
+
+        qualified_count += 1
+        score = calculate_score(lead)
+        print(f"Prospek lolos: {lead['business_name']} | Skor: {score}")
+
+        if save_db:
+            ok, msg = insert_lead(lead, score=score, dry_run=dry_run)
+            if ok:
+                saved_count += 1
+                print(f"Tersimpan ke database: {lead['business_name']}")
+            else:
+                print(f"Gagal simpan database: {msg}")
+
+    print(f"Selesai. Total ditemukan: {len(merchants)}, Lolos kualifikasi: {qualified_count}, Tersimpan: {saved_count}")
+
+
 def main():
     parser = argparse.ArgumentParser(description="RUANG VISUAL Market Intelligence Pipeline")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -236,11 +328,26 @@ def main():
     tiktok_parser.add_argument("--dry-run", action="store_true", help="Uji coba tanpa panggilan berbayar")
     tiktok_parser.add_argument("--save-db", action="store_true", help="Simpan hasil ke database Supabase")
 
+    # Subcommand: threads
+    threads_parser = subparsers.add_parser("threads", help="Jalankan scraper Threads")
+    threads_parser.add_argument("--username", type=str, required=True, help="Username Threads target")
+    threads_parser.add_argument("--limit", type=int, default=10, help="Jumlah post maksimal")
+    threads_parser.add_argument("--dry-run", action="store_true", help="Uji coba tanpa panggilan berbayar")
+    threads_parser.add_argument("--save-db", action="store_true", help="Simpan hasil ke database Supabase")
+
+    # Subcommand: food-delivery
+    food_parser = subparsers.add_parser("food-delivery", help="Jalankan scraper Food Delivery Apps")
+    food_parser.add_argument("--platform", type=str, required=True, choices=["gofood", "grabfood", "shopeefood"], help="Platform food delivery")
+    food_parser.add_argument("--city", type=str, default="Makassar", help="Nama kota")
+    food_parser.add_argument("--limit", type=int, default=20, help="Jumlah merchant maksimal")
+    food_parser.add_argument("--dry-run", action="store_true", help="Uji coba tanpa panggilan berbayar")
+    food_parser.add_argument("--save-db", action="store_true", help="Simpan hasil ke database Supabase")
+
     # Subcommand: test
     subparsers.add_parser("test", help="Jalankan seluruh rangkaian unit test")
-    
+
     args = parser.parse_args()
-    
+
     if args.command == "gmaps":
         run_gmaps_pipeline(args.query, args.city, args.limit, args.dry_run, args.save_db)
     elif args.command == "instagram":
@@ -249,6 +356,10 @@ def main():
         run_meta_ads_pipeline(args.query, args.limit, args.dry_run, args.save_db)
     elif args.command == "tiktok":
         run_tiktok_pipeline(args.keyword, args.limit, args.dry_run, args.save_db)
+    elif args.command == "threads":
+        run_threads_pipeline(args.username, args.limit, args.dry_run, args.save_db)
+    elif args.command == "food-delivery":
+        run_food_delivery_pipeline(args.platform, args.city, args.limit, args.dry_run, args.save_db)
     elif args.command == "test":
         import unittest
         loader = unittest.TestLoader()
