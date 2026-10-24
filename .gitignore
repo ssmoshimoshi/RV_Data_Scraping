@@ -19,6 +19,7 @@ data/raw/*
 data/processed/*
 !data/processed/.gitkeep
 *.html
+!docs/dashboard/index.html
 
 # Python cache
 __pycache__/

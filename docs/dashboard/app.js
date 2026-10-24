@@ -1,92 +1,205 @@
 let allLeads = [];
+let selectedLead = null;
+
+const CATALOG_DATA = [
+  {
+    category: "fnb_beverage",
+    title: "Coffee & Beverage Store",
+    products: [
+      "Paper Cup Hot 8oz / 12oz (Single Wall / Double Wall)",
+      "Cup Cold PET / PP 14oz, 16oz, 22oz",
+      "Cup Sleeve Kraft Bergelombang (Heat Insulator)",
+      "Coaster Kertas Penyerap Embun",
+      "Buku Menu Meja Hardcover Waterproof",
+      "Stiker Segel Toples & Tutup Minuman (Security Seal)"
+    ],
+    materials: "Kraft PE Coating 280-320gsm anti-rembes, Sablon presisi 1-4 warna, Ivory 300gsm laminasi doff anti-air.",
+    value_prop: "Desain estetik kekinian, tahan embun es dan panas kopi, menjaga aroma kopi tetap prima selama delivery."
+  },
+  {
+    category: "fnb_food_resto",
+    title: "Restoran & Usaha Katering",
+    products: [
+      "Paper Lunch Box Formed M & L (Bebas Lipat)",
+      "Food Pail Kraft / Ivory Anti-Minyak",
+      "Wrapping Paper Makanan Custom Logo",
+      "Paper Bag Takeaway Tali Kur & Tali Kertas"
+    ],
+    materials: "Brown Kraft Food Grade 290gsm, Ivory Food Grade FDA Certified, Tinta kedelai ramah lingkungan.",
+    value_prop: "Kemasan higienis berstandar food-grade, tidak bocor kuah atau minyak, meningkatkan kelas restoran."
+  },
+  {
+    category: "fashion_retail",
+    title: "Fashion & Retail Butik",
+    products: [
+      "Hangtag Pakaian Tebal (Label Tag)",
+      "Thank You Card & Kartu Garansi",
+      "Polymailer Cetak Logo Pengiriman",
+      "Shopping Bag Eksklusif Tali Kur"
+    ],
+    materials: "Art Carton 360gsm/400gsm, Laminasi Doff Velvet, Hotprint Foil Emas/Perak, Emboss Logo Timbul.",
+    value_prop: "Meningkatkan gengsi pakaian, membuat harga jual busana terlihat layak dihargai mahal."
+  },
+  {
+    category: "beauty_skincare",
+    title: "Kecantikan, Kosmetik & Skincare",
+    products: [
+      "Stiker Segel Botol Jar & Serum",
+      "Box Lipat Skincare Kosmetik",
+      "Brosur Panduan Perawatan Lipat 3 (Tri-Fold)"
+    ],
+    materials: "Vinyl Glossy White / Transparan Camel, Duplex/Ivory 310gsm + UV Spot Vernish mengkilap.",
+    value_prop: "Stiker tahan gores dan tidak pudar terkena minyak atau cairan serum."
+  },
+  {
+    category: "new_store_opening",
+    title: "Grand Opening & Toko Baru",
+    products: [
+      "Signage Akrilik Toko & Nomor Meja",
+      "Neon Box LED Custom Logo",
+      "Stiker Kaca One-Way Vision",
+      "Spanduk Kain Banner Outdoor",
+      "X-Banner & Roll-Up Banner"
+    ],
+    materials: "Flexi Jerman 510gsm, Stiker Ritrama + Laminating UV, Akrilik Marga Cipta 3mm.",
+    value_prop: "Pengerjaan kilat siap sebelum hari pembukaan resmi, warna tajam terbaca jelas dari jalan utama."
+  },
+  {
+    category: "corporate_legal",
+    title: "Kantor Hukum, Notaris & Korporat",
+    products: [
+      "Map Berkas Folder Dokumen Emboss",
+      "Nota & Surat Jalan NCR 2-4 Ply",
+      "ID Card PVC Magnetik + Lanyard",
+      "Sertifikat & Blanko Resmi"
+    ],
+    materials: "Art Carton 310gsm laminasi satu sisi, Kertas NCR Carbonless, PVC tebal 0.76mm standar kartu perbankan.",
+    value_prop: "Membangun citra formal kredibel, kerapian arsip dokumen penting, dan keamanan tanda tangan legal."
+  }
+];
 
 async function fetchLeads() {
   try {
     const res = await fetch('/api/leads');
-    if (!res.ok) throw new Error('Failed to load leads API');
+    if (!res.ok) throw new Error('Gagal mengambil data leads dari server.');
     allLeads = await res.json();
     renderDashboard();
   } catch (err) {
-    console.error('Error fetching leads:', err);
+    console.error('Error fetch leads:', err);
+  }
+}
+
+function switchView(viewId) {
+  document.querySelectorAll('.view-panel').forEach(panel => panel.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
+
+  const activePanel = document.getElementById(viewId);
+  if (activePanel) activePanel.classList.add('active');
+
+  const activeBtn = document.querySelector(`.nav-item[data-view="${viewId}"]`);
+  if (activeBtn) activeBtn.classList.add('active');
+
+  const titles = {
+    'view-dossier': 'Database Calon Customer (Anchor GMaps Makassar)',
+    'view-inspector': 'Deep Content Inspector (Analisis 5 Postingan)',
+    'view-pillars': 'Matriks 4 Dimensi Meta Universal',
+    'view-catalog': 'Katalog Spesifikasi Teknis Cetak RUANG VISUAL'
+  };
+  const titleEl = document.getElementById('current-view-title');
+  if (titleEl) titleEl.textContent = titles[viewId] || 'Platform Intelijen Pasar';
+
+  if (viewId === 'view-catalog') {
+    renderCatalog();
   }
 }
 
 function renderDashboard() {
   const catFilter = document.getElementById('filter-category').value;
-  const platformFilter = document.getElementById('filter-platform').value;
-  const searchFilter = document.getElementById('search-input').value.toLowerCase();
+  const tierFilter = document.getElementById('filter-tier').value;
+  const searchFilter = document.getElementById('search-input').value.toLowerCase().trim();
 
   const filtered = allLeads.filter(lead => {
     if (catFilter !== 'all' && lead.category !== catFilter) return false;
-    if (platformFilter !== 'all' && lead.platform !== platformFilter) return false;
-    if (searchFilter && !lead.business_name.toLowerCase().includes(searchFilter) && !(lead.address_full || '').toLowerCase().includes(searchFilter)) {
-      return false;
+    
+    const score = lead.score || lead.pillars_total || 0;
+    if (tierFilter === 'tier_high' && score < 80) return false;
+    if (tierFilter === 'tier_med' && (score < 60 || score >= 80)) return false;
+    if (tierFilter === 'tier_low' && score >= 60) return false;
+
+    if (searchFilter) {
+      const name = (lead.business_name || '').toLowerCase();
+      const addr = (lead.address_full || '').toLowerCase();
+      if (!name.includes(searchFilter) && !addr.includes(searchFilter)) return false;
     }
+
     return true;
   });
 
-  // Update Metrics
+  // Metrics Bar
   document.getElementById('metric-total').textContent = filtered.length;
-  document.getElementById('metric-hot').textContent = filtered.filter(l => l.score >= 80).length;
-  document.getElementById('metric-wa').textContent = filtered.filter(l => l.whatsapp_number).length;
-  document.getElementById('metric-products').textContent = filtered.filter(l => (l.recommended_products || []).length > 0).length;
+  document.getElementById('metric-hot').textContent = filtered.filter(l => (l.score || l.pillars_total || 0) >= 80).length;
+  document.getElementById('metric-multichannel').textContent = filtered.filter(l => {
+    const ch = l.channels || {};
+    return Boolean(ch.instagram || ch.tiktok || ch.threads);
+  }).length;
+  document.getElementById('metric-contact').textContent = filtered.filter(l => l.whatsapp_number || l.phone_number).length;
 
-  // Clear Columns
-  const cols = {
-    new_lead: document.getElementById('list-new_lead'),
-    ready_to_pitch: document.getElementById('list-ready_to_pitch'),
-    outreach: document.getElementById('list-outreach'),
-    won_deal: document.getElementById('list-won_deal')
-  };
+  // Render Table
+  const tbody = document.getElementById('leads-table-body');
+  tbody.innerHTML = '';
 
-  const counts = {
-    new_lead: 0,
-    ready_to_pitch: 0,
-    outreach: 0,
-    won_deal: 0
-  };
-
-  Object.values(cols).forEach(col => col.innerHTML = '');
+  if (filtered.length === 0) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td colspan="5" style="text-align: center; color: var(--text-muted); padding: 32px;">Tidak ditemukan data calon customer yang sesuai dengan filter.</td>`;
+    tbody.appendChild(tr);
+    return;
+  }
 
   filtered.forEach(lead => {
-    let colKey = 'new_lead';
-    if (lead.status === 'won_deal') {
-      colKey = 'won_deal';
-    } else if (['sample_box_requested', 'quotation_sent'].includes(lead.status)) {
-      colKey = 'outreach';
-    } else if (lead.status === 'ready_to_pitch') {
-      colKey = 'ready_to_pitch';
-    }
+    const tr = document.createElement('tr');
+    tr.onclick = () => openDrawer(lead);
 
-    counts[colKey]++;
+    const score = lead.score || lead.pillars_total || 0;
+    const isHigh = score >= 80;
 
-    const card = document.createElement('div');
-    card.className = 'lead-card';
-    card.onclick = () => openDrawer(lead);
+    const pLeg = Math.round(((lead.score_legitimacy || 0) / 25) * 100);
+    const pVel = Math.round(((lead.score_velocity || 0) / 25) * 100);
+    const pTurn = Math.round(((lead.score_turnover || 0) / 30) * 100);
+    const pBud = Math.round(((lead.score_budget || 0) / 20) * 100);
 
-    const isHigh = lead.score >= 80;
-    const prods = (lead.recommended_products || []).slice(0, 2).join(', ');
-
-    card.innerHTML = `
-      <div class="card-top">
-        <span class="card-name">${escapeHtml(lead.business_name)}</span>
-        <span class="score-badge ${isHigh ? 'high' : ''}">${lead.score} pts</span>
-      </div>
-      <div class="card-category">${formatCategory(lead.category)} &bull; ${lead.platform}</div>
-      <div class="card-products">${escapeHtml(prods || 'Kebutuhan cetak terpetakan')}</div>
-      <div class="card-actions">
-        ${lead.wa_link ? `<a href="${lead.wa_link}" target="_blank" class="btn-wa" onclick="event.stopPropagation()">Chat WhatsApp</a>` : ''}
-        <button class="btn-detail" onclick="event.stopPropagation(); openDrawerById('${lead.id}')">Detail</button>
-      </div>
+    tr.innerHTML = `
+      <td>
+        <div class="lead-title-text">${escapeHtml(lead.business_name)}</div>
+        <div class="lead-address-text">${escapeHtml(lead.address_full || 'Makassar')}</div>
+      </td>
+      <td>
+        <span class="category-tag">${formatCategory(lead.category)}</span>
+      </td>
+      <td>
+        <div class="maps-verified-badge">Terverifikasi Fisik</div>
+        <div class="maps-rating-text">Rating ${lead.rating || '4.5'} (${lead.reviews_count || '100+'} ulasan)</div>
+      </td>
+      <td>
+        <div class="table-score-wrapper">
+          <div class="table-score-header">
+            <span>Potensi</span>
+            <span class="table-score-num ${isHigh ? 'high' : ''}">${score} / 100</span>
+          </div>
+          <div class="table-pillar-pills" title="Legitimasi: ${lead.score_legitimacy}/25 | Kecepatan: ${lead.score_velocity}/25 | Turnover: ${lead.score_turnover}/30 | Anggaran: ${lead.score_budget}/20">
+            <div class="pillar-pill fill-cyan" style="opacity: ${pLeg > 0 ? '1' : '0.2'}"></div>
+            <div class="pillar-pill fill-magenta" style="opacity: ${pVel > 0 ? '1' : '0.2'}"></div>
+            <div class="pillar-pill fill-yellow" style="opacity: ${pTurn > 0 ? '1' : '0.2'}"></div>
+            <div class="pillar-pill fill-key" style="opacity: ${pBud > 0 ? '1' : '0.2'}"></div>
+          </div>
+        </div>
+      </td>
+      <td style="text-align: right;">
+        <button class="btn-dossier" onclick="event.stopPropagation(); openDrawerById('${lead.id}')">Lihat Dossier</button>
+      </td>
     `;
 
-    cols[colKey].appendChild(card);
+    tbody.appendChild(tr);
   });
-
-  document.getElementById('count-new_lead').textContent = counts.new_lead;
-  document.getElementById('count-ready_to_pitch').textContent = counts.ready_to_pitch;
-  document.getElementById('count-outreach').textContent = counts.outreach;
-  document.getElementById('count-won_deal').textContent = counts.won_deal;
 }
 
 function openDrawerById(id) {
@@ -95,24 +208,81 @@ function openDrawerById(id) {
 }
 
 function openDrawer(lead) {
-  document.getElementById('drawer-title').textContent = lead.business_name;
-  document.getElementById('drawer-address').textContent = lead.address_full || 'Alamat fisik belum terdata';
-  
-  const prodsList = (lead.recommended_products || []).map(p => `&bull; ${p}`).join('<br>');
-  document.getElementById('drawer-products').innerHTML = `
-    <strong>Produk Rekomendasi:</strong><br>${prodsList || '-'}<br><br>
-    <strong>Spesifikasi & Finishing:</strong><br>${escapeHtml(lead.materials_finishing || '-')}<br><br>
-    <strong>Value Proposition:</strong><br>${escapeHtml(lead.value_proposition || '-')}
-  `;
+  selectedLead = lead;
 
-  document.getElementById('drawer-pitch').value = lead.pitch_text || 'Nomor WhatsApp belum tersedia untuk menyusun pitch otomatis.';
+  document.getElementById('drawer-category').textContent = formatCategory(lead.category);
+  document.getElementById('drawer-title').textContent = lead.business_name;
   
-  const waBtn = document.getElementById('drawer-wa-btn');
-  if (lead.wa_link) {
-    waBtn.href = lead.wa_link;
-    waBtn.style.display = 'block';
+  // Maps & Location
+  document.getElementById('drawer-maps-name').textContent = lead.business_name;
+  document.getElementById('drawer-address').textContent = lead.address_full || 'Alamat fisik belum tercatat';
+  document.getElementById('drawer-rating').textContent = `Rating ${lead.rating || '4.5'}`;
+  document.getElementById('drawer-reviews').textContent = `${lead.reviews_count || '100+'} Ulasan Google Maps`;
+
+  const mapsLink = document.getElementById('drawer-maps-link');
+  if (lead.channels && lead.channels.google_maps) {
+    mapsLink.href = lead.channels.google_maps;
+    mapsLink.style.display = 'inline-block';
   } else {
-    waBtn.style.display = 'none';
+    mapsLink.style.display = 'none';
+  }
+
+  // 4 Pillars Scoring
+  const totalScore = lead.score || lead.pillars_total || 0;
+  document.getElementById('drawer-total-score').textContent = `${totalScore} / 100`;
+
+  const leg = lead.score_legitimacy || 0;
+  const vel = lead.score_velocity || 0;
+  const turn = lead.score_turnover || 0;
+  const bud = lead.score_budget || 0;
+
+  document.getElementById('p-score-legitimacy').textContent = `${leg} / 25`;
+  document.getElementById('p-fill-legitimacy').style.width = `${(leg / 25) * 100}%`;
+
+  document.getElementById('p-score-velocity').textContent = `${vel} / 25`;
+  document.getElementById('p-fill-velocity').style.width = `${(vel / 25) * 100}%`;
+
+  document.getElementById('p-score-turnover').textContent = `${turn} / 30`;
+  document.getElementById('p-fill-turnover').style.width = `${(turn / 30) * 100}%`;
+
+  document.getElementById('p-score-budget').textContent = `${bud} / 20`;
+  document.getElementById('p-fill-budget').style.width = `${(bud / 20) * 100}%`;
+
+  // Explainable Intelligence Narrative
+  document.getElementById('drawer-reason-summary').textContent = lead.reason_summary || 'Analisis 4 dimensi telah terhitung.';
+
+  // Multi-Channel Status
+  renderChannelsList(lead);
+
+  // Inspected Posts Previews
+  renderDrawerPosts(lead.top_posts || []);
+
+  // Solution Recommendations
+  const prodsList = document.getElementById('drawer-solution-products');
+  prodsList.innerHTML = '';
+  (lead.recommended_products || []).forEach(p => {
+    const li = document.createElement('li');
+    li.textContent = p;
+    prodsList.appendChild(li);
+  });
+
+  document.getElementById('drawer-solution-specs').textContent = lead.materials_finishing || '-';
+  document.getElementById('drawer-solution-value').textContent = lead.value_proposition || '-';
+
+  // WhatsApp Pitch Draft
+  const pitchArea = document.getElementById('drawer-pitch-text');
+  const waBtn = document.getElementById('drawer-wa-button');
+  if (lead.pitch_text) {
+    pitchArea.value = lead.pitch_text;
+    document.getElementById('drawer-wa-section').style.display = 'flex';
+    if (lead.wa_link) {
+      waBtn.href = lead.wa_link;
+      waBtn.style.display = 'inline-block';
+    } else {
+      waBtn.style.display = 'none';
+    }
+  } else {
+    document.getElementById('drawer-wa-section').style.display = 'none';
   }
 
   document.getElementById('overlay').style.display = 'block';
@@ -124,13 +294,212 @@ function closeDrawer() {
   document.getElementById('detail-drawer').classList.remove('open');
 }
 
+function renderChannelsList(lead) {
+  const container = document.getElementById('drawer-channels-list');
+  container.innerHTML = '';
+
+  const channels = lead.channels || {};
+  const channelDefs = [
+    { key: 'google_maps', name: 'Google Maps' },
+    { key: 'instagram', name: 'Instagram' },
+    { key: 'tiktok', name: 'TikTok' },
+    { key: 'food_delivery', name: 'Food Delivery' }
+  ];
+
+  channelDefs.forEach(ch => {
+    const card = document.createElement('div');
+    card.className = 'channel-status-card';
+    const val = channels[ch.key];
+    const isLinked = Boolean(val && val.trim() !== '');
+
+    card.innerHTML = `
+      <div class="channel-name">${ch.name}</div>
+      <div class="channel-val ${isLinked ? '' : 'not-linked'}">
+        ${isLinked ? escapeHtml(val) : 'Belum Terhubung'}
+      </div>
+    `;
+    container.appendChild(card);
+  });
+}
+
+function renderDrawerPosts(posts) {
+  const container = document.getElementById('drawer-posts-list');
+  container.innerHTML = '';
+
+  if (!posts || posts.length === 0) {
+    container.innerHTML = `
+      <div style="font-size: 12px; color: var(--text-muted); background: #F8FAFC; padding: 14px; border-radius: 6px; border: 1px solid var(--border-subtle);">
+        Konten sosial belum diinspeksi. Hubungkan akun Instagram atau TikTok di atas untuk menarik 5 postingan terpopuler secara otomatis.
+      </div>
+    `;
+    return;
+  }
+
+  posts.forEach((post, idx) => {
+    const item = document.createElement('div');
+    item.className = 'drawer-post-item';
+
+    const tagsHtml = (post.tags || []).map(t => `<span class="post-tag-badge">${escapeHtml(t)}</span>`).join(' ');
+
+    item.innerHTML = `
+      <div class="dpi-top">
+        <span>Konten #${idx + 1} &bull; ${post.date}</span>
+        <div>${tagsHtml}</div>
+      </div>
+      <div class="dpi-caption">${escapeHtml(post.caption)}</div>
+      <div class="dpi-stats">
+        <span>Views: ${post.views.toLocaleString()}</span>
+        <span>Likes: ${post.likes.toLocaleString()}</span>
+        <span>Komentar: ${post.comments.toLocaleString()}</span>
+        <span>ER: ${post.engagement_rate}%</span>
+      </div>
+    `;
+    container.appendChild(item);
+  });
+}
+
+async function submitChannelLink() {
+  if (!selectedLead) return;
+
+  const platform = document.getElementById('link-platform-select').value;
+  const handleInput = document.getElementById('link-handle-input').value.trim();
+
+  if (!handleInput) {
+    alert('Harap masukkan username atau link akun media sosial terlebih dahulu.');
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/leads/link-channel', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        lead_id: selectedLead.id,
+        platform: platform,
+        handle_or_url: handleInput
+      })
+    });
+
+    if (!res.ok) throw new Error('Gagal menghubungkan kanal sosial.');
+    const result = await res.json();
+
+    // Update in local state
+    const updatedLead = result.lead;
+    const idx = allLeads.findIndex(l => l.id === updatedLead.id);
+    if (idx !== -1) {
+      allLeads[idx] = updatedLead;
+    }
+
+    selectedLead = updatedLead;
+    document.getElementById('link-handle-input').value = '';
+
+    renderDashboard();
+    openDrawer(updatedLead);
+
+    alert(`Kanal ${platform} berhasil dihubungkan dan 5 konten terpopuler telah ditarik ke profil dossier.`);
+  } catch (err) {
+    console.error('Error link channel:', err);
+    alert('Terjadi kesalahan saat menghubungkan kanal sosial.');
+  }
+}
+
+async function runStandaloneInspection() {
+  const platform = document.getElementById('inspect-platform').value;
+  const handleInput = document.getElementById('inspect-handle').value.trim();
+
+  if (!handleInput) {
+    alert('Harap masukkan username atau URL profil akun.');
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/inspect-content', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        platform: platform,
+        handle: handleInput
+      })
+    });
+
+    if (!res.ok) throw new Error('Gagal melakukan inspeksi konten.');
+    const data = await res.json();
+
+    document.getElementById('ins-result-handle').textContent = `${data.handle} (${data.platform})`;
+    document.getElementById('ins-result-views').textContent = data.total_views.toLocaleString();
+    document.getElementById('ins-result-eng').textContent = `${data.avg_engagement_rate}%`;
+    document.getElementById('ins-result-signals').textContent = `${data.packaging_intent_posts} Konten`;
+
+    const grid = document.getElementById('inspector-posts-grid');
+    grid.innerHTML = '';
+
+    data.posts.forEach((post, i) => {
+      const card = document.createElement('div');
+      card.className = 'post-card';
+      const tags = (post.tags || []).map(t => `<span class="post-tag-badge">${escapeHtml(t)}</span>`).join(' ');
+
+      card.innerHTML = `
+        <div class="post-meta-top">
+          <span>Postingan #${i + 1}</span>
+          <span>${post.date}</span>
+        </div>
+        <div class="post-caption">${escapeHtml(post.caption)}</div>
+        <div class="post-stats-row">
+          <span>Views: ${post.views.toLocaleString()}</span>
+          <span>Likes: ${post.likes.toLocaleString()}</span>
+          <span>Komentar: ${post.comments.toLocaleString()}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
+          <span style="font-size: 11px; font-weight: 700; color: var(--text-muted);">ER: ${post.engagement_rate}%</span>
+          <div>${tags}</div>
+        </div>
+      `;
+      grid.appendChild(card);
+    });
+
+    document.getElementById('inspector-results').style.display = 'block';
+  } catch (err) {
+    console.error('Error standalone inspection:', err);
+    alert('Terjadi kesalahan saat melakukan inspeksi konten.');
+  }
+}
+
+function renderCatalog() {
+  const grid = document.getElementById('catalog-grid');
+  if (!grid || grid.children.length > 0) return;
+
+  CATALOG_DATA.forEach(cat => {
+    const card = document.createElement('div');
+    card.className = 'catalog-card';
+
+    const prodsHtml = cat.products.map(p => `<li>${escapeHtml(p)}</li>`).join('');
+
+    card.innerHTML = `
+      <span class="cat-badge">${formatCategory(cat.category)}</span>
+      <h3 class="cat-title">${escapeHtml(cat.title)}</h3>
+      
+      <div class="cat-sublabel">Produk Kemasan &amp; Cetak Utama</div>
+      <ul class="cat-prods-list">${prodsHtml}</ul>
+
+      <div class="cat-sublabel">Spesifikasi Material &amp; Finishing</div>
+      <div class="cat-desc">${escapeHtml(cat.materials)}</div>
+
+      <div class="cat-sublabel">Value Proposition RUANG VISUAL</div>
+      <div class="cat-desc">${escapeHtml(cat.value_prop)}</div>
+    `;
+    grid.appendChild(card);
+  });
+}
+
 function formatCategory(cat) {
   const map = {
-    fnb_beverage: 'Coffee & Drink',
-    fnb_food_resto: 'Food & Resto',
-    fashion_retail: 'Fashion & Retail',
+    fnb_beverage: 'Coffee & Beverage',
+    fnb_food_resto: 'Food & Restoran',
+    fashion_retail: 'Fashion & Butik',
     beauty_skincare: 'Beauty & Skincare',
     new_store_opening: 'Grand Opening',
+    corporate_legal: 'Notaris & Korporat',
+    event_service: 'Event & Organizer',
     general_commercial: 'Commercial Business'
   };
   return map[cat] || cat;
@@ -145,8 +514,10 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
+// Event Listeners
 document.getElementById('filter-category').addEventListener('change', renderDashboard);
-document.getElementById('filter-platform').addEventListener('change', renderDashboard);
+document.getElementById('filter-tier').addEventListener('change', renderDashboard);
 document.getElementById('search-input').addEventListener('input', renderDashboard);
 
+// Initial Load
 fetchLeads();

@@ -6,7 +6,14 @@ if str(PROJECT_ROOT) not in sys.path:
 
 import unittest
 from datetime import datetime, timedelta
-from scrapers.lead_scoring import calculate_score, qualify_lead, classify_category, infer_product_needs, generate_whatsapp_pitch
+from scrapers.lead_scoring import (
+    calculate_score,
+    calculate_4_pillars_score,
+    qualify_lead,
+    classify_category,
+    infer_product_needs,
+    generate_whatsapp_pitch
+)
 
 
 class TestQualifyLead(unittest.TestCase):
@@ -224,10 +231,6 @@ class TestClassifyCategory(unittest.TestCase):
         self.assertEqual(category, 'general_commercial')
 
 
-if __name__ == '__main__':
-    unittest.main()
-
-
 class TestInferProductNeeds(unittest.TestCase):
 
     def test_fnb_beverage(self):
@@ -264,3 +267,55 @@ class TestGenerateWhatsAppPitch(unittest.TestCase):
         lead = {'business_name': 'X', 'whatsapp_number': '08123', 'category': 'general_commercial'}
         res = generate_whatsapp_pitch(lead)
         self.assertTrue(res['wa_link'].startswith('https://wa.me/628123'))
+
+
+class TestCalculate4PillarsScore(unittest.TestCase):
+
+    def test_full_scoring_fnb(self):
+        lead = {
+            'business_name': 'Kopi Janji',
+            'category': 'fnb_beverage',
+            'google_maps_place_id': 'place_123',
+            'address_full': 'Jl. Veteran No. 10, Makassar',
+            'rating': 4.7,
+            'last_post_date': (datetime.now() - timedelta(days=2)).isoformat(),
+            'is_ad_active': True,
+        }
+        res = calculate_4_pillars_score(lead)
+        self.assertEqual(res['score_legitimacy'], 25)
+        self.assertEqual(res['score_velocity'], 25)
+        self.assertEqual(res['score_turnover'], 30)
+        self.assertEqual(res['score_budget'], 20)
+        self.assertEqual(res['score_total'], 100)
+        self.assertIn('Kekuatan utama:', res['reason_summary'])
+        self.assertIn('memiliki fisik terverifikasi', res['reason_summary'])
+
+    def test_turnover_by_category(self):
+        categories_expected = {
+            'fnb_beverage': 30,
+            'fnb_food_resto': 30,
+            'fashion_retail': 30,
+            'beauty_skincare': 30,
+            'event_service': 25,
+            'new_store_opening': 25,
+            'corporate_legal': 20,
+            'general_commercial': 15,
+        }
+        for cat, expected in categories_expected.items():
+            lead = {'category': cat}
+            res = calculate_4_pillars_score(lead)
+            self.assertEqual(res['score_turnover'], expected)
+
+    def test_budget_scoring_paid_website(self):
+        lead = {'external_website_url': 'https://kopibintang.co.id'}
+        res = calculate_4_pillars_score(lead)
+        self.assertEqual(res['score_budget'], 10)
+
+    def test_budget_scoring_free_website(self):
+        lead = {'external_website_url': 'https://linktr.ee/kopibintang'}
+        res = calculate_4_pillars_score(lead)
+        self.assertEqual(res['score_budget'], 0)
+
+
+if __name__ == '__main__':
+    unittest.main()

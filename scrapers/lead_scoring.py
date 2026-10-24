@@ -68,30 +68,124 @@ def classify_category(business_name: str, biography: str, caption_samples: list[
     return max(scores, key=scores.get)
 
 
+TURNOVER_SCORES = {
+    'fnb_beverage': 30,
+    'fnb_food_resto': 30,
+    'fashion_retail': 30,
+    'beauty_skincare': 30,
+    'event_service': 25,
+    'new_store_opening': 25,
+    'corporate_legal': 20,
+    'general_commercial': 15,
+}
+
+
+def _parse_last_post(last_post):
+    if not last_post:
+        return None
+    if isinstance(last_post, datetime):
+        return last_post
+    if isinstance(last_post, str):
+        try:
+            return datetime.fromisoformat(last_post.replace('Z', '+00:00'))
+        except Exception:
+            return None
+    return None
+
+
+def calculate_4_pillars_score(lead: dict) -> dict:
+    legitimacy = 0
+    if lead.get('google_maps_place_id'):
+        legitimacy += 10
+    if lead.get('address_full'):
+        legitimacy += 8
+    rating = lead.get('rating')
+    try:
+        if rating is not None and float(rating) >= 4.0:
+            legitimacy += 7
+    except (TypeError, ValueError):
+        pass
+    legitimacy = min(legitimacy, 25)
+
+    velocity = 0
+    last_post = _parse_last_post(lead.get('last_post_date') or lead.get('latest_post_date'))
+    if last_post:
+        if last_post.tzinfo is not None:
+            days = (datetime.now(last_post.tzinfo) - last_post).days
+        else:
+            days = (datetime.now() - last_post).days
+        if days < 7:
+            velocity = 25
+        elif days < 14:
+            velocity = 15
+        elif days < 30:
+            velocity = 10
+
+    category = lead.get('category') or 'general_commercial'
+    turnover = TURNOVER_SCORES.get(category, 15)
+
+    budget = 0
+    if lead.get('is_ad_active'):
+        budget = 20
+    elif lead.get('external_website_url'):
+        url = lead['external_website_url'].lower()
+        if not any(domain in url for domain in FREE_DOMAIN_PATTERNS):
+            budget = 10
+
+    total = min(legitimacy + velocity + turnover + budget, 100)
+
+    strengths = []
+    if legitimacy >= 20:
+        strengths.append('memiliki fisik terverifikasi di Google Maps dengan rating baik')
+    if velocity >= 15:
+        strengths.append('aktif mengposting secara konsisten (<=14 hari terakhir)')
+    if turnover >= 25:
+        strengths.append('memiliki potensi restock dan kebutuhan kemasan berulang tinggi')
+    if budget >= 10:
+        strengths.append('menunjukkan sinyal anggaran pemasaran (iklan aktif atau website berbayar)')
+    if not strengths:
+        strengths.append('masih perlu dipantau perkembangan dan verifikasinya')
+
+    reason_summary = (
+        f"Prospek ini dinilai potensial dengan skor total {total}/100 berdasarkan 4 dimensi utama.\n"
+        f"Kekuatan utama: {'; '.join(strengths)}.\n"
+        f"Rekomendasi: lakukan pendekatan dengan fokus pada kebutuhan kemasan berkelanjutan dan penawaran sampel."
+    )
+
+    return {
+        'score_legitimacy': legitimacy,
+        'score_velocity': velocity,
+        'score_turnover': turnover,
+        'score_budget': budget,
+        'score_total': total,
+        'reason_summary': reason_summary,
+    }
+
+
 def calculate_score(lead: dict) -> int:
     score = 0
-    
+
     # S_kontak (maks 30)
     whatsapp = lead.get('whatsapp_number')
     phone = lead.get('phone_number')
     email = lead.get('email')
-    
+
     if whatsapp:
         score += 30
     elif phone:
         score += 15
     elif email:
         score += 5
-    
+
     # S_keaktifan (maks 25)
     last_post_date = lead.get('last_post_date')
     if last_post_date:
         if isinstance(last_post_date, str):
             try:
                 last_post_date = datetime.fromisoformat(last_post_date.replace('Z', '+00:00'))
-            except:
+            except Exception:
                 last_post_date = None
-        
+
         if last_post_date:
             days_ago = (datetime.now() - last_post_date).days
             if days_ago <= 3:
@@ -102,29 +196,29 @@ def calculate_score(lead: dict) -> int:
                 score += 15
             elif days_ago <= 30:
                 score += 10
-    
+
     # S_lokasi (maks 20)
     latitude = lead.get('latitude')
     longitude = lead.get('longitude')
     address = lead.get('address_full', '')
     city = lead.get('city', '')
-    
+
     if latitude and longitude:
         score += 20
     elif address or city:
         score += 10
-    
+
     # S_anggaran (maks 15)
     is_ad_active = lead.get('is_ad_active', False)
     external_website = lead.get('external_website_url', '')
-    
+
     if is_ad_active:
         score += 15
     elif external_website:
         is_free_domain = any(domain in external_website.lower() for domain in FREE_DOMAIN_PATTERNS)
         if not is_free_domain:
             score += 10
-    
+
     # S_skala (maks 10)
     followers = lead.get('followers_count', 0)
     if 1000 <= followers <= 50000:
@@ -133,7 +227,7 @@ def calculate_score(lead: dict) -> int:
         score += 5
     elif followers > 100000:
         score += 3
-    
+
     return min(score, 100)
 
 

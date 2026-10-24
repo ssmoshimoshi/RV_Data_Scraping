@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RUANG VISUAL — Market Intelligence & Prospect Dossier</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Layout Wrapper -->
+  <div class="app-layout">
+
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">RUANG VISUAL</div>
+        <div class="sidebar-badge">Market Intelligence</div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <button class="nav-item active" data-view="view-dossier" onclick="switchView('view-dossier')">
+          <span class="nav-indicator"></span>
+          <span class="nav-text">Database Calon Customer</span>
+        </button>
+
+        <button class="nav-item" data-view="view-inspector" onclick="switchView('view-inspector')">
+          <span class="nav-indicator"></span>
+          <span class="nav-text">Inspector 5 Konten Sosial</span>
+        </button>
+
+        <button class="nav-item" data-view="view-pillars" onclick="switchView('view-pillars')">
+          <span class="nav-indicator"></span>
+          <span class="nav-text">Matriks 4 Dimensi Meta</span>
+        </button>
+
+        <button class="nav-item" data-view="view-catalog" onclick="switchView('view-catalog')">
+          <span class="nav-indicator"></span>
+          <span class="nav-text">Spesifikasi Teknis Kemasan</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="system-status-indicator">
+          <span class="pulse-dot"></span>
+          <span>Proofing System v2.0 Aktif</span>
+        </div>
+        <div class="sidebar-note">Anchor: Google Maps Makassar Terverifikasi</div>
+      </div>
+    </aside>
+
+    <!-- Main Workspace -->
+    <div class="main-workspace">
+
+      <!-- Top Header -->
+      <header class="top-header">
+        <div class="header-breadcrumbs">
+          <span class="crumb-root">Platform Intelijen Pasar</span>
+          <span class="crumb-separator">/</span>
+          <span class="crumb-current" id="current-view-title">Database Calon Customer</span>
+        </div>
+        <div class="header-actions">
+          <button class="btn-refresh" onclick="fetchLeads()">Perbarui Data</button>
+        </div>
+      </header>
+
+      <!-- View 1: Database Calon Customer (Dossier) -->
+      <section id="view-dossier" class="view-panel active">
+        
+        <!-- Metrics Bar -->
+        <div class="metrics-grid">
+          <div class="metric-card cyan">
+            <div class="metric-label">Calon Terverifikasi Fisik</div>
+            <div class="metric-value" id="metric-total">0</div>
+            <div class="metric-caption">Jangkar Google Maps Makassar</div>
+          </div>
+          <div class="metric-card magenta">
+            <div class="metric-label">Potensi Tinggi (Skor &gt; 80)</div>
+            <div class="metric-value" id="metric-hot">0</div>
+            <div class="metric-caption">Prioritas kebutuhan kemasan berulang</div>
+          </div>
+          <div class="metric-card yellow">
+            <div class="metric-label">Terhubung Multi-Kanal</div>
+            <div class="metric-value" id="metric-multichannel">0</div>
+            <div class="metric-caption">Google Maps + Media Sosial</div>
+          </div>
+          <div class="metric-card key">
+            <div class="metric-label">Kontak Resmi Terdata</div>
+            <div class="metric-value" id="metric-contact">0</div>
+            <div class="metric-caption">WhatsApp &amp; Telepon Bisnis</div>
+          </div>
+        </div>
+
+        <!-- Filter & Search Toolbar -->
+        <div class="toolbar-card">
+          <div class="toolbar-group">
+            <label for="filter-category">Kategori Industri</label>
+            <select id="filter-category">
+              <option value="all">Semua Kategori</option>
+              <option value="fnb_beverage">F&amp;B: Coffee &amp; Minuman</option>
+              <option value="fnb_food_resto">F&amp;B: Restoran &amp; Katering</option>
+              <option value="fashion_retail">Fashion &amp; Butik</option>
+              <option value="beauty_skincare">Kecantikan &amp; Skincare</option>
+              <option value="new_store_opening">Grand Opening (Outlet Baru)</option>
+              <option value="corporate_legal">Korporat, Notaris &amp; Legal</option>
+            </select>
+          </div>
+
+          <div class="toolbar-group">
+            <label for="filter-tier">Tingkat Potensi Prospek</label>
+            <select id="filter-tier">
+              <option value="all">Semua Tingkatan Skor</option>
+              <option value="tier_high">Tinggi (Skor 80 - 100)</option>
+              <option value="tier_med">Menengah (Skor 60 - 79)</option>
+              <option value="tier_low">Pantauan (Skor &lt; 60)</option>
+            </select>
+          </div>
+
+          <div class="toolbar-group search-flex">
+            <label for="search-input">Cari Nama Usaha / Alamat Jalan</label>
+            <input type="text" id="search-input" placeholder="Ketik nama bisnis, merek, atau lokasi jalan Makassar...">
+          </div>
+        </div>
+
+        <!-- Table / Dossier List -->
+        <div class="table-container">
+          <table class="leads-table">
+            <thead>
+              <tr>
+                <th style="width: 28%;">Profil Usaha &amp; Lokasi</th>
+                <th style="width: 15%;">Kategori</th>
+                <th style="width: 18%;">Verifikasi Google Maps</th>
+                <th style="width: 22%;">Skor 4 Dimensi Meta</th>
+                <th style="width: 17%; text-align: right;">Aksi Intelijen</th>
+              </tr>
+            </thead>
+            <tbody id="leads-table-body">
+              <!-- Rendered via app.js -->
+            </tbody>
+          </table>
+        </div>
+
+      </section>
+
+      <!-- View 2: Deep Content Inspector -->
+      <section id="view-inspector" class="view-panel">
+        <div class="inspector-header-box">
+          <h2 class="section-heading">Inspector 5 Konten Terpopuler</h2>
+          <p class="section-desc">
+            Alat analisis traksi konten media sosial untuk calon customer. Masukkan handle atau link Instagram / TikTok untuk mengevaluasi volume views, likes, comments, engagement rate, dan sinyal kesiapan produksi kemasan baru.
+          </p>
+        </div>
+
+        <div class="inspector-form-card">
+          <div class="inspector-form-grid">
+            <div class="toolbar-group">
+              <label for="inspect-platform">Platform</label>
+              <select id="inspect-platform">
+                <option value="instagram">Instagram</option>
+                <option value="tiktok">TikTok</option>
+              </select>
+            </div>
+            <div class="toolbar-group search-flex">
+              <label for="inspect-handle">Username Akun atau Link Profil</label>
+              <input type="text" id="inspect-handle" placeholder="Contoh: @titiktemumks atau https://instagram.com/titiktemumks">
+            </div>
+            <div class="toolbar-group" style="align-self: flex-end;">
+              <button class="btn-primary" onclick="runStandaloneInspection()">Inspeksi 5 Konten</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Inspector Result Area -->
+        <div id="inspector-results" style="display: none; margin-top: 24px;">
+          <div class="inspector-metrics-row">
+            <div class="ins-metric-card">
+              <div class="ins-label">Target Akun</div>
+              <div class="ins-value" id="ins-result-handle">-</div>
+            </div>
+            <div class="ins-metric-card">
+              <div class="ins-label">Total Views (5 Konten)</div>
+              <div class="ins-value" id="ins-result-views">0</div>
+            </div>
+            <div class="ins-metric-card">
+              <div class="ins-label">Rata-rata Engagement Rate</div>
+              <div class="ins-value" id="ins-result-eng">0%</div>
+            </div>
+            <div class="ins-metric-card">
+              <div class="ins-label">Sinyal Kebutuhan Kemasan</div>
+              <div class="ins-value" id="ins-result-signals">0 Konten</div>
+            </div>
+          </div>
+
+          <h3 class="subsection-heading" style="margin-top: 24px; margin-bottom: 12px;">Daftar 5 Konten Teratas</h3>
+          <div class="posts-grid" id="inspector-posts-grid"></div>
+        </div>
+      </section>
+
+      <!-- View 3: Matriks 4 Dimensi Meta Universal -->
+      <section id="view-pillars" class="view-panel">
+        <div class="inspector-header-box">
+          <h2 class="section-heading">Matriks Perhitungan Skor: 4 Dimensi Meta Universal</h2>
+          <p class="section-desc">
+            Sistem penilaian calon customer di RUANG VISUAL tidak didasarkan pada asumsi, melainkan formula 4 pilar objektif yang menjamin transparansi (*explainable scoring*).
+          </p>
+        </div>
+
+        <div class="pillars-grid">
+          <div class="pillar-card cyan-border">
+            <div class="pillar-weight">Bobot: 25%</div>
+            <h3 class="pillar-title">1. Legitimasi Fisik</h3>
+            <p class="pillar-text">
+              Memverifikasi keberadaan toko atau kantor fisik nyata di Kota Makassar melalui Google Maps.
+            </p>
+            <ul class="pillar-list">
+              <li>Place ID Google Maps terdaftar (+10 poin)</li>
+              <li>Alamat fisik lengkap di Makassar (+8 poin)</li>
+              <li>Rating ulasan Google Maps &gt;= 4.0 (+7 poin)</li>
+            </ul>
+          </div>
+
+          <div class="pillar-card magenta-border">
+            <div class="pillar-weight">Bobot: 25%</div>
+            <h3 class="pillar-title">2. Kecepatan Komersial</h3>
+            <p class="pillar-text">
+              Mengukur keaktifan aktivitas pemasaran melalui frekuensi publikasi konten terbaru.
+            </p>
+            <ul class="pillar-list">
+              <li>Posting konten aktif &lt;= 7 hari terakhir (+25 poin)</li>
+              <li>Posting konten aktif 8 - 14 hari terakhir (+15 poin)</li>
+              <li>Posting konten aktif 15 - 30 hari terakhir (+10 poin)</li>
+            </ul>
+          </div>
+
+          <div class="pillar-card yellow-border">
+            <div class="pillar-weight">Bobot: 30%</div>
+            <h3 class="pillar-title">3. Turnover Kemasan Berulang</h3>
+            <p class="pillar-text">
+              Mengukur intensitas kebutuhan cetak kemasan habis pakai berdasarkan model industri usaha.
+            </p>
+            <ul class="pillar-list">
+              <li>F&amp;B Coffee, Minuman &amp; Resto (30 poin)</li>
+              <li>Fashion, Butik &amp; Retail Pakaian (30 poin)</li>
+              <li>Kecantikan, Kosmetik &amp; Skincare (30 poin)</li>
+              <li>Grand Opening &amp; Event Service (25 poin)</li>
+              <li>Kantor Hukum, Notaris &amp; Korporat (20 poin)</li>
+            </ul>
+          </div>
+
+          <div class="pillar-card key-border">
+            <div class="pillar-weight">Bobot: 20%</div>
+            <h3 class="pillar-title">4. Sinyal Anggaran Pemasaran</h3>
+            <p class="pillar-text">
+              Mendeteksi alokasi dana promosi melalui kampanye berbayar dan infrastruktur teknologi merek.
+            </p>
+            <ul class="pillar-list">
+              <li>Iklan aktif terverifikasi di Meta Ads Library (+20 poin)</li>
+              <li>Memiliki website domain berbayar mandiri (+10 poin)</li>
+              <li>Domain gratisan tanpa iklan aktif (0 poin)</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- View 4: Katalog Spesifikasi Teknis RUANG VISUAL -->
+      <section id="view-catalog" class="view-panel">
+        <div class="inspector-header-box">
+          <h2 class="section-heading">Katalog Spesifikasi Teknis Cetak RUANG VISUAL</h2>
+          <p class="section-desc">
+            Standar bahan baku, gramatur kertas, dan jenis finishing cetak RUANG VISUAL yang dicocokkan otomatis ke setiap profil industri calon customer.
+          </p>
+        </div>
+
+        <div class="catalog-grid" id="catalog-grid">
+          <!-- Populated in app.js -->
+        </div>
+      </section>
+
+    </div>
+
+  </div>
+
+  <!-- Detailed Dossier Drawer Modal -->
+  <div class="modal-overlay" id="overlay" onclick="closeDrawer()"></div>
+  <aside class="drawer" id="detail-drawer">
+    <div class="drawer-header">
+      <div>
+        <div class="drawer-pretitle" id="drawer-category">Kategori Usaha</div>
+        <h2 class="drawer-title" id="drawer-title">Nama Calon Customer</h2>
+      </div>
+      <button class="drawer-close-btn" onclick="closeDrawer()">&times;</button>
+    </div>
+
+    <div class="drawer-body">
+
+      <!-- Section: Verified Location -->
+      <div class="drawer-section">
+        <div class="section-mini-label">Jangkar Google Maps &amp; Lokasi Fisik</div>
+        <div class="location-box">
+          <div class="loc-name" id="drawer-maps-name">Google Maps Terverifikasi</div>
+          <div class="loc-address" id="drawer-address">Alamat lengkap</div>
+          <div class="loc-meta">
+            <span class="loc-badge" id="drawer-rating">Rating 4.8</span>
+            <span class="loc-badge" id="drawer-reviews">400+ Ulasan</span>
+            <a id="drawer-maps-link" href="#" target="_blank" class="loc-link">Lihat di Google Maps</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section: 4 Pillars Breakdown -->
+      <div class="drawer-section">
+        <div class="section-mini-label">Breakdown Skor 4 Dimensi Meta</div>
+        <div class="score-summary-bar">
+          <span class="score-summary-title">Total Skor Potensi</span>
+          <span class="score-summary-value" id="drawer-total-score">95 / 100</span>
+        </div>
+        
+        <div class="pillar-bars-list">
+          <div class="p-bar-item">
+            <div class="p-bar-header">
+              <span>Legitimasi Fisik</span>
+              <strong id="p-score-legitimacy">25 / 25</strong>
+            </div>
+            <div class="p-bar-track"><div class="p-bar-fill cyan-fill" id="p-fill-legitimacy" style="width: 100%;"></div></div>
+          </div>
+
+          <div class="p-bar-item">
+            <div class="p-bar-header">
+              <span>Kecepatan Komersial</span>
+              <strong id="p-score-velocity">25 / 25</strong>
+            </div>
+            <div class="p-bar-track"><div class="p-bar-fill magenta-fill" id="p-fill-velocity" style="width: 100%;"></div></div>
+          </div>
+
+          <div class="p-bar-item">
+            <div class="p-bar-header">
+              <span>Turnover Kemasan Berulang</span>
+              <strong id="p-score-turnover">30 / 30</strong>
+            </div>
+            <div class="p-bar-track"><div class="p-bar-fill yellow-fill" id="p-fill-turnover" style="width: 100%;"></div></div>
+          </div>
+
+          <div class="p-bar-item">
+            <div class="p-bar-header">
+              <span>Sinyal Anggaran Pemasaran</span>
+              <strong id="p-score-budget">20 / 20</strong>
+            </div>
+            <div class="p-bar-track"><div class="p-bar-fill key-fill" id="p-fill-budget" style="width: 100%;"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section: Explainable Intelligence Narrative -->
+      <div class="drawer-section">
+        <div class="section-mini-label">Analisis Intelijen Transparan</div>
+        <div class="reason-narrative-box" id="drawer-reason-summary">
+          Analisis objektif alasan potensi calon customer.
+        </div>
+      </div>
+
+      <!-- Section: Progressive Multi-Channel Linking -->
+      <div class="drawer-section">
+        <div class="section-mini-label">Hub Multi-Kanal &amp; Pengayaan Data</div>
+        <div class="channels-status-grid" id="drawer-channels-list">
+          <!-- Rendered in app.js -->
+        </div>
+
+        <!-- Form Link Social Account -->
+        <div class="link-account-box">
+          <div class="link-box-title">Hubungkan Akun Sosial Baru</div>
+          <div class="link-inputs-row">
+            <select id="link-platform-select">
+              <option value="instagram">Instagram</option>
+              <option value="tiktok">TikTok</option>
+              <option value="threads">Threads</option>
+            </select>
+            <input type="text" id="link-handle-input" placeholder="Masukkan username atau link...">
+            <button class="btn-secondary" onclick="submitChannelLink()">Tarik 5 Konten</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section: 5 Inspected Posts Previews -->
+      <div class="drawer-section">
+        <div class="section-mini-label">Inspeksi 5 Konten Terpopuler</div>
+        <div class="drawer-posts-list" id="drawer-posts-list">
+          <!-- Rendered in app.js -->
+        </div>
+      </div>
+
+      <!-- Section: Packaging Solution Recommendation -->
+      <div class="drawer-section">
+        <div class="section-mini-label">Rekomendasi Solusi Kemasan RUANG VISUAL</div>
+        <div class="solution-card">
+          <div class="sol-title">Produk Kemasan Direkomendasikan:</div>
+          <ul class="sol-list" id="drawer-solution-products"></ul>
+          
+          <div class="sol-title" style="margin-top: 12px;">Spesifikasi Bahan &amp; Finishing:</div>
+          <div class="sol-text" id="drawer-solution-specs">-</div>
+
+          <div class="sol-title" style="margin-top: 12px;">Nilai Tambah (Value Proposition):</div>
+          <div class="sol-text" id="drawer-solution-value">-</div>
+        </div>
+      </div>
+
+      <!-- Section: Draft WhatsApp Link -->
+      <div class="drawer-section" id="drawer-wa-section">
+        <div class="section-mini-label">Draft Komunikasi &amp; Penawaran Sampel</div>
+        <textarea id="drawer-pitch-text" class="pitch-textarea" readonly></textarea>
+        <div style="margin-top: 10px;">
+          <a id="drawer-wa-button" href="#" target="_blank" class="btn-wa">Kirim Pesan WhatsApp Resmi</a>
+        </div>
+      </div>
+
+    </div>
+  </aside>
+
+  <script src="app.js"></script>
+</body>
+</html>
