@@ -42,6 +42,14 @@ def _process_listing_data(item: dict) -> dict:
     }
 
 
+def _extract_dataset_id(run) -> str:
+    if run is None:
+        return ""
+    if isinstance(run, dict):
+        return run.get("defaultDatasetId") or run.get("default_dataset_id", "")
+    return getattr(run, "default_dataset_id", "") or getattr(run, "defaultDatasetId", "")
+
+
 def search_places(query: str, city: str, limit: int, dry_run: bool) -> list[dict]:
     if dry_run:
         print(f"[DRY RUN] Would search Google Maps for '{query}' in {city}, limit {limit}")
@@ -58,14 +66,16 @@ def search_places(query: str, city: str, limit: int, dry_run: bool) -> list[dict
     run_input = {
         "searchStringsArray": [search_query],
         "maxCrawledPlacesPerSearch": limit,
-        "language": "id"
+        "language": "id",
+        "maxReviews": 5
     }
     
     print(f"Starting Apify actor: compass/crawler-google-places for '{search_query}'...")
     run = client.actor("compass/crawler-google-places").call(run_input=run_input)
     
     places = []
-    for item in client.dataset(run["defaultDatasetId"]).iterate_items():
+    dataset_id = _extract_dataset_id(run)
+    for item in client.dataset(dataset_id).iterate_items():
         raw_phone = item.get('phone')
         raw_address = item.get('address', '')
         
@@ -115,7 +125,8 @@ def scrape_negative_reviews(place_id: str, max_stars: int = 3, dry_run: bool = F
     run = client.actor("compass/crawler-google-places").call(run_input=run_input)
     
     negative_reviews = []
-    for item in client.dataset(run["defaultDatasetId"]).iterate_items():
+    dataset_id = _extract_dataset_id(run)
+    for item in client.dataset(dataset_id).iterate_items():
         reviews = item.get('reviews', [])
         for review in reviews:
             if review.get('stars', 5) <= max_stars and review.get('text'):
