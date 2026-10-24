@@ -17,6 +17,14 @@ from scrapers.normalizer import normalize_whatsapp
 load_dotenv()
 
 
+def _extract_dataset_id(run) -> str:
+    if run is None:
+        return ""
+    if isinstance(run, dict):
+        return run.get("defaultDatasetId") or run.get("default_dataset_id", "")
+    return getattr(run, "default_dataset_id", "") or getattr(run, "defaultDatasetId", "")
+
+
 def scrape_threads_profile(username: str, limit: int = 10, dry_run: bool = False) -> dict:
     if dry_run:
         print(f"[DRY RUN] Would scrape Threads profile @{username} with {limit} posts")
@@ -37,7 +45,8 @@ def scrape_threads_profile(username: str, limit: int = 10, dry_run: bool = False
     run = client.actor("apify/threads-scraper").call(run_input=run_input)
 
     profile_data = {}
-    for item in client.dataset(run["defaultDatasetId"]).iterate_items():
+    dataset_id = _extract_dataset_id(run)
+    for item in client.dataset(dataset_id).iterate_items():
         profile_data = item
         break
 

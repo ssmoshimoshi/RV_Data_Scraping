@@ -48,6 +48,14 @@ def extract_external_links(text: str) -> List[str]:
     return [link.rstrip('.,;:()') for link in links]
 
 
+def _extract_dataset_id(run) -> str:
+    if run is None:
+        return ""
+    if isinstance(run, dict):
+        return run.get("defaultDatasetId") or run.get("default_dataset_id", "")
+    return getattr(run, "default_dataset_id", "") or getattr(run, "defaultDatasetId", "")
+
+
 def search_meta_ads(query: str, limit: int, dry_run: bool, country: str = 'ID') -> List[Dict]:
     if dry_run:
         print(f"[DRY RUN] Would search Meta Ads Library for '{query}' in {country}, limit {limit}")
@@ -70,7 +78,8 @@ def search_meta_ads(query: str, limit: int, dry_run: bool, country: str = 'ID') 
     run = client.actor("dtrungtin/facebook-ads-scraper").call(run_input=run_input)
     
     ads_data = []
-    for item in client.dataset(run["defaultDatasetId"]).iterate_items():
+    dataset_id = _extract_dataset_id(run)
+    for item in client.dataset(dataset_id).iterate_items():
         ad_body = item.get('adCreativeBody', '') or item.get('text', '')
         
         whatsapp_number = extract_whatsapp_from_text(ad_body)

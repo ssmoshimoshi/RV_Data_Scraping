@@ -12,8 +12,41 @@ from typing import Optional
 from apify_client import ApifyClient
 from dotenv import load_dotenv
 from scrapers.normalizer import normalize_whatsapp, normalize_address
+from scrapers.pain_points import extract_packaging_pain_points
+from scrapers.lead_scoring import estimate_packaging_volume_and_value, classify_category
 
 load_dotenv()
+
+
+def _extract_dataset_id(run) -> str:
+    if run is None:
+        return ""
+    if isinstance(run, dict):
+        return run.get("defaultDatasetId") or run.get("default_dataset_id", "")
+    return getattr(run, "default_dataset_id", "") or getattr(run, "defaultDatasetId", "")
+
+
+def _process_merchant_data(item: dict) -> dict:
+    raw_reviews = item.get('reviews', [])
+    pain_points = extract_packaging_pain_points(raw_reviews)
+    
+    name = item.get('name') or item.get('title') or item.get('restaurantName', '')
+    raw_cat = item.get('category') or item.get('categoryName', '')
+    category = item.get('classified_category') or classify_category(name, raw_cat, [])
+    
+    reviews_count = item.get('reviews_count') or item.get('reviewsCount') or item.get('totalReviews', 0)
+    lead_for_est = {
+        'category': category,
+        'reviews_count': reviews_count,
+        'followers_count': item.get('followers_count', 0)
+    }
+    estimated_commercials = estimate_packaging_volume_and_value(lead_for_est)
+    
+    return {
+        'classified_category': category,
+        'packaging_pain_points': pain_points,
+        'estimated_commercials': estimated_commercials
+    }
 
 
 def scrape_gofood(city: str, limit: int, dry_run: bool) -> list[dict]:
@@ -37,7 +70,8 @@ def scrape_gofood(city: str, limit: int, dry_run: bool) -> list[dict]:
     run = client.actor("apify/web-scraper").call(run_input=run_input)
 
     merchants = []
-    for item in client.dataset(run["defaultDatasetId"]).iterate_items():
+    dataset_id = _extract_dataset_id(run)
+    for item in client.dataset(dataset_id).iterate_items():
         name = item.get('name') or item.get('title', '')
         address = item.get('address', '')
         phone = item.get('phone') or item.get('phoneNumber')
@@ -55,7 +89,8 @@ def scrape_gofood(city: str, limit: int, dry_run: bool) -> list[dict]:
             'district_area': address_data['district_area'],
             'city': address_data['city'],
             'platform': 'gofood',
-            'scraped_at': datetime.utcnow().isoformat()
+            'scraped_at': datetime.utcnow().isoformat(),
+            **_process_merchant_data(item)
         }
         merchants.append(merchant)
 
@@ -83,7 +118,8 @@ def scrape_grabfood(city: str, limit: int, dry_run: bool) -> list[dict]:
     run = client.actor("apify/web-scraper").call(run_input=run_input)
 
     merchants = []
-    for item in client.dataset(run["defaultDatasetId"]).iterate_items():
+    dataset_id = _extract_dataset_id(run)
+    for item in client.dataset(dataset_id).iterate_items():
         name = item.get('name') or item.get('restaurantName', '')
         address = item.get('address', '')
         phone = item.get('phone') or item.get('phoneNumber')
@@ -101,7 +137,8 @@ def scrape_grabfood(city: str, limit: int, dry_run: bool) -> list[dict]:
             'district_area': address_data['district_area'],
             'city': address_data['city'],
             'platform': 'grabfood',
-            'scraped_at': datetime.utcnow().isoformat()
+            'scraped_at': datetime.utcnow().isoformat(),
+            **_process_merchant_data(item)
         }
         merchants.append(merchant)
 
@@ -129,7 +166,8 @@ def scrape_shopeefood(city: str, limit: int, dry_run: bool) -> list[dict]:
     run = client.actor("apify/web-scraper").call(run_input=run_input)
 
     merchants = []
-    for item in client.dataset(run["defaultDatasetId"]).iterate_items():
+    dataset_id = _extract_dataset_id(run)
+    for item in client.dataset(dataset_id).iterate_items():
         name = item.get('name') or item.get('title', '')
         address = item.get('address', '')
         phone = item.get('phone') or item.get('phoneNumber')
@@ -147,7 +185,8 @@ def scrape_shopeefood(city: str, limit: int, dry_run: bool) -> list[dict]:
             'district_area': address_data['district_area'],
             'city': address_data['city'],
             'platform': 'shopeefood',
-            'scraped_at': datetime.utcnow().isoformat()
+            'scraped_at': datetime.utcnow().isoformat(),
+            **_process_merchant_data(item)
         }
         merchants.append(merchant)
 

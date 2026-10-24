@@ -16,6 +16,14 @@ from scrapers.normalizer import normalize_whatsapp, normalize_address
 load_dotenv()
 
 
+def _extract_dataset_id(run) -> str:
+    if run is None:
+        return ""
+    if isinstance(run, dict):
+        return run.get("defaultDatasetId") or run.get("default_dataset_id", "")
+    return getattr(run, "default_dataset_id", "") or getattr(run, "defaultDatasetId", "")
+
+
 def run_follower_spider(target_handle: str, limit: int, dry_run: bool) -> list[dict]:
     if dry_run:
         print(f"[DRY RUN] Would fetch {limit} followers from @{target_handle}")
@@ -36,7 +44,8 @@ def run_follower_spider(target_handle: str, limit: int, dry_run: bool) -> list[d
     run = client.actor("apify/instagram-followers-scraper").call(run_input=run_input)
     
     results = []
-    for item in client.dataset(run["defaultDatasetId"]).iterate_items():
+    dataset_id = _extract_dataset_id(run)
+    for item in client.dataset(dataset_id).iterate_items():
         results.append(item)
     
     print(f"Fetched {len(results)} followers from @{target_handle}")
@@ -63,7 +72,8 @@ def enrich_profile(username: str, dry_run: bool = False) -> dict:
     run = client.actor("apify/instagram-profile-scraper").call(run_input=run_input)
     
     profile_data = {}
-    for item in client.dataset(run["defaultDatasetId"]).iterate_items():
+    dataset_id = _extract_dataset_id(run)
+    for item in client.dataset(dataset_id).iterate_items():
         profile_data = item
         break
     

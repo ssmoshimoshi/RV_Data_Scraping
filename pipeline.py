@@ -277,8 +277,10 @@ def run_food_delivery_pipeline(platform: str, city: str, limit: int, dry_run: bo
             "address_full": item.get("address_full"),
             "district_area": item.get("district_area"),
             "city": item.get("city") or city,
-            "category": classify_category(item.get("merchant_name", ""), item.get("category", ""), []),
-            "is_active_verified": True
+            "category": item.get("classified_category") or classify_category(item.get("merchant_name", ""), item.get("category", ""), []),
+            "is_active_verified": True,
+            "packaging_pain_points": item.get("packaging_pain_points", []),
+            "estimated_commercials": item.get("estimated_commercials", {})
         }
 
         is_qualified, reason = qualify_lead(lead)
