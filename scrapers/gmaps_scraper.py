@@ -12,8 +12,34 @@ from typing import Optional
 from apify_client import ApifyClient
 from dotenv import load_dotenv
 from scrapers.normalizer import normalize_whatsapp, normalize_address
+from scrapers.pain_points import extract_packaging_pain_points
+from scrapers.lead_scoring import estimate_packaging_volume_and_value, classify_category
 
 load_dotenv()
+
+
+def _process_listing_data(item: dict) -> dict:
+    raw_reviews = item.get('reviews', [])
+    pain_points = extract_packaging_pain_points(raw_reviews)
+    
+    title = item.get('title') or item.get('name', '')
+    category_name = item.get('categoryName') or item.get('category_name', '')
+    category = item.get('category') or classify_category(title, category_name, [])
+    
+    reviews_count = item.get('reviews_count') if item.get('reviews_count') is not None else item.get('reviewsCount', 0)
+    followers_count = item.get('followers_count', 0)
+    
+    lead_for_est = {
+        'category': category,
+        'reviews_count': reviews_count,
+        'followers_count': followers_count
+    }
+    
+    return {
+        'category': category,
+        'packaging_pain_points': pain_points,
+        'estimated_commercials': estimate_packaging_volume_and_value(lead_for_est)
+    }
 
 
 def search_places(query: str, city: str, limit: int, dry_run: bool) -> list[dict]:
@@ -59,7 +85,8 @@ def search_places(query: str, city: str, limit: int, dry_run: bool) -> list[dict
             'longitude': item.get('location', {}).get('lng'),
             'reviews_count': item.get('reviewsCount', 0),
             'total_score': item.get('totalScore', 0.0),
-            'website': item.get('website')
+            'website': item.get('website'),
+            **_process_listing_data(item)
         }
         places.append(place_dict)
     
