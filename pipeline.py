@@ -349,6 +349,9 @@ def main():
     food_parser.add_argument("--dry-run", action="store_true", help="Uji coba tanpa panggilan berbayar")
     food_parser.add_argument("--save-db", action="store_true", help="Simpan hasil ke database Supabase")
 
+    # Subcommand: dashboard
+    subparsers.add_parser("dashboard", help="Buka dashboard visual lokal RUANG VISUAL di port 3000")
+
     # Subcommand: test
     subparsers.add_parser("test", help="Jalankan seluruh rangkaian unit test")
 
@@ -366,6 +369,9 @@ def main():
         run_threads_pipeline(args.username, args.limit, args.dry_run, args.save_db)
     elif args.command == "food-delivery":
         run_food_delivery_pipeline(args.platform, args.city, args.limit, args.dry_run, args.save_db)
+    elif args.command == "dashboard":
+        from scrapers.dashboard_server import start_server
+        start_server()
     elif args.command == "test":
         import unittest
         loader = unittest.TestLoader()
