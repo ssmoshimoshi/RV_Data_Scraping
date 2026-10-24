@@ -10,6 +10,7 @@ from datetime import datetime
 from scrapers.gmaps_scraper import search_places, scrape_negative_reviews
 from scrapers.instagram_scraper import run_follower_spider, enrich_profile, validate_recency
 from scrapers.meta_ads_scraper import search_meta_ads
+from scrapers.tiktok_scraper import scrape_tiktok_search, transform_to_lead_format as transform_tiktok_leads
 from scrapers.normalizer import normalize_whatsapp, normalize_address
 from scrapers.lead_scoring import qualify_lead, calculate_score, classify_category
 from scrapers.database import insert_lead, get_supabase_client
@@ -155,6 +156,53 @@ def run_meta_ads_pipeline(query: str, limit: int, dry_run: bool, save_db: bool):
     print(f"Selesai. Total ditemukan: {len(ads)}, Lolos kualifikasi: {qualified_count}, Tersimpan: {saved_count}")
 
 
+def run_tiktok_pipeline(keyword: str, limit: int, dry_run: bool, save_db: bool):
+    print(f"Menjalankan pipeline TikTok untuk '{keyword}' (Limit: {limit}, Dry-run: {dry_run})")
+    raw_results = scrape_tiktok_search(keyword=keyword, limit=limit, dry_run=dry_run)
+    if dry_run or not raw_results:
+        print("Pipeline selesai (mode dry-run aktif atau tidak ada hasil).")
+        return
+    
+    leads = transform_tiktok_leads(raw_results)
+    qualified_count = 0
+    saved_count = 0
+    
+    for item in leads:
+        lead = {
+            "business_name": item.get("display_name") or item.get("username", ""),
+            "platform": "tiktok",
+            "platform_handle": item.get("username", ""),
+            "platform_profile_url": f"https://www.tiktok.com/{item.get('username', '')}",
+            "whatsapp_number": item.get("whatsapp_number"),
+            "external_website_url": item.get("bio_link"),
+            "biography": item.get("bio_text", ""),
+            "last_post_date": item.get("last_post_date"),
+            "is_active_verified": item.get("is_active", True)
+        }
+        
+        category = classify_category(lead["business_name"], lead["biography"], item.get("relevant_hashtags", []))
+        lead["category"] = category
+        
+        is_qualified, reason = qualify_lead(lead)
+        if not is_qualified:
+            print(f"Prospek gugur: {lead['business_name']} - Alasan: {reason}")
+            continue
+        
+        qualified_count += 1
+        score = calculate_score(lead)
+        print(f"Prospek lolos: {lead['business_name']} | Kategori: {category} | Skor: {score}")
+        
+        if save_db:
+            ok, msg = insert_lead(lead, score=score, dry_run=dry_run)
+            if ok:
+                saved_count += 1
+                print(f"Tersimpan ke database: {lead['business_name']}")
+            else:
+                print(f"Gagal simpan database: {msg}")
+    
+    print(f"Selesai. Total ditemukan: {len(leads)}, Lolos kualifikasi: {qualified_count}, Tersimpan: {saved_count}")
+
+
 def main():
     parser = argparse.ArgumentParser(description="RUANG VISUAL Market Intelligence Pipeline")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -181,6 +229,13 @@ def main():
     meta_parser.add_argument("--dry-run", action="store_true", help="Uji coba tanpa panggilan berbayar")
     meta_parser.add_argument("--save-db", action="store_true", help="Simpan hasil ke database Supabase")
     
+    # Subcommand: tiktok
+    tiktok_parser = subparsers.add_parser("tiktok", help="Jalankan scraper TikTok")
+    tiktok_parser.add_argument("--keyword", type=str, required=True, help="Kata kunci pencarian TikTok")
+    tiktok_parser.add_argument("--limit", type=int, default=20, help="Jumlah akun maksimal")
+    tiktok_parser.add_argument("--dry-run", action="store_true", help="Uji coba tanpa panggilan berbayar")
+    tiktok_parser.add_argument("--save-db", action="store_true", help="Simpan hasil ke database Supabase")
+
     # Subcommand: test
     subparsers.add_parser("test", help="Jalankan seluruh rangkaian unit test")
     
@@ -192,6 +247,8 @@ def main():
         run_instagram_pipeline(args.target, args.limit, args.dry_run, args.save_db)
     elif args.command == "meta-ads":
         run_meta_ads_pipeline(args.query, args.limit, args.dry_run, args.save_db)
+    elif args.command == "tiktok":
+        run_tiktok_pipeline(args.keyword, args.limit, args.dry_run, args.save_db)
     elif args.command == "test":
         import unittest
         loader = unittest.TestLoader()
