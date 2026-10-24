@@ -308,3 +308,39 @@ def generate_whatsapp_pitch(lead: dict) -> Optional[dict]:
     import urllib.parse
     link = f"https://wa.me/{digits}?text={urllib.parse.quote(pitch)}"
     return {'pitch_text': pitch, 'wa_link': link}
+
+
+def estimate_packaging_volume_and_value(lead: dict) -> dict:
+    category = lead.get('category', 'general_commercial')
+    followers = lead.get('followers_count', 0)
+    reviews = lead.get('reviews_count', 0)
+    multiplier = max(followers, reviews * 10)
+
+    config = {
+        'fnb_beverage': {'units': (1500, 4500), 'value': (1800000, 5400000), 'cycle': 30, 'tier': 'Tier 1 (High Value)'},
+        'fnb_food_resto': {'units': (1000, 3000), 'value': (2500000, 7500000), 'cycle': 30, 'tier': 'Tier 1 (High Value)'},
+        'fashion_retail': {'units': (300, 1000), 'value': (750000, 2500000), 'cycle': 60, 'tier': 'Tier 2 (Medium Value)'},
+        'beauty_skincare': {'units': (500, 2000), 'value': (1500000, 4000000), 'cycle': 45, 'tier': 'Tier 2 (Medium Value)'},
+        'new_store_opening': {'units': (1, 1), 'value': (3500000, 8000000), 'cycle': 0, 'tier': 'Tier 1 (High Value)'},
+        'corporate_legal': {'units': (100, 300), 'value': (1000000, 2500000), 'cycle': 90, 'tier': 'Tier 3 (Standard)'},
+        'general_commercial': {'units': (500, 500), 'value': (750000, 1500000), 'cycle': 30, 'tier': 'Tier 3 (Standard)'},
+    }
+
+    c = config.get(category, config['general_commercial'])
+    
+    if multiplier > 50000:
+        factor = 2
+    elif multiplier > 10000:
+        factor = 1.5
+    else:
+        factor = 1
+
+    return {
+        'est_monthly_units_min': int(c['units'][0] * factor),
+        'est_monthly_units_max': int(c['units'][1] * factor),
+        'est_monthly_value_min_idr': int(c['value'][0] * factor),
+        'est_monthly_value_max_idr': int(c['value'][1] * factor),
+        'restock_cycle_days': c['cycle'],
+        'priority_commercial_tier': c['tier']
+    }
+

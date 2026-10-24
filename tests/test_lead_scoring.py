@@ -12,7 +12,8 @@ from scrapers.lead_scoring import (
     qualify_lead,
     classify_category,
     infer_product_needs,
-    generate_whatsapp_pitch
+    generate_whatsapp_pitch,
+    estimate_packaging_volume_and_value
 )
 
 
@@ -315,6 +316,23 @@ class TestCalculate4PillarsScore(unittest.TestCase):
         lead = {'external_website_url': 'https://linktr.ee/kopibintang'}
         res = calculate_4_pillars_score(lead)
         self.assertEqual(res['score_budget'], 0)
+
+
+class TestEstimatePackagingVolumeAndValue(unittest.TestCase):
+
+    def test_estimate_fnb_beverage(self):
+        lead = {'category': 'fnb_beverage', 'followers_count': 2000}
+        res = estimate_packaging_volume_and_value(lead)
+        self.assertEqual(res['restock_cycle_days'], 30)
+        self.assertGreaterEqual(res['est_monthly_units_min'], 1500)
+        self.assertLessEqual(res['est_monthly_value_max_idr'], 5400000)
+        self.assertEqual(res['priority_commercial_tier'], 'Tier 1 (High Value)')
+
+    def test_estimate_general_fallback(self):
+        lead = {'category': 'unknown', 'followers_count': 100}
+        res = estimate_packaging_volume_and_value(lead)
+        self.assertEqual(res['priority_commercial_tier'], 'Tier 3 (Standard)')
+        self.assertEqual(res['restock_cycle_days'], 30)
 
 
 if __name__ == '__main__':
