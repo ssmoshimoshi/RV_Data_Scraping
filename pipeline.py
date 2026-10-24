@@ -14,7 +14,7 @@ from scrapers.tiktok_scraper import scrape_tiktok_search, transform_to_lead_form
 from scrapers.threads_scraper import scrape_threads_profile
 from scrapers.food_delivery_scraper import scrape_gofood, scrape_grabfood, scrape_shopeefood
 from scrapers.normalizer import normalize_whatsapp, normalize_address
-from scrapers.lead_scoring import qualify_lead, calculate_score, classify_category
+from scrapers.lead_scoring import qualify_lead, calculate_score, classify_category, infer_product_needs, generate_whatsapp_pitch
 from scrapers.database import insert_lead, get_supabase_client
 
 
@@ -54,7 +54,13 @@ def run_gmaps_pipeline(query: str, city: str, limit: int, dry_run: bool, save_db
         
         qualified_count += 1
         score = calculate_score(lead)
+        needs = infer_product_needs(category, lead["business_name"], "")
+        pitch_info = generate_whatsapp_pitch(lead)
+        products_str = ", ".join(needs["recommended_products"][:3])
         print(f"Prospek lolos: {lead['business_name']} | Kategori: {category} | Skor: {score}")
+        print(f"  Rekomendasi Cetak: {products_str}")
+        if pitch_info:
+            print(f"  Draft Pitch WA: {pitch_info['wa_link']}")
         
         if save_db:
             ok, msg = insert_lead(lead, score=score, dry_run=dry_run)

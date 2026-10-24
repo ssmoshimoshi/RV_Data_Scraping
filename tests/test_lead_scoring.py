@@ -6,7 +6,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 import unittest
 from datetime import datetime, timedelta
-from scrapers.lead_scoring import calculate_score, qualify_lead, classify_category
+from scrapers.lead_scoring import calculate_score, qualify_lead, classify_category, infer_product_needs, generate_whatsapp_pitch
 
 
 class TestQualifyLead(unittest.TestCase):
@@ -226,3 +226,41 @@ class TestClassifyCategory(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class TestInferProductNeeds(unittest.TestCase):
+
+    def test_fnb_beverage(self):
+        res = infer_product_needs('fnb_beverage', 'Kopi Kenangan', 'best coffee')
+        self.assertIn('Paper Cup Hot 8oz/12oz', res['recommended_products'])
+        self.assertTrue(res['materials_finishing'])
+        self.assertTrue(res['value_proposition'])
+
+    def test_unknown_defaults_general(self):
+        res = infer_product_needs('nope', 'X', 'y')
+        self.assertIn('Paper Bag Custom', res['recommended_products'])
+
+    def test_no_emoji(self):
+        res = infer_product_needs('fashion_retail', 'Butik', 'baju')
+        for v in res.values():
+            self.assertNotIn('emoji', str(v).lower())
+
+
+class TestGenerateWhatsAppPitch(unittest.TestCase):
+
+    def test_with_wa(self):
+        lead = {'business_name': 'Kopi A', 'whatsapp_number': '628123', 'category': 'fnb_beverage'}
+        res = generate_whatsapp_pitch(lead)
+        self.assertIsNotNone(res)
+        self.assertIn('pitch_text', res)
+        self.assertIn('wa_link', res)
+        self.assertTrue(res['wa_link'].startswith('https://wa.me/628123'))
+
+    def test_without_wa_returns_none(self):
+        lead = {'business_name': 'Kopi A', 'category': 'fnb_beverage'}
+        self.assertIsNone(generate_whatsapp_pitch(lead))
+
+    def test_normalize_zero_prefix(self):
+        lead = {'business_name': 'X', 'whatsapp_number': '08123', 'category': 'general_commercial'}
+        res = generate_whatsapp_pitch(lead)
+        self.assertTrue(res['wa_link'].startswith('https://wa.me/628123'))
