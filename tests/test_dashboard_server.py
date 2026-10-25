@@ -17,6 +17,8 @@ from scrapers.dashboard_server import (
     enrich_lead_card,
     get_all_leads,
     load_processed_dossiers,
+    build_channels_from_records,
+    persist_channel_to_dossier,
 )
 
 SAMPLE_ENTITY = {
@@ -139,6 +141,162 @@ class TestDashboardServer(unittest.TestCase):
             self.assertIn("business_name", lead)
             self.assertIn("score", lead)
             self.assertIn("recommended_products", lead)
+
+
+MULTI_CHANNEL_ENTITY = {
+    "entity_id": "ent_0002",
+    "business_name": "Kopi Kanal Lengkap",
+    "city": "makassar",
+    "district_area": "panakkukang",
+    "whatsapp_number": "6281234567891",
+    "platforms": ["google_maps", "instagram", "tiktok", "gofood"],
+    "records": [
+        {"platform": "google_maps", "title": "Kopi Kanal Lengkap", "place_id": "ChIJ_abc123", "address": "Jl. Boulevard No. 2"},
+        {"platform": "instagram", "website": "https://www.instagram.com/kopikanal"},
+        {"platform": "tiktok", "platform_handle": "kopikanallengkap"},
+        {"platform": "gofood", "title": "Kopi Kanal Lengkap"},
+    ],
+}
+
+
+class TestBuildChannels(unittest.TestCase):
+
+    def test_channels_mapped_from_records(self):
+        records = MULTI_CHANNEL_ENTITY["records"]
+        channels = build_channels_from_records(MULTI_CHANNEL_ENTITY, records, records[0])
+        self.assertEqual(channels["google_maps"], "https://www.google.com/maps/place/?q=place_id:ChIJ_abc123")
+        self.assertEqual(channels["instagram"], "https://www.instagram.com/kopikanal")
+        self.assertEqual(channels["tiktok"], "https://www.tiktok.com/@kopikanallengkap")
+        self.assertEqual(channels["threads"], "")
+        self.assertEqual(channels["food_delivery"], "GoFood")
+
+    def test_google_maps_fallback_to_website_url(self):
+        ent = {}
+        rec = {"platform": "google_maps", "website": "https://www.google.com/maps/place/?cid=999"}
+        channels = build_channels_from_records(ent, [rec], rec)
+        self.assertEqual(channels["google_maps"], "https://www.google.com/maps/place/?cid=999")
+
+    def test_no_data_returns_empty_channels(self):
+        channels = build_channels_from_records({}, [], {})
+        self.assertEqual(channels, {
+            "google_maps": "", "instagram": "", "tiktok": "", "threads": "", "food_delivery": "",
+        })
+
+    def test_load_processed_dossiers_includes_channels_and_top_posts(self):
+        ent = dict(MULTI_CHANNEL_ENTITY)
+        ent["top_posts"] = [{"id": "post-x", "caption": "Kemasan baru", "views": 100, "likes": 10,
+                             "comments": 2, "engagement_rate": 5.0, "date": "2026-10-20",
+                             "packaging_signal": True, "tags": ["Box"]}]
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "unified_dossiers_Makassar_20261025_000000.json"
+            path.write_text(json.dumps([ent], ensure_ascii=False), encoding="utf-8")
+            leads = load_processed_dossiers(Path(tmp))
+            self.assertEqual(len(leads), 1)
+            lead = leads[0]
+            self.assertEqual(lead["channels"]["instagram"], "https://www.instagram.com/kopikanal")
+            self.assertEqual(lead["channels"]["google_maps"],
+                             "https://www.google.com/maps/place/?q=place_id:ChIJ_abc123")
+            self.assertEqual(lead["top_posts"][0]["id"], "post-x")
+
+    def test_load_processed_dossiers_without_top_posts_defaults_empty(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "unified_dossiers_Makassar_20261025_000000.json"
+            path.write_text(json.dumps([MULTI_CHANNEL_ENTITY], ensure_ascii=False), encoding="utf-8")
+            lead = load_processed_dossiers(Path(tmp))[0]
+            self.assertEqual(lead["top_posts"], [])
+
+
+class TestPersistChannelToDossier(unittest.TestCase):
+
+    def test_persist_updates_dossier_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "unified_dossiers_Makassar_20261025_000000.json"
+            path.write_text(json.dumps([MULTI_CHANNEL_ENTITY], ensure_ascii=False), encoding="utf-8")
+            posts = [{"id": "post-1", "caption": "Uji coba", "views": 10, "likes": 2,
+                      "comments": 1, "engagement_rate": 3.0, "date": "2026-10-25",
+                      "packaging_signal": False, "tags": []}]
+            ok = persist_channel_to_dossier("ent_0002", "instagram", "kopikanal", posts, Path(tmp))
+            self.assertTrue(ok)
+            saved = json.loads(path.read_text(encoding="utf-8"))
+            self.assertEqual(saved[0]["channels"]["instagram"], "kopikanal")
+            self.assertEqual(saved[0]["top_posts"], posts)
+            self.assertTrue(saved[0]["is_active_verified"])
+            self.assertIn("latest_post_date", saved[0])
+
+    def test_persist_unknown_entity_returns_false(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "unified_dossiers_Makassar_20261025_000000.json"
+            path.write_text(json.dumps([MULTI_CHANNEL_ENTITY], ensure_ascii=False), encoding="utf-8")
+            self.assertFalse(persist_channel_to_dossier("ent_9999", "instagram", "x", [], Path(tmp)))
+
+    def test_persist_without_dossier_returns_false(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertFalse(persist_channel_to_dossier("ent_0002", "instagram", "x", [], Path(tmp)))
+
+
+class TestLinkChannelEndpoint(unittest.TestCase):
+
+    def setUp(self):
+        socketserver.TCPServer.allow_reuse_address = True
+        self.httpd = socketserver.TCPServer(("127.0.0.1", 0), DashboardHandler)
+        self.port = self.httpd.server_address[1]
+        self.thread = threading.Thread(target=self.httpd.serve_forever, daemon=True)
+        self.thread.start()
+
+    def tearDown(self):
+        self.httpd.shutdown()
+        self.httpd.server_close()
+
+    def _post(self, path, payload):
+        body = json.dumps(payload).encode("utf-8")
+        conn = http.client.HTTPConnection("127.0.0.1", self.port, timeout=10)
+        conn.request("POST", path, body=body, headers={"Content-Type": "application/json"})
+        res = conn.getresponse()
+        data = res.read()
+        conn.close()
+        return res, data
+
+    def test_link_channel_on_dossier_lead_succeeds_and_persists(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = Path(tmp) / "unified_dossiers_Makassar_20261025_000000.json"
+            fixture.write_text(json.dumps([MULTI_CHANNEL_ENTITY], ensure_ascii=False), encoding="utf-8")
+            with patch("scrapers.dashboard_server.find_latest_dossier", return_value=fixture):
+                res, body = self._post("/api/leads/link-channel", {
+                    "lead_id": "ent_0002",
+                    "platform": "instagram",
+                    "handle_or_url": "https://instagram.com/kopikanalbaru",
+                })
+            self.assertEqual(res.status, 200)
+            data = json.loads(body)
+            self.assertEqual(data["status"], "success")
+            self.assertTrue(data["persisted"])
+            self.assertEqual(len(data["inspection"]["posts"]), 5)
+            self.assertEqual(data["lead"]["channels"]["instagram"], "kopikanalbaru")
+            saved = json.loads(fixture.read_text(encoding="utf-8"))
+            self.assertEqual(saved[0]["channels"]["instagram"], "kopikanalbaru")
+            self.assertEqual(len(saved[0]["top_posts"]), 5)
+
+    def test_link_channel_on_sample_lead_still_works(self):
+        res, body = self._post("/api/leads/link-channel", {
+            "lead_id": "lead-001",
+            "platform": "tiktok",
+            "handle_or_url": "titiktemu_baru",
+        })
+        self.assertEqual(res.status, 200)
+        data = json.loads(body)
+        self.assertEqual(data["status"], "success")
+        self.assertFalse(data["persisted"])
+        self.assertEqual(data["lead"]["channels"]["tiktok"], "titiktemu_baru")
+
+    def test_link_channel_unknown_lead_returns_404(self):
+        with patch("scrapers.dashboard_server.find_latest_dossier", return_value=None):
+            res, body = self._post("/api/leads/link-channel", {
+                "lead_id": "lead-tidak-ada",
+                "platform": "instagram",
+                "handle_or_url": "entah",
+            })
+        self.assertEqual(res.status, 404)
+        self.assertIn("error", json.loads(body))
 
 
 if __name__ == "__main__":

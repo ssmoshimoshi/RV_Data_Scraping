@@ -275,6 +275,9 @@ function renderPainPointsList(painPoints) {
 function openDrawer(lead) {
   selectedLead = lead;
 
+  const handleInputEl = document.getElementById('link-handle-input');
+  if (handleInputEl) handleInputEl.value = '';
+
   document.getElementById('drawer-category').textContent = formatCategory(lead.category);
   document.getElementById('drawer-title').textContent = lead.business_name;
   
@@ -398,10 +401,32 @@ function renderChannelsList(lead) {
     const val = channels[ch.key];
     const isLinked = Boolean(val && val.trim() !== '');
 
+    let linkHtml = 'Belum Terhubung';
+    if (isLinked) {
+      let targetUrl = val.trim();
+      let label = targetUrl;
+      if (targetUrl.startsWith('http://') || targetUrl.startsWith('https://')) {
+        label = targetUrl.length > 35 ? targetUrl.slice(0, 32) + '...' : targetUrl;
+      } else if (ch.key === 'instagram') {
+        const handle = targetUrl.replace(/^@/, '');
+        targetUrl = `https://instagram.com/${handle}`;
+        label = `@${handle}`;
+      } else if (ch.key === 'tiktok') {
+        const handle = targetUrl.replace(/^@/, '');
+        targetUrl = `https://www.tiktok.com/@${handle}`;
+        label = `@${handle}`;
+      } else if (ch.key === 'threads') {
+        const handle = targetUrl.replace(/^@/, '');
+        targetUrl = `https://www.threads.net/@${handle}`;
+        label = `@${handle}`;
+      }
+      linkHtml = `<a href="${encodeURI(targetUrl)}" target="_blank" rel="noopener noreferrer" style="color: #0284C7; font-weight: 600; text-decoration: underline; word-break: break-all;">${escapeHtml(label)}</a>`;
+    }
+
     card.innerHTML = `
       <div class="channel-name">${ch.name}</div>
       <div class="channel-val ${isLinked ? '' : 'not-linked'}">
-        ${isLinked ? escapeHtml(val) : 'Belum Terhubung'}
+        ${linkHtml}
       </div>
     `;
     container.appendChild(card);

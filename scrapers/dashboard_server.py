@@ -661,6 +661,57 @@ def load_raw_scraped_leads() -> list[dict]:
     return leads
 
 
+_FOOD_DELIVERY_PLATFORMS = {"gofood": "GoFood", "grabfood": "GrabFood", "shopeefood": "ShopeeFood"}
+_CHANNEL_URL_KEYS = ("website", "external_website_url", "profile_url", "platform_profile_url", "url")
+
+
+def build_channels_from_records(ent: dict, records: list, first_rec: dict) -> dict:
+    place_id = ent.get("place_id") or first_rec.get("place_id") or first_rec.get("google_maps_place_id")
+    if place_id:
+        google_maps = f"https://www.google.com/maps/place/?q=place_id:{place_id}"
+    else:
+        website = ent.get("external_website_url") or first_rec.get("website") or ""
+        google_maps = website if "google.com/maps" in website.lower() else ""
+
+    instagram = ""
+    tiktok = ""
+    threads = ""
+    food_links = []
+    food_names = []
+    for rec in records:
+        platform = str(rec.get("platform", "")).lower()
+        for key in _CHANNEL_URL_KEYS:
+            val = str(rec.get(key) or "")
+            if not val:
+                continue
+            low = val.lower()
+            if "instagram.com" in low and not instagram:
+                instagram = val
+            elif "tiktok.com" in low and not tiktok:
+                tiktok = val
+            elif "threads.net" in low and not threads:
+                threads = val
+        handle = rec.get("platform_handle") or rec.get("username") or ""
+        if platform == "tiktok" and not tiktok:
+            tiktok = f"https://www.tiktok.com/@{handle}" if handle else platform
+        if platform == "threads" and not threads:
+            threads = f"https://www.threads.net/@{handle}" if handle else platform
+        if platform in _FOOD_DELIVERY_PLATFORMS:
+            link = rec.get("url") or rec.get("merchant_url") or ""
+            if link:
+                food_links.append(link)
+            food_names.append(_FOOD_DELIVERY_PLATFORMS[platform])
+
+    food_delivery = food_links[0] if food_links else ", ".join(dict.fromkeys(food_names))
+    return {
+        "google_maps": google_maps,
+        "instagram": instagram,
+        "tiktok": tiktok,
+        "threads": threads,
+        "food_delivery": food_delivery,
+    }
+
+
 def load_processed_dossiers(processed_dir=PROJECT_ROOT / "data" / "processed") -> list[dict]:
     path = find_latest_dossier(processed_dir)
     if not path:
@@ -682,6 +733,7 @@ def load_processed_dossiers(processed_dir=PROJECT_ROOT / "data" / "processed") -
             (r.get("estimated_commercials") for r in records if r.get("estimated_commercials")), {})
         pain_points = ent.get("packaging_pain_points") or next(
             (r.get("packaging_pain_points") for r in records if r.get("packaging_pain_points")), [])
+        channels = ent.get("channels") or build_channels_from_records(ent, records, first_rec)
         leads.append({
             "id": ent.get("entity_id") or f"dossier-{len(leads) + 1}",
             "entity_id": ent.get("entity_id", ""),
@@ -700,11 +752,43 @@ def load_processed_dossiers(processed_dir=PROJECT_ROOT / "data" / "processed") -
             "priority_tier": ent.get("priority_tier", ""),
             "estimated_commercials": est,
             "packaging_pain_points": pain_points,
+            "channels": channels,
+            "top_posts": ent.get("top_posts") or first_rec.get("top_posts") or [],
             "whatsapp_pitch": ent.get("whatsapp_pitch", ""),
             "is_active_verified": bool(ent.get("whatsapp_number")),
             "status": "ready_to_pitch" if ent.get("whatsapp_number") else "new_lead",
         })
     return leads
+
+
+def persist_channel_to_dossier(entity_id: str, platform: str, channel_value: str, posts: list,
+                               processed_dir=None) -> bool:
+    if processed_dir is None:
+        processed_dir = PROJECT_ROOT / "data" / "processed"
+    path = find_latest_dossier(processed_dir)
+    if not path:
+        return False
+    try:
+        entities = json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return False
+    if not isinstance(entities, list):
+        return False
+    for ent in entities:
+        if not isinstance(ent, dict) or ent.get("entity_id") != entity_id:
+            continue
+        channels = ent.get("channels") or {}
+        channels[platform] = channel_value
+        ent["channels"] = channels
+        ent["top_posts"] = posts
+        ent["latest_post_date"] = (datetime.now() - timedelta(days=1)).isoformat()
+        ent["is_active_verified"] = True
+        try:
+            path.write_text(json.dumps(entities, indent=2, ensure_ascii=False), encoding="utf-8")
+        except OSError:
+            return False
+        return True
+    return False
 
 
 def get_all_leads():
@@ -763,6 +847,14 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
                     target_lead = lead
                     break
 
+            from_dossier = False
+            if not target_lead:
+                for lead in load_processed_dossiers():
+                    if lead.get("id") == lead_id or lead.get("entity_id") == lead_id:
+                        target_lead = lead
+                        from_dossier = True
+                        break
+
             if not target_lead:
                 self.send_response(404)
                 self.send_cors_headers()
@@ -782,6 +874,11 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
             target_lead["latest_post_date"] = (datetime.now() - timedelta(days=1)).isoformat()
             target_lead["is_active_verified"] = True
 
+            persisted = False
+            if from_dossier:
+                persisted = persist_channel_to_dossier(
+                    target_lead.get("entity_id") or lead_id, platform, clean_handle, inspection["posts"])
+
             enriched = enrich_lead_card(target_lead)
 
             self.send_response(200)
@@ -791,6 +888,7 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
             self.wfile.write(json.dumps({
                 "status": "success",
                 "message": f"Kanal {platform} berhasil dihubungkan dan 5 konten terpopuler diinspeksi.",
+                "persisted": persisted,
                 "lead": enriched,
                 "inspection": inspection
             }, ensure_ascii=False).encode("utf-8"))
