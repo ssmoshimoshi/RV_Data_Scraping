@@ -1041,15 +1041,20 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
             return
             
         # Serve Static Assets dari docs/dashboard/
-        static_file = PROJECT_ROOT / "docs" / "dashboard" / parsed.path.lstrip("/")
+        path_clean = parsed.path.lstrip("/")
+        if path_clean.startswith("market-scraping/"):
+            path_clean = path_clean[len("market-scraping/"):]
+        static_file = PROJECT_ROOT / "docs" / "dashboard" / path_clean
         if static_file.exists() and static_file.is_file():
             self.send_response(200)
             if static_file.suffix == ".css":
-                self.send_header("Content-Type", "text/css")
+                self.send_header("Content-Type", "text/css; charset=utf-8")
             elif static_file.suffix == ".js":
-                self.send_header("Content-Type", "application/javascript")
+                self.send_header("Content-Type", "application/javascript; charset=utf-8")
             elif static_file.suffix == ".png":
                 self.send_header("Content-Type", "image/png")
+            elif static_file.suffix == ".svg":
+                self.send_header("Content-Type", "image/svg+xml")
             self.end_headers()
             with open(static_file, "rb") as f:
                 self.wfile.write(f.read())

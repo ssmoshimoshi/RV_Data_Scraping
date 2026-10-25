@@ -1,5 +1,8 @@
 let allLeads = [];
 let selectedLead = null;
+let currentPage = 1;
+const LEADS_PER_PAGE = 25;
+let currentOutreachFilter = 'all';
 
 const CATALOG_DATA = [
   {
@@ -113,9 +116,56 @@ function switchView(viewId) {
   }
 }
 
+function setOutreachFilter(status) {
+  currentOutreachFilter = status;
+  const selectEl = document.getElementById('filter-outreach');
+  if (selectEl) selectEl.value = status;
+  updatePipelinePillActive(status);
+  currentPage = 1;
+  renderDashboard();
+}
+
+function updatePipelinePillActive(status) {
+  document.querySelectorAll('.pipeline-pill').forEach(btn => {
+    if (btn.getAttribute('data-status') === status) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+}
+
+function changePage(delta) {
+  currentPage += delta;
+  renderDashboard();
+}
+
 function renderDashboard() {
+  // Update Pipeline Counts across all leads
+  const countAll = allLeads.length;
+  const countUncontacted = allLeads.filter(l => (l.outreach_status || 'Belum Dihubungi') === 'Belum Dihubungi').length;
+  const countContacted = allLeads.filter(l => l.outreach_status === 'Dihubungi').length;
+  const countInterested = allLeads.filter(l => l.outreach_status === 'Tertarik').length;
+  const countClosing = allLeads.filter(l => l.outreach_status === 'Closing').length;
+  const countIrrelevant = allLeads.filter(l => l.outreach_status === 'Tidak Relevan').length;
+
+  const elAll = document.getElementById('pipe-count-all');
+  if (elAll) elAll.textContent = countAll;
+  const elUn = document.getElementById('pipe-count-uncontacted');
+  if (elUn) elUn.textContent = countUncontacted;
+  const elCon = document.getElementById('pipe-count-contacted');
+  if (elCon) elCon.textContent = countContacted;
+  const elInt = document.getElementById('pipe-count-interested');
+  if (elInt) elInt.textContent = countInterested;
+  const elClo = document.getElementById('pipe-count-closing');
+  if (elClo) elClo.textContent = countClosing;
+  const elIrr = document.getElementById('pipe-count-irrelevant');
+  if (elIrr) elIrr.textContent = countIrrelevant;
+
   const catFilter = document.getElementById('filter-category').value;
   const tierFilter = document.getElementById('filter-tier').value;
+  const outreachSelect = document.getElementById('filter-outreach');
+  const outreachFilter = outreachSelect ? outreachSelect.value : currentOutreachFilter;
   const searchFilter = document.getElementById('search-input').value.toLowerCase().trim();
 
   const filtered = allLeads.filter(lead => {
@@ -125,6 +175,9 @@ function renderDashboard() {
     if (tierFilter === 'tier_high' && score < 80) return false;
     if (tierFilter === 'tier_med' && (score < 60 || score >= 80)) return false;
     if (tierFilter === 'tier_low' && score >= 60) return false;
+
+    const st = lead.outreach_status || 'Belum Dihubungi';
+    if (outreachFilter !== 'all' && st !== outreachFilter) return false;
 
     if (searchFilter) {
       const name = (lead.business_name || '').toLowerCase();
@@ -144,7 +197,34 @@ function renderDashboard() {
   }).length;
   document.getElementById('metric-contact').textContent = filtered.filter(l => l.whatsapp_number || l.phone_number).length;
 
-  // Render Table
+  // Pagination calculations
+  const totalPages = Math.ceil(filtered.length / LEADS_PER_PAGE) || 1;
+  if (currentPage > totalPages) currentPage = totalPages;
+  if (currentPage < 1) currentPage = 1;
+
+  const startIdx = (currentPage - 1) * LEADS_PER_PAGE;
+  const endIdx = Math.min(startIdx + LEADS_PER_PAGE, filtered.length);
+  const pageItems = filtered.slice(startIdx, endIdx);
+
+  const countInfoEl = document.getElementById('leads-count-info');
+  if (countInfoEl) {
+    countInfoEl.textContent = filtered.length > 0
+      ? `Menampilkan ${startIdx + 1} - ${endIdx} dari ${filtered.length} calon customer`
+      : 'Menampilkan 0 calon customer';
+  }
+
+  const pageIndicatorEl = document.getElementById('page-indicator');
+  if (pageIndicatorEl) {
+    pageIndicatorEl.textContent = `Halaman ${currentPage} / ${totalPages}`;
+  }
+
+  const prevBtn = document.getElementById('btn-page-prev');
+  if (prevBtn) prevBtn.disabled = currentPage <= 1;
+
+  const nextBtn = document.getElementById('btn-page-next');
+  if (nextBtn) nextBtn.disabled = currentPage >= totalPages;
+
+  // Render Table Body
   const tbody = document.getElementById('leads-table-body');
   tbody.innerHTML = '';
 
@@ -155,7 +235,7 @@ function renderDashboard() {
     return;
   }
 
-  filtered.forEach(lead => {
+  pageItems.forEach(lead => {
     const tr = document.createElement('tr');
     tr.onclick = () => openDrawer(lead);
 
@@ -175,24 +255,28 @@ function renderDashboard() {
     const hasPainPoints = painPoints.length > 0;
 
     const statusText = lead.outreach_status || 'Belum Dihubungi';
-    let statusClass = 'not-linked';
-    if (statusText === 'Dihubungi') statusClass = '';
-    else if (statusText === 'Tertarik' || statusText === 'Closing') statusClass = 'tier-1';
+    let statusBadgeClass = 'uncontacted';
+    if (statusText === 'Dihubungi') statusBadgeClass = 'contacted';
+    else if (statusText === 'Tertarik') statusBadgeClass = 'interested';
+    else if (statusText === 'Closing') statusBadgeClass = 'closing';
+    else if (statusText === 'Tidak Relevan') statusBadgeClass = 'irrelevant';
+
+    const notesSnippet = lead.outreach_notes
+      ? `<div style="font-size: 11px; color: var(--text-muted); margin-top: 4px; font-style: italic; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(lead.outreach_notes)}">${escapeHtml(lead.outreach_notes)}</div>`
+      : '';
 
     tr.innerHTML = `
       <td>
         <div class="lead-title-text">${escapeHtml(lead.business_name)}</div>
         <div class="lead-address-text">${escapeHtml(lead.address_full || 'Makassar')}</div>
-        <div style="margin-top: 4px;">
-          <span style="font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 4px; background: #F1F5F9; color: #475569; border: 1px solid #CBD5E1;">${escapeHtml(statusText)}</span>
-        </div>
+        <div class="maps-rating-text" style="margin-top: 4px;">Rating ${lead.rating || '4.5'} (${lead.reviews_count || '100+'} ulasan GMaps)</div>
       </td>
       <td>
         <span class="category-tag">${formatCategory(lead.category)}</span>
       </td>
       <td>
-        <div class="maps-verified-badge">Terverifikasi Fisik</div>
-        <div class="maps-rating-text">Rating ${lead.rating || '4.5'} (${lead.reviews_count || '100+'} ulasan)</div>
+        <span class="status-badge ${statusBadgeClass}">${escapeHtml(statusText)}</span>
+        ${notesSnippet}
       </td>
       <td>
         <div class="comm-tier-badge ${tierText.includes('Tier 1') ? 'tier-1' : ''}">${escapeHtml(tierText.split(' ')[0])}</div>
@@ -368,6 +452,9 @@ function openDrawer(lead) {
   // WhatsApp Pitch Draft
   const pitchArea = document.getElementById('drawer-pitch-text');
   const waBtn = document.getElementById('drawer-wa-button');
+  const copyToast = document.getElementById('drawer-copy-feedback');
+  if (copyToast) copyToast.style.display = 'none';
+
   if (lead.pitch_text) {
     pitchArea.value = lead.pitch_text;
     document.getElementById('drawer-wa-section').style.display = 'flex';
@@ -381,17 +468,58 @@ function openDrawer(lead) {
     document.getElementById('drawer-wa-section').style.display = 'none';
   }
 
-
   // Outreach Status & Notes
   const outreachSelect = document.getElementById('drawer-outreach-select');
   const outreachNotes = document.getElementById('drawer-outreach-notes');
   const outreachFeedback = document.getElementById('drawer-outreach-feedback');
+  const outreachTimestamp = document.getElementById('drawer-outreach-timestamp');
+
   if (outreachSelect) outreachSelect.value = lead.outreach_status || 'Belum Dihubungi';
   if (outreachNotes) outreachNotes.value = lead.outreach_notes || '';
   if (outreachFeedback) outreachFeedback.style.display = 'none';
 
+  if (outreachTimestamp) {
+    if (lead.contacted_at) {
+      const d = new Date(lead.contacted_at);
+      const formatted = isNaN(d.getTime()) ? lead.contacted_at : d.toLocaleString('id-ID', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      outreachTimestamp.textContent = `Terakhir dihubungi: ${formatted}`;
+      outreachTimestamp.style.display = 'block';
+    } else {
+      outreachTimestamp.style.display = 'none';
+    }
+  }
+
   document.getElementById('overlay').style.display = 'block';
   document.getElementById('detail-drawer').classList.add('open');
+}
+
+async function copyWhatsAppPitch() {
+  const pitchArea = document.getElementById('drawer-pitch-text');
+  const feedback = document.getElementById('drawer-copy-feedback');
+  if (!pitchArea || !pitchArea.value) return;
+
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(pitchArea.value);
+    } else {
+      pitchArea.select();
+      document.execCommand('copy');
+    }
+    if (feedback) {
+      feedback.style.display = 'inline-block';
+      setTimeout(() => {
+        if (feedback) feedback.style.display = 'none';
+      }, 3000);
+    }
+  } catch (err) {
+    console.error('Gagal menyalin teks pitch:', err);
+  }
 }
 
 async function saveLeadOutreachStatus() {
@@ -399,6 +527,7 @@ async function saveLeadOutreachStatus() {
   const statusSelect = document.getElementById('drawer-outreach-select');
   const notesInput = document.getElementById('drawer-outreach-notes');
   const feedback = document.getElementById('drawer-outreach-feedback');
+  const outreachTimestamp = document.getElementById('drawer-outreach-timestamp');
 
   const newStatus = statusSelect.value;
   const newNotes = notesInput.value.trim();
@@ -426,6 +555,16 @@ async function saveLeadOutreachStatus() {
       allLeads[idx].outreach_notes = newNotes;
     }
 
+    if (newStatus === 'Dihubungi' || newStatus === 'Closing') {
+      const nowIso = new Date().toISOString();
+      selectedLead.contacted_at = nowIso;
+      if (idx !== -1) allLeads[idx].contacted_at = nowIso;
+      if (outreachTimestamp) {
+        outreachTimestamp.textContent = `Terakhir dihubungi: Baru saja`;
+        outreachTimestamp.style.display = 'block';
+      }
+    }
+
     if (feedback) {
       feedback.textContent = 'Status penjangkauan berhasil diperbarui.';
       feedback.style.color = '#0284C7';
@@ -433,7 +572,7 @@ async function saveLeadOutreachStatus() {
       setTimeout(() => { if (feedback) feedback.style.display = 'none'; }, 3000);
     }
 
-    renderTable(allLeads);
+    renderDashboard();
   } catch (err) {
     console.error('Error saving outreach status:', err);
     if (feedback) {
@@ -701,12 +840,46 @@ function escapeHtml(str) {
 }
 
 // Event Listeners
-document.getElementById('filter-category').addEventListener('change', renderDashboard);
-document.getElementById('filter-tier').addEventListener('change', renderDashboard);
-document.getElementById('search-input').addEventListener('input', renderDashboard);
-document.getElementById('btn-export-csv').addEventListener('click', () => {
-  window.location.href = '/api/export/csv';
-});
+const catSelect = document.getElementById('filter-category');
+if (catSelect) {
+  catSelect.addEventListener('change', () => {
+    currentPage = 1;
+    renderDashboard();
+  });
+}
+
+const tierSelect = document.getElementById('filter-tier');
+if (tierSelect) {
+  tierSelect.addEventListener('change', () => {
+    currentPage = 1;
+    renderDashboard();
+  });
+}
+
+const outreachSelect = document.getElementById('filter-outreach');
+if (outreachSelect) {
+  outreachSelect.addEventListener('change', (e) => {
+    currentOutreachFilter = e.target.value;
+    updatePipelinePillActive(currentOutreachFilter);
+    currentPage = 1;
+    renderDashboard();
+  });
+}
+
+const searchInput = document.getElementById('search-input');
+if (searchInput) {
+  searchInput.addEventListener('input', () => {
+    currentPage = 1;
+    renderDashboard();
+  });
+}
+
+const exportCsvBtn = document.getElementById('btn-export-csv');
+if (exportCsvBtn) {
+  exportCsvBtn.addEventListener('click', () => {
+    window.location.href = '/api/export/csv';
+  });
+}
 
 // Initial Load
 fetchLeads();

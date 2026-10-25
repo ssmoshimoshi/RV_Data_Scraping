@@ -1366,3 +1366,204 @@ select:focus, input[type="text"]:focus {
   font-weight: 500;
 }
 
+/* Outreach Pipeline Strip */
+.pipeline-strip {
+  background: var(--bg-paper);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 12px 18px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: var(--shadow-subtle);
+  flex-wrap: wrap;
+}
+
+.pipeline-strip-title {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.pipeline-pills {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pipeline-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.pipeline-pill:hover {
+  background: #E2E8F0;
+  color: var(--text-key);
+}
+
+.pipeline-pill.active {
+  background: var(--cmyk-key);
+  color: #FFFFFF;
+  border-color: var(--cmyk-key);
+}
+
+.pill-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.pill-dot.gray { background: #94A3B8; }
+.pill-dot.slate { background: #64748B; }
+.pill-dot.cyan { background: var(--cmyk-cyan); }
+.pill-dot.yellow { background: var(--cmyk-yellow); }
+.pill-dot.green { background: #10B981; }
+.pill-dot.muted { background: #CBD5E1; }
+
+.pipeline-pill.active .pill-dot {
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.8);
+}
+
+/* Status Badges */
+.status-badge {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.status-badge.uncontacted {
+  background: #F1F5F9;
+  color: #475569;
+  border: 1px solid #CBD5E1;
+}
+
+.status-badge.contacted {
+  background: #E0F9FD;
+  color: #0891B2;
+  border: 1px solid #00D2ED;
+}
+
+.status-badge.interested {
+  background: #FEF9C3;
+  color: #B45309;
+  border: 1px solid #EAB308;
+}
+
+.status-badge.closing {
+  background: #DCFCE7;
+  color: #15803D;
+  border: 1px solid #22C55E;
+}
+
+.status-badge.irrelevant {
+  background: #F3F4F6;
+  color: #9CA3AF;
+  border: 1px solid #E5E7EB;
+}
+
+/* Table Footer & Pagination */
+.table-footer-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 20px;
+  background: #F8FAFC;
+  border-top: 1px solid var(--border-subtle);
+  font-size: 12px;
+}
+
+.leads-count-text {
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-page {
+  background: var(--bg-paper);
+  border: 1px solid var(--border-subtle);
+  border-radius: 5px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-key);
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
+}
+
+.btn-page:hover:not(:disabled) {
+  background: #E2E8F0;
+}
+
+.btn-page:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.page-current {
+  font-weight: 700;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+/* Pitch Actions and Feedback */
+.pitch-actions-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.btn-copy-pitch {
+  display: inline-block;
+  background: #F1F5F9;
+  color: var(--text-key);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  padding: 10px 16px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.btn-copy-pitch:hover {
+  background: #E2E8F0;
+}
+
+.copy-feedback-toast {
+  display: none;
+  font-size: 11px;
+  font-weight: 600;
+  color: #059669;
+  margin-left: 6px;
+}
+
+

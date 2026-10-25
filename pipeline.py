@@ -20,6 +20,26 @@ from scrapers.outreach_generator import generate_whatsapp_pitch as generate_outr
 from scrapers.exporter import export_dossiers_to_csv, find_latest_dossier
 from scrapers.database import insert_lead, get_supabase_client, batch_upsert_dossiers
 from scrapers.harvest_makassar import harvest
+from scrapers.sync_catalog import sync_catalog
+import os
+from pathlib import Path
+from datetime import datetime, timedelta
+
+
+def ensure_catalog_synced(max_age_days: int = 7):
+    catalog_path = Path("data/catalog/ruang_visual_catalog.json")
+    
+    if not catalog_path.exists():
+        print("Katalog tidak ditemukan. Melakukan sinkronisasi...")
+        sync_catalog()
+        return
+    
+    file_age = datetime.now() - datetime.fromtimestamp(catalog_path.stat().st_mtime)
+    if file_age.days > max_age_days:
+        print(f"Katalog sudah berusia {file_age.days} hari (lebih dari {max_age_days} hari). Melakukan sinkronisasi ulang...")
+        sync_catalog()
+    else:
+        print(f"Katalog masih segar (usia {file_age.days} hari).")
 
 
 def run_gmaps_pipeline(query: str, city: str, limit: int, dry_run: bool, save_db: bool):
@@ -309,6 +329,8 @@ def run_food_delivery_pipeline(platform: str, city: str, limit: int, dry_run: bo
 
 def run_match_pipeline(raw_dir: str, output_dir: str, city: str, dry_run: bool, save_db: bool = False):
     print(f"Menjalankan entity matcher lintas platform (Raw: {raw_dir}, Kota: {city}, Dry-run: {dry_run})")
+    
+    ensure_catalog_synced()
 
     records = load_raw_records(Path(raw_dir), limit=10000)
     print(f"Record mentah dibaca: {len(records)}")

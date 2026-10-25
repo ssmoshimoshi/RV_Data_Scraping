@@ -95,6 +95,37 @@
           </div>
         </div>
 
+        <!-- Pipeline Penjangkauan Strip -->
+        <div class="pipeline-strip">
+          <div class="pipeline-strip-title">Pipeline Penjangkauan:</div>
+          <div class="pipeline-pills">
+            <button class="pipeline-pill active" data-status="all" onclick="setOutreachFilter('all')">
+              <span class="pill-dot gray"></span>
+              <span>Semua: <strong id="pipe-count-all">0</strong></span>
+            </button>
+            <button class="pipeline-pill" data-status="Belum Dihubungi" onclick="setOutreachFilter('Belum Dihubungi')">
+              <span class="pill-dot slate"></span>
+              <span>Belum Dihubungi: <strong id="pipe-count-uncontacted">0</strong></span>
+            </button>
+            <button class="pipeline-pill" data-status="Dihubungi" onclick="setOutreachFilter('Dihubungi')">
+              <span class="pill-dot cyan"></span>
+              <span>Dihubungi: <strong id="pipe-count-contacted">0</strong></span>
+            </button>
+            <button class="pipeline-pill" data-status="Tertarik" onclick="setOutreachFilter('Tertarik')">
+              <span class="pill-dot yellow"></span>
+              <span>Tertarik: <strong id="pipe-count-interested">0</strong></span>
+            </button>
+            <button class="pipeline-pill" data-status="Closing" onclick="setOutreachFilter('Closing')">
+              <span class="pill-dot green"></span>
+              <span>Closing: <strong id="pipe-count-closing">0</strong></span>
+            </button>
+            <button class="pipeline-pill" data-status="Tidak Relevan" onclick="setOutreachFilter('Tidak Relevan')">
+              <span class="pill-dot muted"></span>
+              <span>Tidak Relevan: <strong id="pipe-count-irrelevant">0</strong></span>
+            </button>
+          </div>
+        </div>
+
         <!-- Filter & Search Toolbar -->
         <div class="toolbar-card">
           <div class="toolbar-group">
@@ -120,6 +151,18 @@
             </select>
           </div>
 
+          <div class="toolbar-group">
+            <label for="filter-outreach">Status Penjangkauan</label>
+            <select id="filter-outreach">
+              <option value="all">Semua Status</option>
+              <option value="Belum Dihubungi">Belum Dihubungi</option>
+              <option value="Dihubungi">Dihubungi</option>
+              <option value="Tertarik">Tertarik</option>
+              <option value="Closing">Closing</option>
+              <option value="Tidak Relevan">Tidak Relevan</option>
+            </select>
+          </div>
+
           <div class="toolbar-group search-flex">
             <label for="search-input">Cari Nama Usaha / Alamat Jalan</label>
             <input type="text" id="search-input" placeholder="Ketik nama bisnis, merek, atau lokasi jalan Makassar...">
@@ -131,11 +174,11 @@
           <table class="leads-table">
             <thead>
               <tr>
-                <th style="width: 25%;">Profil Usaha &amp; Lokasi</th>
+                <th style="width: 28%;">Profil Usaha &amp; Lokasi</th>
                 <th style="width: 14%;">Kategori</th>
-                <th style="width: 16%;">Verifikasi GMaps</th>
-                <th style="width: 18%;">Estimasi Komersial</th>
-                <th style="width: 15%;">Skor Potensi</th>
+                <th style="width: 15%;">Status Penjangkauan</th>
+                <th style="width: 17%;">Estimasi Komersial</th>
+                <th style="width: 14%;">Skor Potensi</th>
                 <th style="width: 12%; text-align: right;">Aksi</th>
               </tr>
             </thead>
@@ -143,6 +186,15 @@
               <!-- Rendered via app.js -->
             </tbody>
           </table>
+
+          <div class="table-footer-bar">
+            <div class="leads-count-text" id="leads-count-info">Menampilkan 0 dari 0 calon customer</div>
+            <div class="pagination-controls" id="pagination-controls">
+              <button class="btn-page" id="btn-page-prev" onclick="changePage(-1)">Sebelumnya</button>
+              <span class="page-current" id="page-indicator">Halaman 1 / 1</span>
+              <button class="btn-page" id="btn-page-next" onclick="changePage(1)">Selanjutnya</button>
+            </div>
+          </div>
         </div>
 
       </section>
@@ -443,14 +495,17 @@
       <div class="drawer-section" id="drawer-wa-section">
         <div class="section-mini-label">Draft Komunikasi &amp; Penawaran Sampel</div>
         <textarea id="drawer-pitch-text" class="pitch-textarea" readonly></textarea>
-        <div style="margin-top: 10px;">
+        <div class="pitch-actions-row">
           <a id="drawer-wa-button" href="#" target="_blank" class="btn-wa">Kirim Pesan WhatsApp Resmi</a>
+          <button type="button" class="btn-copy-pitch" onclick="copyWhatsAppPitch()">Salin Teks Pitch</button>
+          <span class="copy-feedback-toast" id="drawer-copy-feedback">Teks berhasil disalin ke clipboard</span>
         </div>
       </div>
 
       <!-- Section: Status Penjangkauan & Catatan -->
       <div class="drawer-section" id="drawer-outreach-section">
         <div class="section-mini-label">Status Penjangkauan &amp; Catatan Tim</div>
+        <div id="drawer-outreach-timestamp" style="font-size: 11px; color: var(--text-muted); margin-top: 4px; display: none;"></div>
         <div style="display: flex; gap: 8px; margin-top: 8px;">
           <select id="drawer-outreach-select" style="flex: 1; padding: 8px; border-radius: 6px; border: 1px solid var(--border-subtle); background: white; font-size: 13px;">
             <option value="Belum Dihubungi">Belum Dihubungi</option>
