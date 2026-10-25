@@ -19,6 +19,7 @@ from scrapers.dashboard_server import (
     load_processed_dossiers,
     build_channels_from_records,
     persist_channel_to_dossier,
+    inspect_account_content,
 )
 
 SAMPLE_ENTITY = {
@@ -270,11 +271,12 @@ class TestLinkChannelEndpoint(unittest.TestCase):
             data = json.loads(body)
             self.assertEqual(data["status"], "success")
             self.assertTrue(data["persisted"])
-            self.assertEqual(len(data["inspection"]["posts"]), 5)
+            self.assertEqual(len(data["inspection"]["posts"]), 0)
+            self.assertEqual(data["inspection"]["status"], "Belum diinspeksi")
             self.assertEqual(data["lead"]["channels"]["instagram"], "kopikanalbaru")
             saved = json.loads(fixture.read_text(encoding="utf-8"))
             self.assertEqual(saved[0]["channels"]["instagram"], "kopikanalbaru")
-            self.assertEqual(len(saved[0]["top_posts"]), 5)
+            self.assertEqual(len(saved[0]["top_posts"]), 0)
 
     def test_link_channel_on_sample_lead_still_works(self):
         res, body = self._post("/api/leads/link-channel", {
@@ -297,6 +299,27 @@ class TestLinkChannelEndpoint(unittest.TestCase):
             })
         self.assertEqual(res.status, 404)
         self.assertIn("error", json.loads(body))
+
+    def test_inspect_account_content_factual_empty(self):
+        result = inspect_account_content("instagram", "kopititiktemu", "Kopi Titik Temu")
+        self.assertEqual(result["status"], "Belum diinspeksi")
+        self.assertEqual(result["posts"], [])
+        self.assertEqual(result["total_analyzed_posts"], 0)
+        self.assertEqual(result["total_views"], 0)
+        self.assertEqual(result["avg_engagement_rate"], 0.0)
+        self.assertEqual(result["commercial_velocity"], "Tidak Terdeteksi")
+
+    def test_inspect_content_endpoint_returns_factual_status(self):
+        res, body = self._post("/api/inspect-content", {
+            "platform": "instagram",
+            "handle": "kopititiktemu",
+            "business_name": "Kopi Titik Temu"
+        })
+        self.assertEqual(res.status, 200)
+        data = json.loads(body)
+        self.assertEqual(data["status"], "Belum diinspeksi")
+        self.assertEqual(data["posts"], [])
+        self.assertEqual(data["total_analyzed_posts"], 0)
 
 
 if __name__ == "__main__":

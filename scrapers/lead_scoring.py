@@ -5,22 +5,56 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from datetime import datetime, timedelta
+import re
 from typing import Optional, Tuple
 
 
-NON_COMMERCIAL_KEYWORDS = ['personal', 'pribadi', 'private', 'family', 'keluarga', 'my life', 'diary']
+NON_COMMERCIAL_KEYWORDS = [
+    'personal', 'pribadi', 'private', 'family', 'keluarga', 'my life', 'diary',
+    'sppg', 'kantor lurah', 'kantor camat', 'kantor dinas', 'kantor desa',
+    'kelurahan', 'kecamatan', 'polres', 'polsek', 'koramil', 'kpu', 'bawaslu',
+    'dinas', 'puskesmas', 'pemerintah',
+]
 FREE_DOMAIN_PATTERNS = ['linktr.ee', 'bit.ly', 'bio.link', 'blogspot', 'wordpress.com', 'wix.com', 'carrd.co']
 
 CATEGORY_KEYWORDS = {
-    'fnb_beverage': ['kopi', 'coffee', 'cafe', 'minuman', 'drink', 'juice', 'tea', 'boba', 'milk'],
-    'fnb_food_resto': ['resto', 'restaurant', 'kuliner', 'food', 'makan', 'catering', 'bakery', 'cake'],
-    'fashion_retail': ['fashion', 'clothing', 'baju', 'hijab', 'dress', 'outfit', 'store', 'boutique'],
-    'beauty_skincare': ['beauty', 'skincare', 'kosmetik', 'makeup', 'salon', 'kecantikan', 'clinic'],
-    'corporate_legal': ['law', 'lawyer', 'legal', 'notaris', 'konsultan', 'corporate', 'advisory'],
-    'event_service': ['event', 'wedding', 'organizer', 'eo', 'decoration', 'photography', 'video'],
+    'fnb_beverage': [
+        'kopi', 'coffee', 'cafe', 'minuman', 'drink', 'juice', 'tea', 'boba', 'milk',
+        'ngopi', 'roastery', 'espresso',
+    ],
+    'fnb_food_resto': [
+        'resto', 'restaurant', 'kuliner', 'food', 'makan', 'catering', 'bakery', 'cake',
+        'ayam', 'geprek', 'konro', 'coto', 'mie', 'bakso', 'roti', 'kue', 'sambal',
+        'seafood', 'ikan', 'nasi', 'bebek', 'dapur', 'warung', 'snack', 'martabak', 'katering',
+    ],
+    'fashion_retail': [
+        'fashion', 'clothing', 'baju', 'hijab', 'dress', 'outfit', 'store', 'boutique',
+        'butik', 'distro', 'apparel', 'gamis', 'kaos', 'sablon', 'batik', 'kebaya', 'hijabers',
+    ],
+    'beauty_skincare': [
+        'beauty', 'skincare', 'kosmetik', 'makeup', 'salon', 'kecantikan', 'clinic',
+        'estetika', 'facial', 'perawatan', 'dermatology', 'skin', 'beauty bar', 'ahli estetika',
+    ],
+    'corporate_legal': [
+        'law', 'lawyer', 'legal', 'notaris', 'ppat', 'konsultan', 'corporate', 'advisory',
+        'kantor hukum', 'kantor notaris', 'advokat', 'pengacara',
+    ],
+    'event_service': [
+        'event', 'wedding', 'organizer', 'eo', 'decoration', 'photography', 'video',
+        'seminar', 'workshop', 'pameran', 'expo',
+    ],
     'new_store_opening': ['grand opening', 'new store', 'baru buka', 'coming soon', 'soft opening'],
     'general_commercial': ['bisnis', 'usaha', 'jasa', 'service', 'produk', 'toko', 'umkm']
 }
+
+_AMBIGUOUS_KEYWORDS = {'ikan', 'mie', 'skin'}
+_AMBIGUOUS_PATTERNS = {kw: re.compile(r'\b' + kw + r'\b') for kw in _AMBIGUOUS_KEYWORDS}
+
+
+def is_non_commercial(business_name: str = '', biography: str = '') -> bool:
+    name = (business_name or '').lower()
+    bio = (biography or '').lower()
+    return any(kw in name or kw in bio for kw in NON_COMMERCIAL_KEYWORDS)
 
 
 def qualify_lead(lead: dict) -> Tuple[bool, str]:
@@ -44,22 +78,21 @@ def qualify_lead(lead: dict) -> Tuple[bool, str]:
     if not whatsapp and not phone and not email:
         return False, "No contact information"
     
-    biography = lead.get('biography', '').lower()
-    business_name = lead.get('business_name', '').lower()
-    
-    for keyword in NON_COMMERCIAL_KEYWORDS:
-        if keyword in biography or keyword in business_name:
-            return False, "Non-commercial/personal account"
-    
+    if is_non_commercial(lead.get('business_name', ''), lead.get('biography', '')):
+        return False, "Non-commercial/personal account"
+
     return True, "Qualified"
 
 
 def classify_category(business_name: str, biography: str, caption_samples: list[str]) -> str:
     text = f"{business_name} {biography} {' '.join(caption_samples or [])}".lower()
-    
+
     scores = {}
     for category, keywords in CATEGORY_KEYWORDS.items():
-        score = sum(1 for kw in keywords if kw in text)
+        score = sum(
+            1 for kw in keywords
+            if (_AMBIGUOUS_PATTERNS[kw].search(text) if kw in _AMBIGUOUS_PATTERNS else kw in text)
+        )
         scores[category] = score
     
     if max(scores.values()) == 0:
@@ -263,14 +296,14 @@ PRODUCT_MATRIX = {
         'value_prop': 'Citra formal kredibel, kerapian jilid arsip hukum.',
     },
     'event_service': {
-        'products': ['Spanduk Kain Banner Outdoor', 'X/Y-Banner', 'Stiker Kaca One-Way Vision'],
-        'materials': 'Flexi Jerman 510gsm outdoor tahan cuaca',
-        'value_prop': 'Pengerjaan kilat, warna cetak tajam untuk acara.',
+        'products': ['Ganci UV Akrilik 3mm', 'PIN Button Peniti (44/58)', 'Cetak Spanduk Flexy Korea', 'Sablon DTF Spunbond Bag', 'Tote Bag Box Kanvas'],
+        'materials': 'Akrilik 3mm Laser Cutting + UV Print 2 sisi, Flexy Korea outdoor, Spunbond 2 sisi',
+        'value_prop': 'Paket merchandise suvenir presisi dan spanduk display event kilat berkualitas.',
     },
     'general_commercial': {
-        'products': ['Paper Bag Custom', 'Stiker Logo', 'Brosur Lipat 3'],
-        'materials': 'Art Carton 310gsm, Laminasi Doff',
-        'value_prop': 'Branding profesional untuk bisnis Anda.',
+        'products': ['Cetak Stiker Vinyl A3+ (Kiss Cut/Die Cut)', 'Cetak Spanduk Flexy Korea', 'Sablon Kaos DTF', 'Nota / Surat Jalan NCR'],
+        'materials': 'Vinyl A3+ laminasi doff/glossy, Flexy Korea tahan cuaca, Kaos Combed 24s/30s',
+        'value_prop': 'Hasil cetak warna tajam, daya rekat kuat anti-air, pengerjaan tepat waktu.',
     },
 }
 

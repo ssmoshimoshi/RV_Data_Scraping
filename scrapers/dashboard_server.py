@@ -484,78 +484,21 @@ def inspect_account_content(platform: str, handle_or_url: str, business_name: st
     handle = handle_or_url.strip().lstrip("@")
     if "/" in handle:
         handle = handle.rstrip("/").split("/")[-1]
-    
-    clean_handle = handle.lower()
-    posts = [
-        {
-            "id": f"ins-{clean_handle}-1",
-            "caption": f"Peluncuran promo spesial dan pembaruan kemasan produk terbaru dari {business_name or handle}.",
-            "views": 28400,
-            "likes": 1920,
-            "comments": 148,
-            "engagement_rate": 7.28,
-            "date": (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d"),
-            "packaging_signal": True,
-            "tags": ["Pembaruan Kemasan", "Promo Produk"]
-        },
-        {
-            "id": f"ins-{clean_handle}-2",
-            "caption": "Bahan baku pilihan dan pengemasan higienis demi menjamin kepuasan pelanggan setia.",
-            "views": 21500,
-            "likes": 1430,
-            "comments": 94,
-            "engagement_rate": 7.08,
-            "date": (datetime.now() - timedelta(days=4)).strftime("%Y-%m-%d"),
-            "packaging_signal": True,
-            "tags": ["Quality Control", "Kemasan Higienis"]
-        },
-        {
-            "id": f"ins-{clean_handle}-3",
-            "caption": "Behind the scenes kesibukan tim kami melayani pesanan offline store dan pengiriman kota.",
-            "views": 18200,
-            "likes": 1180,
-            "comments": 72,
-            "engagement_rate": 6.87,
-            "date": (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d"),
-            "packaging_signal": False,
-            "tags": ["Aktivitas Toko", "Tim Kerja"]
-        },
-        {
-            "id": f"ins-{clean_handle}-4",
-            "caption": "Unboxing stok kemasan baru dengan cetakan logo tajam siap memperkuat citra merek kami.",
-            "views": 33100,
-            "likes": 2350,
-            "comments": 182,
-            "engagement_rate": 7.64,
-            "date": (datetime.now() - timedelta(days=11)).strftime("%Y-%m-%d"),
-            "packaging_signal": True,
-            "tags": ["Unboxing Stok", "Branding Logo"]
-        },
-        {
-            "id": f"ins-{clean_handle}-5",
-            "caption": "Testimoni dan ulasan positif pelanggan setelah menerima pesanan dalam kondisi rapi terlindungi.",
-            "views": 16400,
-            "likes": 1050,
-            "comments": 61,
-            "engagement_rate": 6.77,
-            "date": (datetime.now() - timedelta(days=15)).strftime("%Y-%m-%d"),
-            "packaging_signal": False,
-            "tags": ["Ulasan Pelanggan", "Kepuasan"]
-        }
-    ]
 
-    total_views = sum(p["views"] for p in posts)
-    avg_eng = round(sum(p["engagement_rate"] for p in posts) / len(posts), 2)
-    packaging_signal_count = sum(1 for p in posts if p["packaging_signal"])
+    clean_handle = handle.lower()
+    posts = []
 
     return {
         "handle": f"@{clean_handle}",
         "platform": platform.lower(),
-        "total_analyzed_posts": len(posts),
-        "total_views": total_views,
-        "avg_engagement_rate": avg_eng,
-        "packaging_intent_posts": packaging_signal_count,
-        "commercial_velocity": "Tinggi (Aktif <= 7 hari)" if posts else "Tidak Terdeteksi",
+        "status": "Belum diinspeksi",
+        "inspected_at": datetime.now().isoformat(),
+        "total_analyzed_posts": 0,
+        "total_posts_analyzed": 0,
+        "total_views": 0,
+        "avg_engagement_rate": 0.0,
+        "packaging_intent_posts": 0,
+        "commercial_velocity": "Tidak Terdeteksi",
         "posts": posts
     }
 
@@ -871,8 +814,9 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
             
             inspection = inspect_account_content(platform, clean_handle, target_lead.get("business_name", ""))
             target_lead["top_posts"] = inspection["posts"]
-            target_lead["latest_post_date"] = (datetime.now() - timedelta(days=1)).isoformat()
-            target_lead["is_active_verified"] = True
+            if inspection["posts"]:
+                target_lead["latest_post_date"] = (datetime.now() - timedelta(days=1)).isoformat()
+                target_lead["is_active_verified"] = True
 
             persisted = False
             if from_dossier:
@@ -887,7 +831,7 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(json.dumps({
                 "status": "success",
-                "message": f"Kanal {platform} berhasil dihubungkan dan 5 konten terpopuler diinspeksi.",
+                "message": f"Kanal {platform} berhasil dihubungkan.",
                 "persisted": persisted,
                 "lead": enriched,
                 "inspection": inspection

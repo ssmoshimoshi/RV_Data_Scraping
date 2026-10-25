@@ -1,0 +1,1338 @@
+{
+  "synced_at": "2026-10-26T04:42:12.505605",
+  "source": "ruang_visual_app_master_items",
+  "total_templates": 16,
+  "total_master_items": 100,
+  "product_templates": [
+    {
+      "id": "40456705-0b04-42b8-b467-8765440fc653",
+      "name": "Cetak Stiker A3+",
+      "category": "UMUM",
+      "unit": "Lembar",
+      "description": null,
+      "is_active": true,
+      "pricing_tiers": [
+        {
+          "label": "Eceran / Retail",
+          "max_qty": 11,
+          "min_qty": 1,
+          "margin_percent": 175
+        },
+        {
+          "label": "Grosir Lusinan",
+          "max_qty": 49,
+          "min_qty": 12,
+          "margin_percent": 150
+        },
+        {
+          "label": "Grosir Sedang",
+          "max_qty": 99,
+          "min_qty": 50,
+          "margin_percent": 125
+        },
+        {
+          "label": "Partai Besar",
+          "max_qty": null,
+          "min_qty": 100,
+          "margin_percent": 105
+        }
+      ]
+    },
+    {
+      "id": "8591694e-61d7-4eff-b369-26d715031718",
+      "name": "Sablon Mug + Box",
+      "category": "UMUM",
+      "unit": "Set",
+      "description": null,
+      "is_active": true,
+      "pricing_tiers": [
+        {
+          "label": "Eceran / Retail",
+          "max_qty": 11,
+          "min_qty": 1,
+          "margin_percent": 80
+        },
+        {
+          "label": "Grosir Lusinan",
+          "max_qty": 49,
+          "min_qty": 12,
+          "margin_percent": 40
+        },
+        {
+          "label": "Grosir Sedang",
+          "max_qty": 99,
+          "min_qty": 50,
+          "margin_percent": 30
+        },
+        {
+          "label": "Partai Besar",
+          "max_qty": null,
+          "min_qty": 100,
+          "margin_percent": 20
+        }
+      ]
+    },
+    {
+      "id": "af2bf654-2576-4b94-9c7a-2a6550dcb590",
+      "name": "Sablon Kaos DTF",
+      "category": "UMUM",
+      "unit": "Lembar",
+      "description": null,
+      "is_active": true,
+      "pricing_tiers": [
+        {
+          "label": "Eceran / Retail",
+          "max_qty": 11,
+          "min_qty": 1,
+          "margin_percent": 80
+        },
+        {
+          "label": "Grosir Lusinan",
+          "max_qty": 49,
+          "min_qty": 12,
+          "margin_percent": 60
+        },
+        {
+          "label": "Grosir Sedang",
+          "max_qty": 99,
+          "min_qty": 50,
+          "margin_percent": 45
+        },
+        {
+          "label": "Partai Besar",
+          "max_qty": null,
+          "min_qty": 100,
+          "margin_percent": 35
+        }
+      ]
+    },
+    {
+      "id": "0e09bed1-4d63-41b3-812e-010c4a91e417",
+      "name": "Cetak Spanduk Flexy Korea",
+      "category": "OUTDOOR",
+      "unit": "Meter",
+      "description": null,
+      "is_active": true,
+      "pricing_tiers": [
+        {
+          "label": "Eceran / Retail",
+          "max_qty": 11,
+          "min_qty": 1,
+          "margin_percent": 20
+        },
+        {
+          "label": "Grosir Lusinan",
+          "max_qty": 49,
+          "min_qty": 12,
+          "margin_percent": 20
+        },
+        {
+          "label": "Grosir Sedang",
+          "max_qty": 99,
+          "min_qty": 50,
+          "margin_percent": 20
+        },
+        {
+          "label": "Partai Besar",
+          "max_qty": null,
+          "min_qty": 100,
+          "margin_percent": 10
+        }
+      ]
+    },
+    {
+      "id": "40954e63-03e2-44a2-9164-df2629a3efee",
+      "name": "Cetak Stiker Vinyl A3+ Laminasi + Kiss cut",
+      "category": "UMUM",
+      "unit": "Lembar",
+      "description": null,
+      "is_active": true,
+      "pricing_tiers": [
+        {
+          "label": "Eceran / Retail",
+          "max_qty": 11,
+          "min_qty": 1,
+          "margin_percent": 55
+        },
+        {
+          "label": "Grosir Lusinan",
+          "max_qty": 49,
+          "min_qty": 12,
+          "margin_percent": 55
+        },
+        {
+          "label": "Grosir Sedang",
+          "max_qty": 149,
+          "min_qty": 50,
+          "margin_percent": 35
+        },
+        {
+          "label": "Partai Besar",
+          "max_qty": null,
+          "min_qty": 150,
+          "margin_percent": 25
+        }
+      ]
+    },
+    {
+      "id": "70bd5be8-5aca-49de-96f6-2aedb4c0c86a",
+      "name": "Cetak Stiker Vinyl A3+ Laminasi + Die cut",
+      "category": "UMUM",
+      "unit": "Lembar",
+      "description": null,
+      "is_active": true,
+      "pricing_tiers": [
+        {
+          "label": "Eceran / Retail",
+          "max_qty": 11,
+          "min_qty": 1,
+          "margin_percent": 75
+        },
+        {
+          "label": "Grosir Lusinan",
+          "max_qty": 49,
+          "min_qty": 12,
+          "margin_percent": 75
+        },
+        {
+          "label": "Grosir Sedang",
+          "max_qty": 149,
+          "min_qty": 50,
+          "margin_percent": 50
+        },
+        {
+          "label": "Partai Besar",
+          "max_qty": null,
+          "min_qty": 150,
+          "margin_percent": 35
+        }
+      ]
+    },
+    {
+      "id": "c641443a-7383-4a33-8b91-17be1ea01623",
+      "name": "Cetak Spanduk  Flexy China",
+      "category": "OUTDOOR",
+      "unit": "Pcs",
+      "description": null,
+      "is_active": true,
+      "pricing_tiers": [
+        {
+          "label": "Eceran / Retail",
+          "max_qty": 11,
+          "min_qty": 1,
+          "margin_percent": 70
+        },
+        {
+          "label": "Grosir Lusinan",
+          "max_qty": 49,
+          "min_qty": 12,
+          "margin_percent": 70
+        },
+        {
+          "label": "Grosir Sedang",
+          "max_qty": 99,
+          "min_qty": 50,
+          "margin_percent": 50
+        },
+        {
+          "label": "Partai Besar",
+          "max_qty": null,
+          "min_qty": 100,
+          "margin_percent": 35
+        }
+      ]
+    },
+    {
+      "id": "3e163f4d-3cc1-4539-a3be-c4422f3c660f",
+      "name": "Cetak Albatros b2b",
+      "category": "INDOOR",
+      "unit": "Meter",
+      "description": null,
+      "is_active": true,
+      "pricing_tiers": [
+        {
+          "label": "Eceran / Retail",
+          "max_qty": 49,
+          "min_qty": 1,
+          "margin_percent": 38
+        },
+        {
+          "label": "Grosir Sedang",
+          "max_qty": 99,
+          "min_qty": 50,
+          "margin_percent": 32
+        },
+        {
+          "label": "Partai Besar",
+          "max_qty": null,
+          "min_qty": 100,
+          "margin_percent": 27
+        }
+      ]
+    },
+    {
+      "id": "10b97f2d-1599-4359-a9e2-3edd14f17255",
+      "name": "MAP RAPORT",
+      "category": "UMUM",
+      "unit": "Pcs",
+      "description": "Termasuk Siku  dan isi 1 Lembar Plastik",
+      "is_active": true,
+      "pricing_tiers": [
+        {
+          "label": "Eceran / Retail",
+          "max_qty": 11,
+          "min_qty": 1,
+          "margin_percent": 190
+        },
+        {
+          "label": "Grosir Lusinan",
+          "max_qty": 49,
+          "min_qty": 12,
+          "margin_percent": 140
+        },
+        {
+          "label": "Grosir Sedang",
+          "max_qty": 99,
+          "min_qty": 50,
+          "margin_percent": 115
+        },
+        {
+          "label": "Partai Besar",
+          "max_qty": null,
+          "min_qty": 100,
+          "margin_percent": 80
+        }
+      ]
+    },
+    {
+      "id": "cf8183ce-02b9-4ad6-9879-013357997e14",
+      "name": "Cetak Albatros",
+      "category": "OUTDOOR",
+      "unit": "Meter",
+      "description": null,
+      "is_active": true,
+      "pricing_tiers": [
+        {
+          "label": "Eceran / Retail",
+          "max_qty": 49,
+          "min_qty": 1,
+          "margin_percent": 112
+        },
+        {
+          "label": "Grosir Sedang",
+          "max_qty": 99,
+          "min_qty": 50,
+          "margin_percent": 98
+        },
+        {
+          "label": "Partai Besar",
+          "max_qty": null,
+          "min_qty": 100,
+          "margin_percent": 87
+        }
+      ]
+    },
+    {
+      "id": "23cd3f11-847c-431c-abc1-3ece3ea6b37e",
+      "name": "Cetak Stiker Vinyl A3+ Kiss cut",
+      "category": "UMUM",
+      "unit": "Lembar",
+      "description": null,
+      "is_active": true,
+      "pricing_tiers": [
+        {
+          "label": "Eceran / Retail",
+          "max_qty": 99,
+          "min_qty": 1,
+          "margin_percent": 42
+        },
+        {
+          "label": "Partai Besar",
+          "max_qty": null,
+          "min_qty": 100,
+          "margin_percent": 35
+        }
+      ]
+    },
+    {
+      "id": "97dd82a4-d2e3-45ad-8350-f74b722c2514",
+      "name": "Sablon DTF Spunbond Bag 2 Sisi",
+      "category": "UMUM",
+      "unit": "Pcs",
+      "description": "Ukuran 28x26x27",
+      "is_active": true,
+      "pricing_tiers": [
+        {
+          "label": "Eceran / Retail",
+          "max_qty": 11,
+          "min_qty": 1,
+          "margin_percent": 175
+        },
+        {
+          "label": "Grosir Lusinan",
+          "max_qty": 49,
+          "min_qty": 12,
+          "margin_percent": 150
+        },
+        {
+          "label": "Grosir Sedang",
+          "max_qty": 99,
+          "min_qty": 50,
+          "margin_percent": 100
+        },
+        {
+          "label": "Partai Besar",
+          "max_qty": null,
+          "min_qty": 100,
+          "margin_percent": 73
+        }
+      ]
+    },
+    {
+      "id": "07db70e9-1e53-461d-907d-b6cca5d33880",
+      "name": "PIN Button Peniti",
+      "category": "UMUM",
+      "unit": "Pcs",
+      "description": null,
+      "is_active": true,
+      "pricing_tiers": [
+        {
+          "label": "Eceran / Retail",
+          "max_qty": 69,
+          "min_qty": 35,
+          "margin_percent": 200
+        },
+        {
+          "label": "Grosir Lusinan",
+          "max_qty": 199,
+          "min_qty": 70,
+          "margin_percent": 110
+        },
+        {
+          "label": "Partai Besar",
+          "max_qty": 499,
+          "min_qty": 200,
+          "margin_percent": 80
+        },
+        {
+          "label": "Partai Khusus",
+          "max_qty": null,
+          "min_qty": 500,
+          "margin_percent": 48
+        }
+      ]
+    },
+    {
+      "id": "4503697a-5e19-4f11-a3ae-b8e536e730fe",
+      "name": "GANCI UV AKRILIK 3mm",
+      "category": "UMUM",
+      "unit": "Pcs",
+      "description": "Ukuran 7x7cm,  Akrilik 3mm, Laser Cutting & Cetak UV 2 sisi",
+      "is_active": true,
+      "pricing_tiers": [
+        {
+          "label": "Eceran / Retail",
+          "max_qty": 11,
+          "min_qty": 5,
+          "margin_percent": 275
+        },
+        {
+          "label": "Grosir Lusinan",
+          "max_qty": 49,
+          "min_qty": 12,
+          "margin_percent": 220
+        },
+        {
+          "label": "Grosir Sedang",
+          "max_qty": 99,
+          "min_qty": 50,
+          "margin_percent": 160
+        },
+        {
+          "label": "Partai Besar",
+          "max_qty": null,
+          "min_qty": 100,
+          "margin_percent": 120
+        }
+      ]
+    },
+    {
+      "id": "dace4310-acd2-426e-83bb-0395cf394a88",
+      "name": "Tote Bag  Box kanvas",
+      "category": "UMUM",
+      "unit": "Pcs",
+      "description": "Ukuran 40x30x10cm  Sablon 2 sisi",
+      "is_active": true,
+      "pricing_tiers": [
+        {
+          "label": "Eceran / Retail",
+          "max_qty": 11,
+          "min_qty": 1,
+          "manual_price": 82529,
+          "margin_percent": 80,
+          "calculation_type": "PERCENT"
+        },
+        {
+          "label": "Grosir Sedang",
+          "max_qty": 47,
+          "min_qty": 12,
+          "manual_price": 73359,
+          "margin_percent": 60,
+          "calculation_type": "PERCENT"
+        },
+        {
+          "label": "Partai Besar",
+          "max_qty": null,
+          "min_qty": 48,
+          "manual_price": 50000,
+          "margin_percent": 9,
+          "calculation_type": "MANUAL_PRICE"
+        }
+      ]
+    },
+    {
+      "id": "e1035949-9213-4020-86d1-f61aa59cbbcd",
+      "name": "Ganci UV Akrilik 3mm",
+      "category": "UMUM",
+      "unit": "Pcs",
+      "description": "Ukuran 7X7cm",
+      "is_active": true,
+      "pricing_tiers": [
+        {
+          "label": "Eceran / Retail",
+          "max_qty": 11,
+          "min_qty": 5,
+          "manual_price": 30600,
+          "margin_percent": 70,
+          "calculation_type": "PERCENT"
+        },
+        {
+          "label": "Grosir Lusinan",
+          "max_qty": 49,
+          "min_qty": 12,
+          "manual_price": 27900,
+          "margin_percent": 55,
+          "calculation_type": "PERCENT"
+        },
+        {
+          "label": "Grosir Sedang",
+          "max_qty": 99,
+          "min_qty": 50,
+          "manual_price": 23400,
+          "margin_percent": 30,
+          "calculation_type": "PERCENT"
+        },
+        {
+          "label": "Partai Besar",
+          "max_qty": null,
+          "min_qty": 100,
+          "manual_price": 20000,
+          "margin_percent": 11,
+          "calculation_type": "MANUAL_PRICE"
+        }
+      ]
+    }
+  ],
+  "master_items": [
+    {
+      "id": "7580b598-46db-41bb-b20e-2d841e53b284",
+      "itemCode": "MAT-057",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Toner Fotokopi Panter",
+      "baseUnit": "Pcs"
+    },
+    {
+      "id": "0ab6a5ff-bd90-49e8-97ea-8f5d2af3e0bc",
+      "itemCode": "SRV-057",
+      "type": "JASA",
+      "subCategory": "UMUM",
+      "name": "Jasa Pond Per-1000 lembar",
+      "baseUnit": "Flat"
+    },
+    {
+      "id": "0ce562e4-ad17-4a50-a201-b953c594b139",
+      "itemCode": "MAT-062",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Akrilik 3mm",
+      "baseUnit": "cm"
+    },
+    {
+      "id": "f6b64ce0-ca38-4a06-bc15-74d6ebc0f79e",
+      "itemCode": "MAT-058",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Plat Offset 66",
+      "baseUnit": "Pcs"
+    },
+    {
+      "id": "93b218d6-adea-476d-899d-e4d8877ed665",
+      "itemCode": "SRV-046",
+      "type": "JASA",
+      "subCategory": "OUTDOOR",
+      "name": "Cetak Luster",
+      "baseUnit": "Flat"
+    },
+    {
+      "id": "3cc6aff7-f354-4e41-92c3-782c489be95d",
+      "itemCode": "MAT-060",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Hot Melt Glue (lem panas jilid)",
+      "baseUnit": "cm"
+    },
+    {
+      "id": "65b18a66-bc9a-4dae-802d-2e77385a148d",
+      "itemCode": "SRV-059",
+      "type": "JASA",
+      "subCategory": "UMUM",
+      "name": "Laser Cutting Acrylic",
+      "baseUnit": "cm"
+    },
+    {
+      "id": "cf5820a6-7a59-406f-891d-e95b442dce09",
+      "itemCode": "SRV-055",
+      "type": "JASA",
+      "subCategory": "UMUM",
+      "name": "Cetak offset per-1000 lembar",
+      "baseUnit": "Flat"
+    },
+    {
+      "id": "5aeb9374-809c-4625-9d71-c1b02315c769",
+      "itemCode": "MAT-061",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Roll Up banner",
+      "baseUnit": "Pcs"
+    },
+    {
+      "id": "56085064-f377-47af-bff9-fa8e64ac7814",
+      "itemCode": "SRV-060",
+      "type": "JASA",
+      "subCategory": "UMUM",
+      "name": "Ganci UV Akrilik 3mm",
+      "baseUnit": "Pcs"
+    },
+    {
+      "id": "4e285519-aca6-433c-a5fa-45abbcb6d646",
+      "itemCode": "SRV-047",
+      "type": "JASA",
+      "subCategory": "OUTDOOR",
+      "name": "Cetak Silk",
+      "baseUnit": "Flat"
+    },
+    {
+      "id": "33bce765-dcd3-48e6-aa3f-0725ce2ac490",
+      "itemCode": "SRV-048",
+      "type": "JASA",
+      "subCategory": "FINISHING",
+      "name": "Large Format Cold Laminating Film",
+      "baseUnit": "cm"
+    },
+    {
+      "id": "59b778a7-efc8-4916-b07e-58b00c24b2ed",
+      "itemCode": "MAT-043",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "PIN Peniti 58",
+      "baseUnit": "Pcs"
+    },
+    {
+      "id": "51f62996-a932-4c79-bc4f-8ac610cdc8c8",
+      "itemCode": "MAT-044",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "PIN Ganci 2 sisi",
+      "baseUnit": "Pcs"
+    },
+    {
+      "id": "4b4189c8-a052-4e41-8a4d-19b0dddac5b9",
+      "itemCode": "SRV-049",
+      "type": "JASA",
+      "subCategory": "FINISHING",
+      "name": "Press Pin",
+      "baseUnit": "Pcs"
+    },
+    {
+      "id": "7e20bb80-7570-452b-bc62-12cc0e9a2d4d",
+      "itemCode": "MAT-015",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Large Format Vinyl Sticker (SPECTRA)",
+      "baseUnit": "cm"
+    },
+    {
+      "id": "b3462935-dd83-4fa0-bac0-34da0f477b26",
+      "itemCode": "MAT-046",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Kertas BC  A3+ PUTIH",
+      "baseUnit": "Lembar"
+    },
+    {
+      "id": "f41be46b-7118-4f1f-b30f-16bff8510c4e",
+      "itemCode": "SRV-056",
+      "type": "JASA",
+      "subCategory": "INDOOR",
+      "name": "Cetak Offset Per-Plat",
+      "baseUnit": "Flat"
+    },
+    {
+      "id": "c4dbb456-3dd4-4d3b-878f-c644db2ea4ca",
+      "itemCode": "MAT-063",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Ivory a3+ 210 gsm",
+      "baseUnit": "Lembar"
+    },
+    {
+      "id": "1114fdab-e962-4fcb-8d8b-a4b10d2ac0fb",
+      "itemCode": "MAT-050",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Tote Bag Box  30x40x10",
+      "baseUnit": "Pcs"
+    },
+    {
+      "id": "7c61996e-a7b1-4c4b-b203-6290f7f890cc",
+      "itemCode": "MAT-001",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Kingstruk 120gsm  A3+",
+      "baseUnit": "Lembar"
+    },
+    {
+      "id": "cd61870b-4b1b-48de-b253-d2e68f73d032",
+      "itemCode": "SRV-050",
+      "type": "JASA",
+      "subCategory": "INDOOR",
+      "name": "Cetak Albatros b2b",
+      "baseUnit": "cm"
+    },
+    {
+      "id": "7d3a5985-3454-4ef3-ab84-b8638002d92e",
+      "itemCode": "SRV-051",
+      "type": "JASA",
+      "subCategory": "UMUM",
+      "name": "Map Raport + Siku Isi 1 lembar plastik",
+      "baseUnit": "Pcs"
+    },
+    {
+      "id": "4881257d-d43c-4b98-a5ca-34486f4bfabe",
+      "itemCode": "SRV-052",
+      "type": "JASA",
+      "subCategory": "UMUM",
+      "name": "Hot Press Laminating  PIN",
+      "baseUnit": "cm"
+    },
+    {
+      "id": "f3e7aa0d-6b80-45f6-a78b-d11254e62740",
+      "itemCode": "MAT-049",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "KERTAS HVS A3+ PIN",
+      "baseUnit": "cm"
+    },
+    {
+      "id": "1672c2e3-a8f4-475d-bbe6-9c798a530bb1",
+      "itemCode": "MAT-045",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Kertas HVS A3+",
+      "baseUnit": "Lembar"
+    },
+    {
+      "id": "685a6a68-217e-4d7a-b351-64ea4ef956b5",
+      "itemCode": "SRV-053",
+      "type": "JASA",
+      "subCategory": "UMUM",
+      "name": "Cetak A3+ PIN",
+      "baseUnit": "cm"
+    },
+    {
+      "id": "ca452924-1718-4b4e-a159-05314b94726c",
+      "itemCode": "MAT-002",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Kingstruk 120gsm plano 65/100 cm",
+      "baseUnit": "Lembar"
+    },
+    {
+      "id": "43a8ee81-87f4-4830-af02-d7545b6ce025",
+      "itemCode": "MAT-003",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Kingstruk 120gsm plano 79/109",
+      "baseUnit": "Lembar"
+    },
+    {
+      "id": "655f0d23-024a-4bae-942d-2d14b1c7e3a7",
+      "itemCode": "MAT-004",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Kingstruk 150gsm A3+",
+      "baseUnit": "Lembar"
+    },
+    {
+      "id": "5ea3316c-686c-4084-bb90-7f2716b6aa6e",
+      "itemCode": "MAT-005",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Kingstruk 150gsm 65/100cm",
+      "baseUnit": "Lembar"
+    },
+    {
+      "id": "d80f7b93-3994-4a40-83f5-06a20d16a6fd",
+      "itemCode": "MAT-006",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Kingstruk 150gsm 79/109 cm",
+      "baseUnit": "Lembar"
+    },
+    {
+      "id": "5817c20a-797c-404a-884b-558bdc77d25c",
+      "itemCode": "MAT-007",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Kingstruk 260gsm A3+",
+      "baseUnit": "Lembar"
+    },
+    {
+      "id": "51ee1e66-3f06-4df6-a479-e79e3f26b6a1",
+      "itemCode": "MAT-041",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Glossy Hot Laminating Film",
+      "baseUnit": "cm"
+    },
+    {
+      "id": "0af59b89-4600-4c4e-92a6-6fda9708ced7",
+      "itemCode": "MAT-048",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Spunbond Bag Box 26x25x27cm",
+      "baseUnit": "Pcs"
+    },
+    {
+      "id": "32200a40-5877-4a69-a10c-b6d7c9df575d",
+      "itemCode": "MAT-053",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Large Format Vinyl Stiker (Luminor)",
+      "baseUnit": "cm"
+    },
+    {
+      "id": "70a3dee2-7881-4075-be17-e3aa0c267a02",
+      "itemCode": "MAT-052",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Tinta Lecai Eco Solvent i3200 Yellow",
+      "baseUnit": "Pcs"
+    },
+    {
+      "id": "27d14d64-83e1-4ce4-9e43-f556d4770898",
+      "itemCode": "MAT-054",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Tinta Lecai Eco Solvent i3200 Cyan",
+      "baseUnit": "Pcs"
+    },
+    {
+      "id": "9ad33d77-f6a9-4ede-b640-b9a54d72c2cb",
+      "itemCode": "MAT-055",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Tinta Lecai Eco Solvent i3200 Magenta",
+      "baseUnit": "Pcs"
+    },
+    {
+      "id": "5d6c4503-3c51-42a9-bf34-74d3dc3b058b",
+      "itemCode": "MAT-056",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Tinta Lecai Eco Solvent i3200 Black",
+      "baseUnit": "Pcs"
+    },
+    {
+      "id": "6e4475bd-ed52-4c0f-acfc-c1ceef7e9da2",
+      "itemCode": "MAT-042",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "PIN Peniti 44",
+      "baseUnit": "Pcs"
+    },
+    {
+      "id": "6c2daa7d-a382-4e37-bb23-5f92327beb44",
+      "itemCode": "MAT-008",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Kingstruk 260gsm 65/100 cm",
+      "baseUnit": "Lembar"
+    },
+    {
+      "id": "65e53793-0e81-4100-b4b5-870c7d1d1592",
+      "itemCode": "MAT-009",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Kingstruk 260gsm 79/109",
+      "baseUnit": "Lembar"
+    },
+    {
+      "id": "7a3a5cb9-3e99-462d-9366-8868faf8b5ac",
+      "itemCode": "MAT-010",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Kingstruk 310gsm  A3+",
+      "baseUnit": "Lembar"
+    },
+    {
+      "id": "477a0c14-2adb-4071-bb4b-7b5e559faa87",
+      "itemCode": "MAT-011",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Kingstruk 310gsm 65/100",
+      "baseUnit": "cm"
+    },
+    {
+      "id": "608dacd9-3858-4ca5-9473-45538f263cfc",
+      "itemCode": "MAT-012",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Kingstruk 310gsm 79/109",
+      "baseUnit": "Lembar"
+    },
+    {
+      "id": "d25ae64c-293a-4161-910e-ff63419c524c",
+      "itemCode": "SRV-008",
+      "type": "JASA",
+      "subCategory": "FINISHING",
+      "name": "Die Cut A3+",
+      "baseUnit": "Lembar"
+    },
+    {
+      "id": "bde97a62-6884-48f5-901f-bad9b4a42707",
+      "itemCode": "MAT-023",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Sticker Oracal",
+      "baseUnit": "cm"
+    },
+    {
+      "id": "5c67fd34-2fe2-498a-a79c-632dc83bb030",
+      "itemCode": "SRV-018",
+      "type": "JASA",
+      "subCategory": "FINISHING",
+      "name": "Hot Press Lanyard",
+      "baseUnit": "Lembar"
+    },
+    {
+      "id": "fdeca06f-ba38-4d1a-8308-2c5dc331037b",
+      "itemCode": "MAT-032",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Stiker Kertas A3+",
+      "baseUnit": "Lembar"
+    },
+    {
+      "id": "5989259e-6f64-4b31-a254-12ec6da3be87",
+      "itemCode": "MAT-040",
+      "type": "BAHAN",
+      "subCategory": "INDOOR",
+      "name": "Albatros",
+      "baseUnit": "cm"
+    },
+    {
+      "id": "facee07d-aa07-4f04-af4a-b8f4b0b1230b",
+      "itemCode": "SRV-006",
+      "type": "JASA",
+      "subCategory": "FINISHING",
+      "name": "Cutting Sticker",
+      "baseUnit": "cm"
+    },
+    {
+      "id": "e2ebd61a-d195-469c-8792-2f8fe49fb7e3",
+      "itemCode": "SRV-012",
+      "type": "JASA",
+      "subCategory": "FINISHING",
+      "name": "A3+ Hot Laminating",
+      "baseUnit": "Lembar"
+    },
+    {
+      "id": "e7e8f0b8-2f0a-41d9-832c-e7047de95ff0",
+      "itemCode": "SRV-007",
+      "type": "JASA",
+      "subCategory": "FINISHING",
+      "name": "Kiss Cut A3",
+      "baseUnit": "Lembar"
+    },
+    {
+      "id": "51700311-2658-4795-b5bf-57518384c886",
+      "itemCode": "SRV-015",
+      "type": "JASA",
+      "subCategory": "UMUM",
+      "name": "Large Format Sublimation  Printing",
+      "baseUnit": "cm"
+    },
+    {
+      "id": "205f3bf1-02bc-4c24-b276-107668350954",
+      "itemCode": "MAT-019",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Box Mug",
+      "baseUnit": "Pcs"
+    },
+    {
+      "id": "61de481f-b33c-4b0b-a346-ccb3028b904d",
+      "itemCode": "SRV-003",
+      "type": "JASA",
+      "subCategory": "FINISHING",
+      "name": "Hot Press Mug",
+      "baseUnit": "Pcs"
+    },
+    {
+      "id": "9d931c35-dcc6-43b4-80fe-10d99d8a8f28",
+      "itemCode": "SRV-009",
+      "type": "JASA",
+      "subCategory": "FINISHING",
+      "name": "Flashing Karet Stempel",
+      "baseUnit": "Flat"
+    },
+    {
+      "id": "ba350217-c19c-4171-9390-1d3e344075a9",
+      "itemCode": "MAT-025",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Gagang Stempel Flash",
+      "baseUnit": "Pcs"
+    },
+    {
+      "id": "90147d23-a576-4b35-93ea-e51cbb17645f",
+      "itemCode": "MAT-024",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Karet Stempel Flash",
+      "baseUnit": "cm"
+    },
+    {
+      "id": "c110d3df-42ea-4690-9320-fa64e9352143",
+      "itemCode": "MAT-026",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Reflective Sticker",
+      "baseUnit": "cm"
+    },
+    {
+      "id": "836880a7-941f-4ee7-8279-4c9032313f2e",
+      "itemCode": "MAT-027",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Instant ID CARD Inkjet",
+      "baseUnit": "Pcs"
+    },
+    {
+      "id": "c1848fa8-4e7c-44d0-8b7b-919391d82029",
+      "itemCode": "MAT-016",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Large Format Transparent Sticker",
+      "baseUnit": "cm"
+    },
+    {
+      "id": "b694cc25-47e7-4c3a-acd7-29a4a6c2ae5b",
+      "itemCode": "SRV-011",
+      "type": "JASA",
+      "subCategory": "UMUM",
+      "name": "Cetak UV ID CARD",
+      "baseUnit": "Pcs"
+    },
+    {
+      "id": "ab658a5a-2978-4c76-b782-cfa7c814ea09",
+      "itemCode": "SRV-010",
+      "type": "JASA",
+      "subCategory": "UMUM",
+      "name": "Cetak INKJET ID CARD ",
+      "baseUnit": "Pcs"
+    },
+    {
+      "id": "e72f1a5a-999a-4a76-bcce-570dcbdf74cc",
+      "itemCode": "SRV-041",
+      "type": "JASA",
+      "subCategory": "INDOOR",
+      "name": "Indoor Printing",
+      "baseUnit": "cm"
+    },
+    {
+      "id": "eedc61c7-96ae-4920-8370-f573d0d26a27",
+      "itemCode": "MAT-020",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Ivory 250gsm plano 65/100cm",
+      "baseUnit": "Pcs"
+    },
+    {
+      "id": "3da2f52b-0f6b-4576-91f3-0bfc85f26575",
+      "itemCode": "MAT-021",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Ivory 250gsm plano 79/109cm",
+      "baseUnit": "Pcs"
+    },
+    {
+      "id": "592674a7-a8f9-4c1d-9cfd-7e87d058c319",
+      "itemCode": "SRV-002",
+      "type": "JASA",
+      "subCategory": "UMUM",
+      "name": "Sublimation Printing A4",
+      "baseUnit": "Lembar"
+    },
+    {
+      "id": "1543b7d4-8d5b-4631-8588-5f6972f96f89",
+      "itemCode": "SRV-013",
+      "type": "JASA",
+      "subCategory": "FINISHING",
+      "name": "Large Format Cold Laminating",
+      "baseUnit": "cm"
+    },
+    {
+      "id": "29286d2d-ab68-4b90-961c-fb34c58d9f19",
+      "itemCode": "SRV-005",
+      "type": "JASA",
+      "subCategory": "UMUM",
+      "name": "Cetak  A3+ 2 Sisi",
+      "baseUnit": "Pcs"
+    },
+    {
+      "id": "4560af22-0344-495a-a8d9-1698efcae312",
+      "itemCode": "MAT-028",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Kaos Polos 24s Pendek",
+      "baseUnit": "Lembar"
+    },
+    {
+      "id": "090e3741-1eae-41c3-a630-966ab5c72786",
+      "itemCode": "MAT-029",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Kaos Polos 24s Panjang",
+      "baseUnit": "Lembar"
+    },
+    {
+      "id": "39289aca-872d-4255-97f1-771a2efaa51b",
+      "itemCode": "MAT-030",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Kaos Polos 30s Pendek",
+      "baseUnit": "Lembar"
+    },
+    {
+      "id": "5a496004-adca-469c-aac9-fb340714d8f5",
+      "itemCode": "MAT-031",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Kaos Polos 30s Panjang",
+      "baseUnit": "Lembar"
+    },
+    {
+      "id": "51843d45-4828-4b28-bd78-60c356a206b1",
+      "itemCode": "MAT-035",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Transfer Tape Sticker",
+      "baseUnit": "cm"
+    },
+    {
+      "id": "8d4b33da-ef1a-4c99-91b0-24e3f38d43e7",
+      "itemCode": "MAT-033",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Kertas Foto A4",
+      "baseUnit": "Lembar"
+    },
+    {
+      "id": "e95d99b8-eb79-4b40-beec-f1b3ccb38114",
+      "itemCode": "SRV-017",
+      "type": "JASA",
+      "subCategory": "UMUM",
+      "name": "Cetak Kertas Foto A4",
+      "baseUnit": "Lembar"
+    },
+    {
+      "id": "6567eefa-1fbe-4d0e-a1a0-bbb121d283da",
+      "itemCode": "SRV-014",
+      "type": "JASA",
+      "subCategory": "UMUM",
+      "name": "DTF Printing",
+      "baseUnit": "cm"
+    },
+    {
+      "id": "db3660a2-9fbb-4e92-822f-e8f7d09a4cc2",
+      "itemCode": "MAT-037",
+      "type": "JASA",
+      "subCategory": "DOKUMEN",
+      "name": "Fotokopi",
+      "baseUnit": "Lembar"
+    },
+    {
+      "id": "81326a64-38bc-4b55-81c9-2d65a1ee620f",
+      "itemCode": "MAT-014",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Stiker Bening  A3+ ",
+      "baseUnit": "Lembar"
+    },
+    {
+      "id": "f4cc9695-2ce0-484b-a6f9-2db4140184f5",
+      "itemCode": "MAT-013",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Stiker   Vinyl A3+ ",
+      "baseUnit": "Lembar"
+    },
+    {
+      "id": "a05e9d0d-067c-460a-bfa9-f34b40c0ed54",
+      "itemCode": "MAT-018",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Sublimation Transfer Paper A4",
+      "baseUnit": "Lembar"
+    },
+    {
+      "id": "1045940d-1d0c-449c-ae09-f9fef2c6780f",
+      "itemCode": "SRV-054",
+      "type": "JASA",
+      "subCategory": "UMUM",
+      "name": "Cetak UV Flatbed",
+      "baseUnit": "cm"
+    },
+    {
+      "id": "d2d2d388-0a60-41af-b258-a16319b1543e",
+      "itemCode": "MAT-017",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Mug Polos 350ml",
+      "baseUnit": "Pcs"
+    },
+    {
+      "id": "2a614589-ca46-476b-8b2a-b5dd7a8a84c0",
+      "itemCode": "MAT-034",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Lanyard Sublimation Transfer Paper  ",
+      "baseUnit": "Lembar"
+    },
+    {
+      "id": "efe99ba3-ac09-46bf-ba43-77369314d8f5",
+      "itemCode": "MAT-036",
+      "type": "BAHAN",
+      "subCategory": "DOKUMEN",
+      "name": "Kertas HVS A4",
+      "baseUnit": "Lembar"
+    },
+    {
+      "id": "646dd08e-a809-409f-9426-5d0ba573b731",
+      "itemCode": "MAT-037",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Tali Tissue",
+      "baseUnit": "cm"
+    },
+    {
+      "id": "b66e31a9-e18e-48e1-a80b-6ac99c83cd49",
+      "itemCode": "MAT-039",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Flexy Korea",
+      "baseUnit": "cm"
+    },
+    {
+      "id": "4d15c3ea-0e55-442e-9cc4-f1975aff4e55",
+      "itemCode": "MAT-022",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Ivory 250gsm A3+",
+      "baseUnit": "Pcs"
+    },
+    {
+      "id": "734d30a0-eb19-4fed-88e7-040ebc7acc1d",
+      "itemCode": "SRV-042",
+      "type": "JASA",
+      "subCategory": "OUTDOOR",
+      "name": "Cetak Spanduk Flexy Cina",
+      "baseUnit": "Flat"
+    },
+    {
+      "id": "c8b9937f-7045-4e51-a9da-06c0b394db66",
+      "itemCode": "SRV-043",
+      "type": "JASA",
+      "subCategory": "OUTDOOR",
+      "name": "Cetak Spanduk Flexy Korea",
+      "baseUnit": "Flat"
+    },
+    {
+      "id": "9623d33a-bf23-47eb-b1c2-40461fad3c14",
+      "itemCode": "SRV-044",
+      "type": "JASA",
+      "subCategory": "OUTDOOR",
+      "name": "Cetak Stiker",
+      "baseUnit": "Flat"
+    },
+    {
+      "id": "6b1e7a70-a7a8-49a6-af7e-a91b28b4308f",
+      "itemCode": "SRV-045",
+      "type": "JASA",
+      "subCategory": "OUTDOOR",
+      "name": "Cetak Albatros",
+      "baseUnit": "Flat"
+    },
+    {
+      "id": "398b75d0-a9c2-45d2-9931-663480895fe6",
+      "itemCode": "SRV-004",
+      "type": "JASA",
+      "subCategory": "UMUM",
+      "name": "Cetak A3+ 1 Sisi",
+      "baseUnit": "Pcs"
+    },
+    {
+      "id": "16a1891f-9ca9-4ca2-8317-ccceee79b2f8",
+      "itemCode": "MAT-059",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Pisau Pond",
+      "baseUnit": "cm"
+    },
+    {
+      "id": "3e5cafcd-12eb-4a1b-8423-34e771816235",
+      "itemCode": "SRV-038",
+      "type": "JASA",
+      "subCategory": "UMUM",
+      "name": "Jilid Lem Panas",
+      "baseUnit": "cm"
+    },
+    {
+      "id": "a1f5e771-1380-4c96-a482-d00116553936",
+      "itemCode": "SRV-058",
+      "type": "JASA",
+      "subCategory": "UMUM",
+      "name": "Large Format Sublimation Printing",
+      "baseUnit": "cm"
+    },
+    {
+      "id": "eb2ff77d-9907-4ea9-91c6-899b423a0107",
+      "itemCode": "SRV-016",
+      "type": "JASA",
+      "subCategory": "FINISHING",
+      "name": "Hot Press 38",
+      "baseUnit": "Flat"
+    },
+    {
+      "id": "10f40f06-8140-4042-9c0b-32a8a0fdea55",
+      "itemCode": "MAT-064",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Ivory 210gsm plano 65/100",
+      "baseUnit": "Lembar"
+    }
+  ]
+}

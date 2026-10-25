@@ -13,7 +13,8 @@ from scrapers.lead_scoring import (
     classify_category,
     infer_product_needs,
     generate_whatsapp_pitch,
-    estimate_packaging_volume_and_value
+    estimate_packaging_volume_and_value,
+    is_non_commercial
 )
 
 
@@ -242,7 +243,21 @@ class TestInferProductNeeds(unittest.TestCase):
 
     def test_unknown_defaults_general(self):
         res = infer_product_needs('nope', 'X', 'y')
-        self.assertIn('Paper Bag Custom', res['recommended_products'])
+        self.assertIn('Cetak Stiker Vinyl A3+ (Kiss Cut/Die Cut)', res['recommended_products'])
+
+    def test_local_keywords_classification(self):
+        self.assertEqual(classify_category('Ayam Geprek Beraasa', '', []), 'fnb_food_resto')
+        self.assertEqual(classify_category('GEPREK GOLD CHICK', '', []), 'fnb_food_resto')
+        self.assertEqual(classify_category('Sop Konro Bawakaraeng', '', []), 'fnb_food_resto')
+        self.assertEqual(classify_category('Butik eLeS Makassar Official', '', []), 'fashion_retail')
+        self.assertEqual(classify_category('Shafira Boulevard Makassar', 'butik muslim', []), 'fashion_retail')
+
+    def test_non_commercial_filtering(self):
+        self.assertTrue(is_non_commercial('SPPG KEC MARISO', ''))
+        self.assertTrue(is_non_commercial('Kantor Lurah Masale', ''))
+        self.assertTrue(is_non_commercial('Dinas Pendidikan Kota Makassar', ''))
+        self.assertFalse(is_non_commercial('Kantor Notaris Hj. Siti', ''))
+        self.assertFalse(is_non_commercial('Ayam Geprek Beraasa', ''))
 
     def test_no_emoji(self):
         res = infer_product_needs('fashion_retail', 'Butik', 'baju')

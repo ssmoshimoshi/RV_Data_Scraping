@@ -545,29 +545,37 @@ async function runStandaloneInspection() {
     const grid = document.getElementById('inspector-posts-grid');
     grid.innerHTML = '';
 
-    data.posts.forEach((post, i) => {
-      const card = document.createElement('div');
-      card.className = 'post-card';
-      const tags = (post.tags || []).map(t => `<span class="post-tag-badge">${escapeHtml(t)}</span>`).join(' ');
-
-      card.innerHTML = `
-        <div class="post-meta-top">
-          <span>Postingan #${i + 1}</span>
-          <span>${post.date}</span>
-        </div>
-        <div class="post-caption">${escapeHtml(post.caption)}</div>
-        <div class="post-stats-row">
-          <span>Views: ${post.views.toLocaleString()}</span>
-          <span>Likes: ${post.likes.toLocaleString()}</span>
-          <span>Komentar: ${post.comments.toLocaleString()}</span>
-        </div>
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
-          <span style="font-size: 11px; font-weight: 700; color: var(--text-muted);">ER: ${post.engagement_rate}%</span>
-          <div>${tags}</div>
+    if (!data.posts || data.posts.length === 0) {
+      grid.innerHTML = `
+        <div style="font-size: 13px; color: var(--text-muted); background: #F8FAFC; padding: 18px; border-radius: 6px; border: 1px solid var(--border-subtle); text-align: center; width: 100%; grid-column: 1 / -1;">
+          Status: <strong>${escapeHtml(data.status || 'Belum diinspeksi')}</strong>. Belum ada konten media yang ditarik untuk akun ini.
         </div>
       `;
-      grid.appendChild(card);
-    });
+    } else {
+      data.posts.forEach((post, i) => {
+        const card = document.createElement('div');
+        card.className = 'post-card';
+        const tags = (post.tags || []).map(t => `<span class="post-tag-badge">${escapeHtml(t)}</span>`).join(' ');
+
+        card.innerHTML = `
+          <div class="post-meta-top">
+            <span>Postingan #${i + 1}</span>
+            <span>${post.date}</span>
+          </div>
+          <div class="post-caption">${escapeHtml(post.caption)}</div>
+          <div class="post-stats-row">
+            <span>Views: ${post.views.toLocaleString()}</span>
+            <span>Likes: ${post.likes.toLocaleString()}</span>
+            <span>Komentar: ${post.comments.toLocaleString()}</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
+            <span style="font-size: 11px; font-weight: 700; color: var(--text-muted);">ER: ${post.engagement_rate}%</span>
+            <div>${tags}</div>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+    }
 
     document.getElementById('inspector-results').style.display = 'block';
   } catch (err) {

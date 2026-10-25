@@ -103,3 +103,34 @@ Sesuai aturan di `.agents/rules/ponytail_lean_code.md`:
   Bab 5 PRD adalah satu-satunya definisi resmi formula Lead Scoring Engine. Kilo wajib mengacu hanya ke dokumen ini.
 - **Spesifikasi Titik Data per Platform**: `docs/flowcharts/DETAIL_EKSTRAKSI_MULTIPLATFORM.md`
 - **Diagram Alur Arsitektur**: `docs/flowcharts/`
+
+---
+
+## 7. Protokol Larangan Mutlak Akses Database Produksi (Zero-Interference Guardrails)
+
+Untuk menjamin integritas dan kelancaran aplikasi produksi utama (`ruang-visual-app.vercel.app`), seluruh agen (Kilo dan Antigravity) WAJIB mematuhi aturan keamanan berikut:
+
+### 7.1 Mode Akses Wajib: Strictly Read-Only (Hanya SELECT)
+- Modul perayap, skrip sinkronisasi, dan pipeline scraping HANYA boleh menjalankan query `SELECT` pada tabel katalog master:
+  - `public.master_items`
+  - `public.product_templates`
+  - `public.product_template_items`
+- DILARANG KERAS menjalankan operasi mutasi: `INSERT`, `UPDATE`, `DELETE`, `UPSERT`, atau `TRUNCATE` pada tabel apa pun di database produksi.
+- DILARANG KERAS menjalankan perintah DDL: `CREATE TABLE`, `ALTER TABLE`, `DROP TABLE`, atau mengubah skema dan trigger produksi.
+
+### 7.2 Pembatasan Kredensial (Principle of Least Privilege)
+- Repositori ini hanya diperbolehkan menggunakan `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
+- DILARANG menggunakan atau menyimpan `SUPABASE_SERVICE_ROLE_KEY` produksi pada repositori ini agar hak akses tetap dibatasi oleh proteksi Row-Level Security (RLS).
+
+### 7.3 Pemisahan Database Prospek (Database Isolation)
+- Data calon pelanggan (leads mentah, hasil scraping, status outreach, skor prospek) DILARANG disimpan di database produksi utama.
+- Seluruh data intelijen pasar disimpan secara terisolasi di repositori lokal (`data/raw/` dan `data/processed/`).
+
+### 7.4 Snapshot Cache Lokal (Zero Live Traffic Impact)
+- Dilarang memanggil API database produksi secara berulang dalam loop scraping atau operasional dashboard harian.
+- Gunakan snapshot berkala (`data/catalog/ruang_visual_catalog.json`) yang diperbarui melalui modul `scrapers/sync_catalog.py`. Mesin penalar kebutuhan dan generator outreach wajib membaca berkas snapshot lokal ini.
+
+### 7.5 Tabel Terlarang
+- Seluruh agen DILARANG KERAS mengakses atau membaca tabel transaksi, operasional kasir, dan akuntansi:
+  `orders`, `order_items`, `invoices`, `transactions`, `cash_book`, `users`, `payroll`, `debts`, `suppliers`.
+

@@ -9,7 +9,7 @@ import json
 from datetime import datetime
 from typing import Optional
 
-from scrapers.lead_scoring import classify_category
+from scrapers.lead_scoring import classify_category, is_non_commercial
 from scrapers.outreach_generator import generate_whatsapp_pitch, generate_whatsapp_click_url, recommended_products
 from scrapers.route_cluster import assign_sales_cluster
 
@@ -49,10 +49,15 @@ def build_row(ent: dict) -> dict:
     records = ent.get('records') or []
     category = ent.get('category') or _first_from_records(
         records, lambda r: r.get('category') or r.get('classified_category'))
-    if not category:
+    
+    # Reklasifikasi jika kategori kosong atau sebelumnya general_commercial
+    if not category or category == 'general_commercial':
         bio = ent.get('biography') or _first_from_records(records, lambda r: r.get('biography') or r.get('bio')) or ''
-        category = classify_category(ent.get('business_name') or '', bio, [])
-        ent['category'] = category
+        raw_cat = _first_from_records(records, lambda r: r.get('category_name') or r.get('category_raw')) or ''
+        reclassified = classify_category(ent.get('business_name') or '', f"{bio} {raw_cat}", [])
+        if reclassified != 'general_commercial' or not category:
+            category = reclassified
+            ent['category'] = category
     category = category or ''
 
     district = ent.get('district_area') or _first_from_records(
@@ -62,9 +67,9 @@ def build_row(ent: dict) -> dict:
         records, lambda r: r.get('address_full') or r.get('address')) or ''
 
     wa = ent.get('whatsapp_number') or ''
-    pitch = ent.get('whatsapp_pitch') or generate_whatsapp_pitch(ent)
+    pitch = generate_whatsapp_pitch(ent)
     wa_link = generate_whatsapp_click_url(wa, pitch) if wa else ''
-    products = ent.get('recommended_products') or recommended_products(ent)
+    products = recommended_products(ent)
 
     return {
         'entity_id': ent.get('entity_id', ''),
@@ -89,7 +94,13 @@ def _lead_score_value(ent: dict) -> float:
         return 0.0
 
 def export_dossiers_to_csv(dossiers: list, output_path: Path, require_whatsapp: bool = True) -> int:
-    paired = [(e, build_row(e)) for e in dossiers]
+    # Filter entitas non-komersial (instansi publik, kelurahan, dinas, dll.)
+    commercial_dossiers = [
+        e for e in dossiers 
+        if not is_non_commercial(e.get('business_name', ''), e.get('biography', ''))
+    ]
+
+    paired = [(e, build_row(e)) for e in commercial_dossiers]
     paired.sort(key=lambda p: (p[1].get('sales_cluster', ''), -_lead_score_value(p[0])))
     rows = [row for _, row in paired]
     output_path = Path(output_path)

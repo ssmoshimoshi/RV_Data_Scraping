@@ -333,10 +333,21 @@ def run_match_pipeline(raw_dir: str, output_dir: str, city: str, dry_run: bool, 
                 if isinstance(rec, dict) and (rec.get('latest_post_date') or rec.get('last_post_date')):
                     ent['last_post_date'] = rec.get('latest_post_date') or rec.get('last_post_date')
                     break
+        if not ent.get('category') or ent.get('category') == 'general_commercial':
+            bio = ent.get('biography') or ''
+            raw_cat = ''
+            for rec in ent['records']:
+                if isinstance(rec, dict):
+                    raw_cat = raw_cat or rec.get('category_name') or rec.get('category_raw') or ''
+            reclassified = classify_category(ent.get('business_name', ''), f"{bio} {raw_cat}", [])
+            if reclassified != 'general_commercial' or not ent.get('category'):
+                ent['category'] = reclassified
         score = calculate_score(ent)
         ent['lead_score'] = score
         ent['priority_tier'] = 'Tier A' if score >= 80 else 'Tier B' if score >= 60 else 'Tier C' if score >= 40 else 'Tier D'
         ent['whatsapp_pitch'] = generate_outreach_pitch(ent)
+        from scrapers.outreach_generator import recommended_products as get_rec_products
+        ent['recommended_products'] = get_rec_products(ent)
     merged_count = sum(1 for e in entities if len(e['records']) > 1)
     print(f"Entitas unik: {len(entities)} | Entitas gabungan lintas platform: {merged_count}")
 

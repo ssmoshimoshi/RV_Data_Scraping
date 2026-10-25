@@ -36,6 +36,14 @@ _TEMPLATE_SKINCARE = (
     "Boleh kami kirimkan katalog dan sampelnya?"
 )
 
+_TEMPLATE_GENERAL = (
+    "Halo Kak {name}, salam dari tim RUANG VISUAL di Makassar. "
+    "Izin tanya Kak, untuk kemasan dan label produk {name} saat ini cetak di mana? "
+    "Kebetulan kami vendor cetak lokal di Makassar dengan produk stiker label kemasan tahan air dan paper bag belanja serbaguna. "
+    "Ada opsi pengantaran sampel bahan cetak gratis ke outlet di area {district}. "
+    "Boleh kami antarkan sampelnya?"
+)
+
 _FNB_CATEGORIES = {
     'fnb_food_resto', 'fnb_beverage', 'fnb_bakery', 'fnb_catering', 'fnb_snack',
 }
@@ -43,13 +51,14 @@ _FASHION_CATEGORIES = {
     'fashion_retail', 'fashion_boutique', 'fashion_hijab',
 }
 _SKINCARE_CATEGORIES = {
-    'beauty_skincare', 'skincare_clinic', 'skincare_beauty', 'beauty_salon',
+    'beauty_skincare', 'skincare_clinic', 'skincare_beauty', 'beauty_salon', 'skincare',
 }
 
 _RECOMMENDED = {
     'fnb': 'Paper Cup 8oz/12oz, Lunch Box L, Paper Bag',
     'fashion': 'Polymailer Custom, Hangtag Tebal, Tissue Paper',
     'skincare': 'Stiker Segel Tahan Air, Box Lipat, Amplop Kraft',
+    'general': 'Stiker Segel Vinyl Serbaguna, Paper Bag Belanja, Nota NCR',
 }
 
 _PAIN_ISSUE_GROUPS = (
@@ -94,12 +103,12 @@ def _resolve_sector(category: str, dossier: dict = None) -> str:
         return 'skincare'
     if dossier:
         sec = dossier.get('sector')
-        if sec in ('fnb', 'fashion', 'skincare'):
+        if sec in ('fnb', 'fashion', 'skincare', 'general'):
             return sec
         for rec in dossier.get('records', []):
-            if isinstance(rec, dict) and rec.get('sector') in ('fnb', 'fashion', 'skincare'):
+            if isinstance(rec, dict) and rec.get('sector') in ('fnb', 'fashion', 'skincare', 'general'):
                 return rec['sector']
-    return 'fnb'
+    return 'general'
 
 
 def generate_whatsapp_pitch(dossier: dict) -> str:
@@ -116,6 +125,7 @@ def generate_whatsapp_pitch(dossier: dict) -> str:
         'fnb': _TEMPLATE_FNB,
         'fashion': _TEMPLATE_FASHION,
         'skincare': _TEMPLATE_SKINCARE,
+        'general': _TEMPLATE_GENERAL,
     }[sector]
     return template.format(name=name, district=district)
 
@@ -124,7 +134,7 @@ def recommended_products(dossier: dict) -> str:
     category = dossier.get('category') or classify_category(
         dossier.get('business_name', ''), dossier.get('biography', ''), []
     )
-    return _RECOMMENDED.get(_resolve_sector(category, dossier), _RECOMMENDED['fnb'])
+    return _RECOMMENDED.get(_resolve_sector(category, dossier), _RECOMMENDED['general'])
 
 
 def generate_whatsapp_click_url(phone: str, pitch: str) -> str:
