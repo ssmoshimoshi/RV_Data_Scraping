@@ -604,6 +604,9 @@ function escapeHtml(str) {
 document.getElementById('filter-category').addEventListener('change', renderDashboard);
 document.getElementById('filter-tier').addEventListener('change', renderDashboard);
 document.getElementById('search-input').addEventListener('input', renderDashboard);
+document.getElementById('btn-export-csv').addEventListener('click', () => {
+  window.location.href = '/api/export/csv';
+});
 
 // Initial Load
 fetchLeads();

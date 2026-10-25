@@ -18,6 +18,7 @@ from scrapers.lead_scoring import (
     estimate_packaging_volume_and_value,
 )
 from scrapers.database import get_supabase_client
+from scrapers.exporter import export_dossiers_to_csv, find_latest_dossier
 
 PORT = 3000
 
@@ -660,6 +661,52 @@ def load_raw_scraped_leads() -> list[dict]:
     return leads
 
 
+def load_processed_dossiers(processed_dir=PROJECT_ROOT / "data" / "processed") -> list[dict]:
+    path = find_latest_dossier(processed_dir)
+    if not path:
+        return []
+    try:
+        entities = json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return []
+    if not isinstance(entities, list):
+        return []
+
+    leads = []
+    for ent in entities:
+        if not isinstance(ent, dict):
+            continue
+        records = [r for r in ent.get("records") or [] if isinstance(r, dict)]
+        first_rec = records[0] if records else {}
+        est = ent.get("estimated_commercials") or next(
+            (r.get("estimated_commercials") for r in records if r.get("estimated_commercials")), {})
+        pain_points = ent.get("packaging_pain_points") or next(
+            (r.get("packaging_pain_points") for r in records if r.get("packaging_pain_points")), [])
+        leads.append({
+            "id": ent.get("entity_id") or f"dossier-{len(leads) + 1}",
+            "entity_id": ent.get("entity_id", ""),
+            "business_name": ent.get("business_name", ""),
+            "category": ent.get("category") or first_rec.get("category", ""),
+            "platforms": ent.get("platforms", []),
+            "city": ent.get("city", ""),
+            "district_area": ent.get("district_area", ""),
+            "address_full": first_rec.get("address") or first_rec.get("address_full", ""),
+            "latitude": first_rec.get("latitude"),
+            "longitude": first_rec.get("longitude"),
+            "whatsapp_number": ent.get("whatsapp_number", ""),
+            "phone_number": first_rec.get("phone_number", ""),
+            "external_website_url": first_rec.get("website") or first_rec.get("external_website_url", ""),
+            "lead_score": ent.get("lead_score"),
+            "priority_tier": ent.get("priority_tier", ""),
+            "estimated_commercials": est,
+            "packaging_pain_points": pain_points,
+            "whatsapp_pitch": ent.get("whatsapp_pitch", ""),
+            "is_active_verified": bool(ent.get("whatsapp_number")),
+            "status": "ready_to_pitch" if ent.get("whatsapp_number") else "new_lead",
+        })
+    return leads
+
+
 def get_all_leads():
     client = get_supabase_client()
     if client:
@@ -669,10 +716,13 @@ def get_all_leads():
                 return [enrich_lead_card(item) for item in res.data]
         except Exception:
             pass
-            
+
+    processed = load_processed_dossiers()
     scraped = load_raw_scraped_leads()
-    seen = {s["business_name"].lower() for s in scraped}
-    combined = list(scraped)
+    seen = {p["business_name"].lower() for p in processed if p.get("business_name")}
+    combined = list(processed)
+    combined += [s for s in scraped if s["business_name"].lower() not in seen]
+    seen = {c["business_name"].lower() for c in combined if c.get("business_name")}
     for sample in SAMPLE_LEADS:
         if sample.get("business_name", "").lower() not in seen:
             combined.append(sample)
@@ -763,9 +813,37 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
         self.send_cors_headers()
         self.end_headers()
 
+    def do_HEAD(self):
+        self.do_GET()
+
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
-        
+
+        # API Endpoint: Unduh CSV dossier terpadu
+        if parsed.path == "/api/export/csv":
+            try:
+                json_path = find_latest_dossier()
+                if not json_path or not json_path.exists():
+                    raise FileNotFoundError("Tidak ada berkas dossier terpadu yang ditemukan.")
+                import json as _json
+                dossiers = _json.loads(json_path.read_text(encoding='utf-8'))
+                csv_path = PROJECT_ROOT / "data" / "processed" / "dossiers_export_ruang_visual.csv"
+                export_dossiers_to_csv(dossiers, csv_path)
+            except (FileNotFoundError, ValueError, OSError) as exc:
+                self.send_response(404)
+                self.send_cors_headers()
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": str(exc)}, ensure_ascii=False).encode("utf-8"))
+                return
+            self.send_response(200)
+            self.send_cors_headers()
+            self.send_header("Content-Type", "text/csv; charset=utf-8")
+            self.send_header("Content-Disposition", 'attachment; filename="dossiers_export_ruang_visual.csv"')
+            self.end_headers()
+            self.wfile.write(csv_path.read_bytes())
+            return
+
         # API Endpoint: Get Leads
         if parsed.path == "/api/leads":
             leads = get_all_leads()

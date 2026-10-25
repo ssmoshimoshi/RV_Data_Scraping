@@ -215,6 +215,11 @@ body {
   font-family: inherit;
 }
 
+.header-actions {
+  display: flex;
+  gap: 8px;
+}
+
 .btn-refresh:hover {
   background: #E2E8F0;
 }

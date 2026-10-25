@@ -83,6 +83,7 @@ def search_places(query: str, city: str, limit: int, dry_run: bool) -> list[dict
         address_data = normalize_address(raw_address)
         
         place_dict = {
+            'platform': 'google_maps',
             'place_id': item.get('placeId'),
             'title': item.get('title'),
             'category_name': item.get('categoryName', ''),

@@ -15,7 +15,11 @@ from scrapers.threads_scraper import scrape_threads_profile
 from scrapers.food_delivery_scraper import scrape_gofood, scrape_grabfood, scrape_shopeefood
 from scrapers.normalizer import normalize_whatsapp, normalize_address
 from scrapers.lead_scoring import qualify_lead, calculate_score, classify_category, infer_product_needs, generate_whatsapp_pitch
-from scrapers.database import insert_lead, get_supabase_client
+from scrapers.entity_matcher import load_raw_records, match_entities
+from scrapers.outreach_generator import generate_whatsapp_pitch as generate_outreach_pitch
+from scrapers.exporter import export_dossiers_to_csv, find_latest_dossier
+from scrapers.database import insert_lead, get_supabase_client, batch_upsert_dossiers
+from scrapers.harvest_makassar import harvest
 
 
 def run_gmaps_pipeline(query: str, city: str, limit: int, dry_run: bool, save_db: bool):
@@ -303,6 +307,87 @@ def run_food_delivery_pipeline(platform: str, city: str, limit: int, dry_run: bo
     print(f"Selesai. Total ditemukan: {len(merchants)}, Lolos kualifikasi: {qualified_count}, Tersimpan: {saved_count}")
 
 
+def run_match_pipeline(raw_dir: str, output_dir: str, city: str, dry_run: bool, save_db: bool = False):
+    print(f"Menjalankan entity matcher lintas platform (Raw: {raw_dir}, Kota: {city}, Dry-run: {dry_run})")
+
+    records = load_raw_records(Path(raw_dir), limit=10000)
+    print(f"Record mentah dibaca: {len(records)}")
+    if not records:
+        print("Tidak ada data mentah untuk dicocokkan. Pipeline selesai.")
+        return
+
+    entities = match_entities(records)
+    merge_keys = ('whatsapp_number', 'phone_number', 'address_full', 'latitude', 'longitude',
+                  'last_post_date', 'followers_count', 'reviews_count', 'is_ad_active',
+                  'is_active_verified', 'external_website_url', 'category', 'packaging_pain_points', 'sector')
+    for ent in entities:
+        for key in merge_keys:
+            if ent.get(key):
+                continue
+            for rec in ent['records']:
+                if isinstance(rec, dict) and rec.get(key):
+                    ent[key] = rec[key]
+                    break
+        if not ent.get('last_post_date'):
+            for rec in ent['records']:
+                if isinstance(rec, dict) and (rec.get('latest_post_date') or rec.get('last_post_date')):
+                    ent['last_post_date'] = rec.get('latest_post_date') or rec.get('last_post_date')
+                    break
+        score = calculate_score(ent)
+        ent['lead_score'] = score
+        ent['priority_tier'] = 'Tier A' if score >= 80 else 'Tier B' if score >= 60 else 'Tier C' if score >= 40 else 'Tier D'
+        ent['whatsapp_pitch'] = generate_outreach_pitch(ent)
+    merged_count = sum(1 for e in entities if len(e['records']) > 1)
+    print(f"Entitas unik: {len(entities)} | Entitas gabungan lintas platform: {merged_count}")
+
+    for ent in entities:
+        if len(ent['records']) > 1:
+            print(f"  {ent['entity_id']}: {ent['business_name']} | Platform: {', '.join(ent['platforms'])} "
+                  f"| WhatsApp: {ent['whatsapp_number'] or '-'} | Alasan: {', '.join(ent['match_reasons'])}")
+
+    out_name = f"unified_dossiers_{city}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    if dry_run:
+        print(f"Mode dry-run aktif: berkas {out_name} tidak ditulis.")
+        return
+
+    out_path = Path(output_dir)
+    out_path.mkdir(parents=True, exist_ok=True)
+    out_path = out_path / out_name
+    out_path.write_text(json.dumps(entities, indent=2, ensure_ascii=False), encoding='utf-8')
+    print(f"Dossier terpadu disimpan: {out_path}")
+
+    if save_db:
+        count, msg = batch_upsert_dossiers(entities, dry_run=False)
+        print(msg)
+
+
+def run_export_pipeline(input_path: str, output_path: str, dry_run: bool, include_no_wa: bool = False):
+    json_path = Path(input_path) if input_path else find_latest_dossier(PROJECT_ROOT / 'data' / 'processed')
+    if not json_path or not json_path.exists():
+        print("Berkas dossier tidak ditemukan. Jalankan subcommand match terlebih dahulu.")
+        return
+
+    if dry_run:
+        entities = json.loads(json_path.read_text(encoding='utf-8'))
+        print(f"Dry-run ekspor: {len(entities)} baris dossier dari {json_path.name}")
+        for ent in entities[:5]:
+            print(f"  {ent.get('entity_id', '-')}: {ent.get('business_name', '-')} "
+                  f"| Platform: {','.join(ent.get('platforms') or [])}")
+        print("Mode dry-run aktif: berkas CSV tidak ditulis.")
+        return
+
+    csv_path = Path(output_path) if output_path else \
+        PROJECT_ROOT / 'data' / 'processed' / f"dossiers_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+    entities = json.loads(json_path.read_text(encoding='utf-8'))
+    written = export_dossiers_to_csv(entities, csv_path, require_whatsapp=not include_no_wa)
+    print(f"Ekspor CSV selesai: {written}")
+
+
+def run_harvest_pipeline(sector: str, limit_per_query: int, dry_run: bool):
+    print(f"Menjalankan panen prospek Makassar (Sektor: {sector}, Limit/query: {limit_per_query}, Dry-run: {dry_run})")
+    harvest(sector=sector, limit_per_query=limit_per_query, dry_run=dry_run)
+
+
 def main():
     parser = argparse.ArgumentParser(description="RUANG VISUAL Market Intelligence Pipeline")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -351,11 +436,37 @@ def main():
     food_parser.add_argument("--dry-run", action="store_true", help="Uji coba tanpa panggilan berbayar")
     food_parser.add_argument("--save-db", action="store_true", help="Simpan hasil ke database Supabase")
 
+    # Subcommand: match
+    match_parser = subparsers.add_parser("match", help="Cocokkan entitas bisnis lintas platform menjadi dossier terpadu")
+    match_parser.add_argument("--raw-dir", type=str, default="data/raw", help="Folder data mentah input")
+    match_parser.add_argument("--output-dir", type=str, default="data/processed", help="Folder keluaran dossier terpadu")
+    match_parser.add_argument("--city", type=str, default="Makassar", help="Label kota untuk penamaan berkas")
+    match_parser.add_argument("--dry-run", action="store_true", help="Pratinjau hasil tanpa menulis berkas")
+    match_parser.add_argument("--save-db", action="store_true", help="Sinkronkan dossier terpadu ke database Supabase")
+
+    # Subcommand: export
+    export_parser = subparsers.add_parser("export", help="Ekspor dossier terpadu ke berkas CSV")
+    export_parser.add_argument("--input", type=str, default=None, help="Path berkas JSON dossier (default: berkas terbaru di data/processed)")
+    export_parser.add_argument("--output", type=str, default=None, help="Path berkas CSV keluaran (default: data/processed/dossiers_export_<timestamp>.csv)")
+    export_parser.add_argument("--dry-run", action="store_true", help="Tampilkan ringkasan baris tanpa menulis berkas")
+    export_parser.add_argument("--include-no-wa", action="store_true", help="Sertakan entitas tanpa nomor WhatsApp di berkas utama")
+
     # Subcommand: dashboard
     subparsers.add_parser("dashboard", help="Buka dashboard visual lokal RUANG VISUAL di port 3000")
 
     # Subcommand: test
     subparsers.add_parser("test", help="Jalankan seluruh rangkaian unit test")
+
+    # Subcommand: sync-db
+    sync_parser = subparsers.add_parser("sync-db", help="Sinkronkan berkas dossier JSON ke database Supabase")
+    sync_parser.add_argument("--input", type=str, default=None, help="Path berkas JSON dossier (default: berkas terbaru di data/processed)")
+    sync_parser.add_argument("--dry-run", action="store_true", help="Simulasi sinkronisasi tanpa menulis ke database")
+
+    # Subcommand: harvest
+    harvest_parser = subparsers.add_parser("harvest", help="Panen massal prospek terarah per kecamatan di Makassar")
+    harvest_parser.add_argument("--sector", choices=["fnb", "fashion", "skincare", "all"], default="fnb", help="Sektor bisnis target")
+    harvest_parser.add_argument("--limit-per-query", type=int, default=5, help="Batas maksimal tempat per query")
+    harvest_parser.add_argument("--dry-run", action="store_true", help="Simulasi tanpa pemanggilan berbayar")
 
     args = parser.parse_args()
 
@@ -371,6 +482,10 @@ def main():
         run_threads_pipeline(args.username, args.limit, args.dry_run, args.save_db)
     elif args.command == "food-delivery":
         run_food_delivery_pipeline(args.platform, args.city, args.limit, args.dry_run, args.save_db)
+    elif args.command == "match":
+        run_match_pipeline(args.raw_dir, args.output_dir, args.city, args.dry_run, args.save_db)
+    elif args.command == "export":
+        run_export_pipeline(args.input, args.output, args.dry_run, getattr(args, 'include_no_wa', False))
     elif args.command == "dashboard":
         from scrapers.dashboard_server import start_server
         start_server()
@@ -380,6 +495,17 @@ def main():
         suite = loader.discover("tests")
         runner = unittest.TextTestRunner(verbosity=2)
         runner.run(suite)
+    elif args.command == "sync-db":
+        json_path = Path(args.input) if args.input else find_latest_dossier(PROJECT_ROOT / 'data' / 'processed')
+        if not json_path or not json_path.exists():
+            print("Tidak ada berkas dossier yang ditemukan untuk disinkronkan.")
+        else:
+            dossiers = json.loads(Path(json_path).read_text(encoding='utf-8'))
+            count, msg = batch_upsert_dossiers(dossiers, dry_run=args.dry_run)
+            print(f"Input: {json_path} | Baris: {count}")
+            print(msg)
+    elif args.command == "harvest":
+        run_harvest_pipeline(args.sector, args.limit_per_query, args.dry_run)
 
 
 if __name__ == "__main__":

@@ -4,7 +4,11 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+import csv
+import json
+import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch, MagicMock
 from pipeline import (
     run_threads_pipeline,
@@ -12,7 +16,10 @@ from pipeline import (
     run_gmaps_pipeline,
     run_instagram_pipeline,
     run_meta_ads_pipeline,
-    run_tiktok_pipeline
+    run_tiktok_pipeline,
+    run_match_pipeline,
+    run_export_pipeline,
+    run_harvest_pipeline
 )
 
 
@@ -156,9 +163,124 @@ class TestExistingPipelines(unittest.TestCase):
     def test_tiktok_pipeline_dry_run(self, mock_scrape):
         mock_scrape.return_value = []
 
-        run_tiktok_pipeline('food', 20, True, False)
+        run_tiktok_pipeline('kuliner', 10, True, False)
 
         mock_scrape.assert_called_once()
+
+    @patch('pipeline.harvest')
+    def test_harvest_pipeline(self, mock_harvest):
+        run_harvest_pipeline('fnb', 5, True)
+        mock_harvest.assert_called_once_with(sector='fnb', limit_per_query=5, dry_run=True)
+
+
+class TestMatchPipeline(unittest.TestCase):
+    RAW_RECORDS = [
+        {'platform': 'google_maps', 'title': 'Squid Coffee', 'whatsapp_number': '628170772777', 'city': 'Makassar'},
+        {'platform': 'tiktok', 'display_name': 'squid.coffee', 'whatsapp_number': '08170772777'},
+    ]
+
+    def _prepare(self, tmp):
+        raw_dir = Path(tmp) / 'raw'
+        raw_dir.mkdir()
+        (raw_dir / 'sample.json').write_text(json.dumps(self.RAW_RECORDS), encoding='utf-8')
+        return raw_dir, Path(tmp) / 'out'
+
+    def test_match_dry_run_writes_nothing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            raw_dir, out_dir = self._prepare(tmp)
+            run_match_pipeline(str(raw_dir), str(out_dir), 'Makassar', True)
+            self.assertFalse(out_dir.exists())
+
+    def test_match_writes_unified_dossiers_with_pitch(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            raw_dir, out_dir = self._prepare(tmp)
+            run_match_pipeline(str(raw_dir), str(out_dir), 'Makassar', False)
+            files = list(out_dir.glob('unified_dossiers_Makassar_*.json'))
+            self.assertEqual(len(files), 1)
+            entities = json.loads(files[0].read_text(encoding='utf-8'))
+            self.assertEqual(len(entities), 1)
+            self.assertIn('whatsapp_pitch', entities[0])
+            self.assertIn('Squid Coffee', entities[0]['whatsapp_pitch'])
+
+    def test_match_writes_valid_lead_score_and_tier(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            raw_dir, out_dir = self._prepare(tmp)
+            run_match_pipeline(str(raw_dir), str(out_dir), 'Makassar', False)
+            entities = json.loads(next(out_dir.glob('unified_dossiers_*.json')).read_text(encoding='utf-8'))
+            for ent in entities:
+                self.assertIsInstance(ent['lead_score'], int)
+                self.assertTrue(0 <= ent['lead_score'] <= 100)
+                expected = ('Tier A' if ent['lead_score'] >= 80 else
+                            'Tier B' if ent['lead_score'] >= 60 else
+                            'Tier C' if ent['lead_score'] >= 40 else 'Tier D')
+                self.assertEqual(ent['priority_tier'], expected)
+
+    def test_match_export_csv_lead_score_format(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            raw_dir, out_dir = self._prepare(tmp)
+            run_match_pipeline(str(raw_dir), str(out_dir), 'Makassar', False)
+            json_path = next(out_dir.glob('unified_dossiers_*.json'))
+            out_csv = Path(tmp) / 'hasil.csv'
+            run_export_pipeline(str(json_path), str(out_csv), False)
+            with out_csv.open(encoding='utf-8-sig') as f:
+                rows = list(csv.DictReader(f))
+            self.assertEqual(len(rows), 1)
+            self.assertIn('whatsapp_pitch', rows[0])
+            self.assertNotEqual(rows[0]['whatsapp_pitch'], '')
+
+    def test_match_empty_raw_dir(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            run_match_pipeline(tmp, str(Path(tmp) / 'out'), 'Makassar', False)
+            self.assertFalse(Path(tmp, 'out').exists())
+
+
+class TestExportPipeline(unittest.TestCase):
+    DOSSIERS = [{
+        'entity_id': 'ent_0001',
+        'business_name': 'Squid Coffee',
+        'city': 'makassar',
+        'whatsapp_number': '628170772777',
+        'platforms': ['google_maps', 'tiktok'],
+        'whatsapp_pitch': 'Halo Squid Coffee di Makassar, perkenalkan kami RUANG VISUAL.',
+        'records': [],
+    }]
+
+    def test_export_dry_run_writes_nothing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            json_path = Path(tmp) / 'unified_dossiers_Makassar_20261025_000000.json'
+            json_path.write_text(json.dumps(self.DOSSIERS), encoding='utf-8')
+            out_csv = Path(tmp) / 'hasil.csv'
+            run_export_pipeline(str(json_path), str(out_csv), True)
+            self.assertFalse(out_csv.exists())
+
+    def test_export_writes_csv(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            json_path = Path(tmp) / 'unified_dossiers_Makassar_20261025_000000.json'
+            json_path.write_text(json.dumps(self.DOSSIERS), encoding='utf-8')
+            out_csv = Path(tmp) / 'hasil.csv'
+            run_export_pipeline(str(json_path), str(out_csv), False)
+            self.assertTrue(out_csv.exists())
+            content = out_csv.read_text(encoding='utf-8')
+            self.assertIn('entity_id', content)
+            self.assertIn('Squid Coffee', content)
+
+    def test_export_missing_input_graceful(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            run_export_pipeline(str(Path(tmp) / 'tidak_ada.json'), str(Path(tmp) / 'x.csv'), False)
+
+    def test_export_include_no_wa_flag(self):
+        mixed = [
+            {'entity_id': 'ent_0001', 'business_name': 'Ada WA', 'whatsapp_number': '62811111111', 'records': []},
+            {'entity_id': 'ent_0002', 'business_name': 'Tanpa WA', 'whatsapp_number': '', 'records': []},
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            json_path = Path(tmp) / 'dossiers.json'
+            json_path.write_text(json.dumps(mixed), encoding='utf-8')
+            out_csv = Path(tmp) / 'sales.csv'
+            run_export_pipeline(str(json_path), str(out_csv), False, include_no_wa=True)
+            with out_csv.open(encoding='utf-8-sig') as f:
+                rows = list(csv.DictReader(f))
+            self.assertEqual(len(rows), 2)
 
 
 if __name__ == '__main__':

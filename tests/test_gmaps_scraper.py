@@ -5,12 +5,38 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from unittest.mock import patch, MagicMock
 from scrapers.gmaps_scraper import search_places, scrape_negative_reviews, _process_listing_data
 
 class TestGmapsScraper(unittest.TestCase):
     def test_dry_run_returns_empty_list(self):
         result = search_places("test", "test", 1, True)
         self.assertEqual(result, [])
+
+    @patch('scrapers.gmaps_scraper.ApifyClient')
+    @patch.dict('os.environ', {'APIFY_API_TOKEN': 'test_token'})
+    def test_search_places_stamps_platform_field(self, mock_client):
+        mock_actor = MagicMock()
+        mock_actor.call.return_value = {'defaultDatasetId': 'test_dataset'}
+        mock_dataset = MagicMock()
+        mock_dataset.iterate_items.return_value = [{
+            'placeId': 'ChIJ123',
+            'title': 'Butik Cantik',
+            'categoryName': 'Clothing store',
+            'address': 'Jl. Pettarani No. 1, Kota Makassar',
+            'phone': '081234567890',
+            'location': {'lat': -5.15, 'lng': 119.44},
+            'reviews': [],
+        }]
+        mock_instance = mock_client.return_value
+        mock_instance.actor.return_value = mock_actor
+        mock_instance.dataset.return_value = mock_dataset
+
+        result = search_places('butik', 'Makassar', 5, dry_run=False)
+
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]['platform'], 'google_maps')
+        self.assertEqual(result[0]['title'], 'Butik Cantik')
 
     def test_scrape_negative_reviews_dry_run(self):
         result = scrape_negative_reviews("ChIJ12345", dry_run=True)
