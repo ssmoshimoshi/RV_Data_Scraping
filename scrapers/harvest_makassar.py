@@ -86,8 +86,24 @@ def _run_apify_queries(queries: list[str], limit: int) -> list[dict]:
     ]
 
 
+def _run_harvest_queries(queries: list[str], limit: int) -> list[dict]:
+    token = os.getenv('APIFY_API_TOKEN')
+    if token:
+        try:
+            return _run_apify_queries(queries, limit)
+        except Exception as e:
+            print(f"Peringatan: Panggilan Apify gagal ({e}), beralih ke perayap Playwright lokal...")
+    
+    from scrapers.gmaps_scraper import search_places
+    all_places = []
+    for q in queries:
+        places = search_places(q, city='Makassar', limit=limit, dry_run=False)
+        all_places.extend(places)
+    return all_places
+
+
 def _run_apify_query(query: str, limit: int) -> list[dict]:
-    return _run_apify_queries([query], limit)
+    return _run_harvest_queries([query], limit)
 
 
 def harvest(sector: str = 'all', limit_per_query: int = 10, dry_run: bool = False) -> list[dict]:
@@ -119,7 +135,7 @@ def harvest(sector: str = 'all', limit_per_query: int = 10, dry_run: bool = Fals
             print(f"  - {q_str}")
 
         try:
-            items = _run_apify_queries(query_strings, limit_per_query)
+            items = _run_harvest_queries(query_strings, limit_per_query)
         except Exception as e:
             print(f"Gagal batch query: {e}")
             continue

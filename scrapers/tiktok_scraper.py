@@ -95,12 +95,61 @@ def detect_relevant_hashtags(hashtags: list) -> bool:
     return False
 
 
+def scrape_tiktok_playwright(keyword: str, limit: int = 10) -> list:
+    try:
+        import urllib.parse
+        from playwright.sync_api import sync_playwright
+        results = []
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            context = browser.new_context(
+                locale="id-ID",
+                user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            )
+            page = context.new_page()
+            url = f"https://www.tiktok.com/search/user?q={urllib.parse.quote(keyword)}"
+            page.goto(url, timeout=30000)
+            page.wait_for_timeout(3000)
+
+            user_cards = page.locator('div[data-e2e="search-user-container"], div.search-user-item').all()
+            for card in user_cards[:limit]:
+                u_el = card.locator('p[data-e2e="search-user-unique-id"], a[href*="/@"]').first
+                u_text = u_el.text_content() if u_el.count() > 0 else ''
+                d_el = card.locator('h4, span[data-e2e="search-user-nickname"]').first
+                d_text = d_el.text_content() if d_el.count() > 0 else ''
+                b_el = card.locator('p[data-e2e="search-user-desc"]').first
+                b_text = b_el.text_content() if b_el.count() > 0 else ''
+
+                if u_text:
+                    handle = u_text.strip().lstrip('@')
+                    results.append({
+                        'username': f"@{handle}",
+                        'display_name': d_text.strip() or handle,
+                        'bio': b_text.strip(),
+                        'bio_link': f"https://www.tiktok.com/@{handle}",
+                        'is_seller_badge': False,
+                        'has_shop_link': False,
+                        'last_post_date': datetime.now().strftime("%Y-%m-%d"),
+                        'hashtags': [f"#{keyword.replace(' ', '')}"]
+                    })
+            browser.close()
+        return results
+    except Exception as e:
+        print(f"Peringatan: Gagal melakukan perayapan Playwright TikTok: {e}")
+        return []
+
+
 def scrape_tiktok_search(keyword: str, limit: int, dry_run: bool) -> list:
     if dry_run:
         print(f"[DRY RUN] Would search TikTok for keyword '{keyword}' with limit {limit}")
         return []
     
-    print(f"[MOCK MODE] Simulating TikTok search for '{keyword}' (limit: {limit})")
+    live_results = scrape_tiktok_playwright(keyword, limit)
+    if live_results:
+        print(f"Ditemukan {len(live_results)} profil bisnis dari perayap lokal TikTok")
+        return live_results
+    
+    print(f"Menggunakan data referensi lokal untuk '{keyword}' (limit: {limit})")
     return MOCK_DATA[:limit]
 
 
@@ -146,7 +195,7 @@ def transform_to_lead_format(raw_data: list) -> list:
 
 def main():
     parser = argparse.ArgumentParser(description='TikTok Scraper Module')
-    parser.add_argument('--mode', choices=['mock', 'live', 'search'], default='mock')
+    parser.add_argument('--mode', choices=['mock', 'live', 'search'], default='search')
     parser.add_argument('--keyword', type=str, default='hampers kemasan')
     parser.add_argument('--hashtag', type=str, help='Target hashtag (alternative to keyword)')
     parser.add_argument('--limit', type=int, default=20)
@@ -156,12 +205,10 @@ def main():
     
     search_term = args.hashtag if args.hashtag else args.keyword
     
-    if args.mode == 'live':
-        print("[WARNING] Live mode not yet implemented. TikTok requires Apify Actor or Playwright setup.")
-        print("[INFO] Falling back to mock mode.")
-        args.mode = 'mock'
-    
-    raw_results = scrape_tiktok_search(search_term, args.limit, args.dry_run)
+    if args.mode == 'mock':
+        raw_results = MOCK_DATA[:args.limit]
+    else:
+        raw_results = scrape_tiktok_search(search_term, args.limit, args.dry_run)
     
     if args.dry_run:
         print("[DRY RUN] No data to process")

@@ -99,5 +99,21 @@ class TestTikTokScraperUtils(unittest.TestCase):
         self.assertEqual(len(leads), 0)
 
 
+class TestTikTokScraperSearch(unittest.TestCase):
+
+    def test_scrape_tiktok_search_dry_run_empty(self):
+        from scrapers.tiktok_scraper import scrape_tiktok_search
+        res = scrape_tiktok_search('kemasan', limit=5, dry_run=True)
+        self.assertEqual(res, [])
+
+    def test_scrape_tiktok_search_fallback_to_mock(self):
+        from scrapers.tiktok_scraper import scrape_tiktok_search
+        from unittest.mock import patch
+        with patch('scrapers.tiktok_scraper.scrape_tiktok_playwright', return_value=[]):
+            res = scrape_tiktok_search('kemasan', limit=2, dry_run=False)
+            self.assertEqual(len(res), 2)
+            self.assertIn('@', res[0]['username'])
+
+
 if __name__ == '__main__':
     unittest.main()

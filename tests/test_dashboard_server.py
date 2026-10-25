@@ -19,7 +19,9 @@ from scrapers.dashboard_server import (
     load_processed_dossiers,
     build_channels_from_records,
     persist_channel_to_dossier,
+    persist_status_to_dossier,
     inspect_account_content,
+    VALID_OUTREACH_STATUSES,
 )
 
 SAMPLE_ENTITY = {
@@ -320,6 +322,150 @@ class TestLinkChannelEndpoint(unittest.TestCase):
         self.assertEqual(data["status"], "Belum diinspeksi")
         self.assertEqual(data["posts"], [])
         self.assertEqual(data["total_analyzed_posts"], 0)
+
+
+class TestPersistStatusToDossier(unittest.TestCase):
+
+    def test_persist_status_success_with_dihubungi(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "unified_dossiers_Makassar_20261025_000000.json"
+            path.write_text(json.dumps([MULTI_CHANNEL_ENTITY], ensure_ascii=False), encoding="utf-8")
+
+            ok = persist_status_to_dossier("ent_0002", "Dihubungi", "Sudah kirim pesan WA ke owner", Path(tmp))
+            self.assertTrue(ok)
+
+            saved = json.loads(path.read_text(encoding="utf-8"))
+            self.assertEqual(saved[0]["outreach_status"], "Dihubungi")
+            self.assertEqual(saved[0]["outreach_notes"], "Sudah kirim pesan WA ke owner")
+            self.assertIsNotNone(saved[0].get("contacted_at"))
+
+    def test_persist_status_closing_sets_contacted_at(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "unified_dossiers_Makassar_20261025_000000.json"
+            path.write_text(json.dumps([MULTI_CHANNEL_ENTITY], ensure_ascii=False), encoding="utf-8")
+
+            ok = persist_status_to_dossier("ent_0002", "Closing", "Pesanan 1000 cup disetujui", Path(tmp))
+            self.assertTrue(ok)
+
+            saved = json.loads(path.read_text(encoding="utf-8"))
+            self.assertEqual(saved[0]["outreach_status"], "Closing")
+            self.assertEqual(saved[0]["outreach_notes"], "Pesanan 1000 cup disetujui")
+            self.assertIsNotNone(saved[0].get("contacted_at"))
+
+    def test_persist_status_other_does_not_set_contacted_at(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "unified_dossiers_Makassar_20261025_000000.json"
+            path.write_text(json.dumps([MULTI_CHANNEL_ENTITY], ensure_ascii=False), encoding="utf-8")
+
+            ok = persist_status_to_dossier("ent_0002", "Tertarik", "Tanya daftar harga", Path(tmp))
+            self.assertTrue(ok)
+
+            saved = json.loads(path.read_text(encoding="utf-8"))
+            self.assertEqual(saved[0]["outreach_status"], "Tertarik")
+            self.assertEqual(saved[0]["outreach_notes"], "Tanya daftar harga")
+            self.assertIsNone(saved[0].get("contacted_at"))
+
+    def test_persist_status_unknown_entity_returns_false(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "unified_dossiers_Makassar_20261025_000000.json"
+            path.write_text(json.dumps([MULTI_CHANNEL_ENTITY], ensure_ascii=False), encoding="utf-8")
+
+            ok = persist_status_to_dossier("ent_9999", "Dihubungi", "Catatan", Path(tmp))
+            self.assertFalse(ok)
+
+    def test_persist_status_without_dossier_returns_false(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            ok = persist_status_to_dossier("ent_0002", "Dihubungi", "Catatan", Path(tmp))
+            self.assertFalse(ok)
+
+
+class TestUpdateStatusEndpoint(unittest.TestCase):
+
+    def setUp(self):
+        socketserver.TCPServer.allow_reuse_address = True
+        self.httpd = socketserver.TCPServer(("127.0.0.1", 0), DashboardHandler)
+        self.port = self.httpd.server_address[1]
+        self.thread = threading.Thread(target=self.httpd.serve_forever, daemon=True)
+        self.thread.start()
+
+    def tearDown(self):
+        self.httpd.shutdown()
+        self.httpd.server_close()
+
+    def _post(self, path, payload):
+        body = json.dumps(payload).encode("utf-8")
+        conn = http.client.HTTPConnection("127.0.0.1", self.port, timeout=10)
+        conn.request("POST", path, body=body, headers={"Content-Type": "application/json"})
+        res = conn.getresponse()
+        data = res.read()
+        conn.close()
+        return res, data
+
+    def test_update_status_sample_lead_success(self):
+        res, body = self._post("/api/leads/update-status", {
+            "lead_id": "lead-001",
+            "status": "Tertarik",
+            "notes": "Minta dikirimi katalog sampel"
+        })
+        self.assertEqual(res.status, 200)
+        data = json.loads(body)
+        self.assertEqual(data["status"], "success")
+        self.assertTrue(data["persisted"])
+        self.assertEqual(data["lead"]["outreach_status"], "Tertarik")
+        self.assertEqual(data["lead"]["outreach_notes"], "Minta dikirimi katalog sampel")
+
+    def test_update_status_dossier_lead_success_and_persists(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = Path(tmp) / "unified_dossiers_Makassar_20261025_000000.json"
+            fixture.write_text(json.dumps([MULTI_CHANNEL_ENTITY], ensure_ascii=False), encoding="utf-8")
+
+            with patch("scrapers.dashboard_server.find_latest_dossier", return_value=fixture):
+                res, body = self._post("/api/leads/update-status", {
+                    "lead_id": "ent_0002",
+                    "status": "Dihubungi",
+                    "notes": "Kontak via WhatsApp jam 10 pagi"
+                })
+
+            self.assertEqual(res.status, 200)
+            data = json.loads(body)
+            self.assertEqual(data["status"], "success")
+            self.assertTrue(data["persisted"])
+            self.assertEqual(data["lead"]["outreach_status"], "Dihubungi")
+            self.assertEqual(data["lead"]["outreach_notes"], "Kontak via WhatsApp jam 10 pagi")
+
+            # Verifikasi persistensi file fisik
+            saved = json.loads(fixture.read_text(encoding="utf-8"))
+            self.assertEqual(saved[0]["outreach_status"], "Dihubungi")
+            self.assertEqual(saved[0]["outreach_notes"], "Kontak via WhatsApp jam 10 pagi")
+            self.assertIsNotNone(saved[0].get("contacted_at"))
+
+    def test_update_status_invalid_status_returns_400(self):
+        res, body = self._post("/api/leads/update-status", {
+            "lead_id": "lead-001",
+            "status": "StatusTidakDikenal"
+        })
+        self.assertEqual(res.status, 400)
+        data = json.loads(body)
+        self.assertIn("error", data)
+        self.assertIn("Status tidak valid", data["error"])
+
+    def test_update_status_missing_fields_returns_400(self):
+        res, body = self._post("/api/leads/update-status", {
+            "lead_id": "lead-001"
+        })
+        self.assertEqual(res.status, 400)
+        data = json.loads(body)
+        self.assertIn("error", data)
+
+    def test_update_status_unknown_lead_returns_404(self):
+        with patch("scrapers.dashboard_server.find_latest_dossier", return_value=None):
+            res, body = self._post("/api/leads/update-status", {
+                "lead_id": "lead-tidak-ada-sama-sekali",
+                "status": "Dihubungi"
+            })
+        self.assertEqual(res.status, 404)
+        data = json.loads(body)
+        self.assertIn("error", data)
 
 
 if __name__ == "__main__":

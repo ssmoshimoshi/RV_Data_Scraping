@@ -448,6 +448,25 @@
         </div>
       </div>
 
+      <!-- Section: Status Penjangkauan & Catatan -->
+      <div class="drawer-section" id="drawer-outreach-section">
+        <div class="section-mini-label">Status Penjangkauan &amp; Catatan Tim</div>
+        <div style="display: flex; gap: 8px; margin-top: 8px;">
+          <select id="drawer-outreach-select" style="flex: 1; padding: 8px; border-radius: 6px; border: 1px solid var(--border-subtle); background: white; font-size: 13px;">
+            <option value="Belum Dihubungi">Belum Dihubungi</option>
+            <option value="Dihubungi">Dihubungi</option>
+            <option value="Tertarik">Tertarik</option>
+            <option value="Closing">Closing</option>
+            <option value="Tidak Relevan">Tidak Relevan</option>
+          </select>
+          <button class="btn-secondary" onclick="saveLeadOutreachStatus()" style="white-space: nowrap;">Simpan Status</button>
+        </div>
+        <div style="margin-top: 8px;">
+          <input type="text" id="drawer-outreach-notes" placeholder="Catatan interaksi (contoh: Minta sampel box A3)..." style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border-subtle); font-size: 12px; box-sizing: border-box;">
+        </div>
+        <div id="drawer-outreach-feedback" style="display: none; font-size: 11px; margin-top: 6px; color: #0284C7; font-weight: 600;"></div>
+      </div>
+
     </div>
   </aside>
 

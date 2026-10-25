@@ -6,31 +6,39 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from unittest.mock import patch, MagicMock
-from scrapers.gmaps_scraper import search_places, scrape_negative_reviews, _process_listing_data
+from scrapers.gmaps_scraper import search_places, scrape_negative_reviews, _process_listing_data, parse_place_entry
+
 
 class TestGmapsScraper(unittest.TestCase):
     def test_dry_run_returns_empty_list(self):
         result = search_places("test", "test", 1, True)
         self.assertEqual(result, [])
 
-    @patch('scrapers.gmaps_scraper.ApifyClient')
-    @patch.dict('os.environ', {'APIFY_API_TOKEN': 'test_token'})
-    def test_search_places_stamps_platform_field(self, mock_client):
-        mock_actor = MagicMock()
-        mock_actor.call.return_value = {'defaultDatasetId': 'test_dataset'}
-        mock_dataset = MagicMock()
-        mock_dataset.iterate_items.return_value = [{
-            'placeId': 'ChIJ123',
-            'title': 'Butik Cantik',
-            'categoryName': 'Clothing store',
-            'address': 'Jl. Pettarani No. 1, Kota Makassar',
-            'phone': '081234567890',
-            'location': {'lat': -5.15, 'lng': 119.44},
-            'reviews': [],
-        }]
-        mock_instance = mock_client.return_value
-        mock_instance.actor.return_value = mock_actor
-        mock_instance.dataset.return_value = mock_dataset
+    @patch('scrapers.gmaps_scraper.scrape_google_maps_playwright')
+    def test_search_places_stamps_platform_field(self, mock_scrape):
+        mock_scrape.return_value = [
+            {
+                'platform': 'google_maps',
+                'place_id': 'ChIJ123',
+                'title': 'Butik Cantik',
+                'category_name': 'Clothing store',
+                'category': 'fashion_retail',
+                'address': 'Jl. Pettarani No. 1, Kota Makassar',
+                'district_area': 'Rappocini',
+                'city': 'Makassar',
+                'phone_number': '+62 812-3456-7890',
+                'whatsapp_number': '6281234567890',
+                'latitude': -5.15,
+                'longitude': 119.44,
+                'reviews_count': 50,
+                'total_score': 4.5,
+                'website': None,
+                'url': 'https://www.google.com/maps/place/Butik+Cantik',
+                'reviews': [],
+                'packaging_pain_points': [],
+                'estimated_commercials': {'est_monthly_units_min': 500, 'est_monthly_units_max': 1000},
+            }
+        ]
 
         result = search_places('butik', 'Makassar', 5, dry_run=False)
 
@@ -105,8 +113,6 @@ class TestGmapsScraper(unittest.TestCase):
         self.assertEqual(processed['category'], 'fnb_food_resto')
         commercials = processed['estimated_commercials']
         self.assertEqual(commercials['priority_commercial_tier'], 'Tier 1 (High Value)')
-        # 1200 reviews * 10 = 12000 > 10000 -> factor 1.5
-        # fnb_food_resto base min units 1000 * 1.5 = 1500
         self.assertEqual(commercials['est_monthly_units_min'], 1500)
         self.assertEqual(commercials['restock_cycle_days'], 30)
 
@@ -116,6 +122,42 @@ class TestGmapsScraper(unittest.TestCase):
         self.assertEqual(processed['packaging_pain_points'], [])
         self.assertIn('estimated_commercials', processed)
         self.assertEqual(processed['category'], 'general_commercial')
+
+    def test_parse_place_entry_extracts_fields(self):
+        item = {
+            'title': 'Warung Nasi Goreng',
+            'categoryName': 'Restoran',
+            'address': 'Jl. Pengayoman, Panakkukang, Makassar',
+            'phone': '081234567890',
+            'totalScore': 4.3,
+            'reviewsCount': 85,
+            'website': 'https://warung.example.com',
+            'url': 'https://www.google.com/maps/place/Warung+Nasi+Goreng',
+            'reviews': []
+        }
+        parsed = parse_place_entry(item, default_city='Makassar')
+        self.assertEqual(parsed['title'], 'Warung Nasi Goreng')
+        self.assertEqual(parsed['city'], 'Makassar')
+        self.assertEqual(parsed['whatsapp_number'], '6281234567890')
+        self.assertTrue(parsed['whatsapp_number'].startswith('628'))
+        self.assertIn('platform', parsed)
+        self.assertEqual(parsed['platform'], 'google_maps')
+        self.assertIn('url', parsed)
+        self.assertIn('category', parsed)
+        self.assertIn('packaging_pain_points', parsed)
+        self.assertIn('estimated_commercials', parsed)
+
+    def test_parse_place_entry_sanitizes_phone_contact(self):
+        item = {
+            'title': 'Toko Roti',
+            'categoryName': 'Toko Roti',
+            'phone': '+62 813-4567-8901',
+            'address': 'Jl. Pettarani, Makassar'
+        }
+        parsed = parse_place_entry(item)
+        self.assertEqual(parsed['phone_number'], '+62 813-4567-8901')
+        self.assertEqual(parsed['whatsapp_number'], '6281345678901')
+
 
 if __name__ == '__main__':
     unittest.main()

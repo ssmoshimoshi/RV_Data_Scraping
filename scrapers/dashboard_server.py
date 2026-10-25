@@ -700,8 +700,48 @@ def load_processed_dossiers(processed_dir=PROJECT_ROOT / "data" / "processed") -
             "whatsapp_pitch": ent.get("whatsapp_pitch", ""),
             "is_active_verified": bool(ent.get("whatsapp_number")),
             "status": "ready_to_pitch" if ent.get("whatsapp_number") else "new_lead",
+            "outreach_status": ent.get("outreach_status") or "Belum Dihubungi",
+            "outreach_notes": ent.get("outreach_notes") or "",
+            "contacted_at": ent.get("contacted_at"),
         })
     return leads
+
+
+VALID_OUTREACH_STATUSES = (
+    "Belum Dihubungi",
+    "Dihubungi",
+    "Tertarik",
+    "Closing",
+    "Tidak Relevan",
+)
+
+
+def persist_status_to_dossier(entity_id: str, status: str, notes: str = "",
+                              processed_dir=None) -> bool:
+    if processed_dir is None:
+        processed_dir = PROJECT_ROOT / "data" / "processed"
+    path = find_latest_dossier(processed_dir)
+    if not path:
+        return False
+    try:
+        entities = json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return False
+    if not isinstance(entities, list):
+        return False
+    for ent in entities:
+        if not isinstance(ent, dict) or ent.get("entity_id") != entity_id:
+            continue
+        ent["outreach_status"] = status
+        ent["outreach_notes"] = notes
+        if status in ("Dihubungi", "Closing"):
+            ent["contacted_at"] = datetime.now().isoformat()
+        try:
+            path.write_text(json.dumps(entities, indent=2, ensure_ascii=False), encoding="utf-8")
+        except OSError:
+            return False
+        return True
+    return False
 
 
 def persist_channel_to_dossier(entity_id: str, platform: str, channel_value: str, posts: list,
@@ -849,6 +889,77 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
             self.send_header("Content-Type", "application/json")
             self.end_headers()
             self.wfile.write(json.dumps(result, ensure_ascii=False).encode("utf-8"))
+            return
+
+        if parsed.path == "/api/leads/update-status":
+            lead_id = data.get("lead_id")
+            status = data.get("status") or data.get("outreach_status")
+            notes = data.get("notes") if data.get("notes") is not None else data.get("outreach_notes", "")
+
+            if not lead_id or not status:
+                self.send_response(400)
+                self.send_cors_headers()
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "lead_id dan status wajib diisi"}, ensure_ascii=False).encode("utf-8"))
+                return
+
+            if status not in VALID_OUTREACH_STATUSES:
+                self.send_response(400)
+                self.send_cors_headers()
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    "error": f"Status tidak valid. Pilihan valid: {', '.join(VALID_OUTREACH_STATUSES)}"
+                }, ensure_ascii=False).encode("utf-8"))
+                return
+
+            target_lead = None
+            for lead in SAMPLE_LEADS:
+                if lead["id"] == lead_id:
+                    target_lead = lead
+                    break
+
+            from_dossier = False
+            if not target_lead:
+                for lead in load_processed_dossiers():
+                    if lead.get("id") == lead_id or lead.get("entity_id") == lead_id:
+                        target_lead = lead
+                        from_dossier = True
+                        break
+
+            if not target_lead:
+                self.send_response(404)
+                self.send_cors_headers()
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "Lead not found"}, ensure_ascii=False).encode("utf-8"))
+                return
+
+            target_lead["outreach_status"] = status
+            target_lead["outreach_notes"] = notes
+            if status in ("Dihubungi", "Closing"):
+                target_lead["contacted_at"] = datetime.now().isoformat()
+
+            persisted = False
+            if from_dossier:
+                persisted = persist_status_to_dossier(
+                    target_lead.get("entity_id") or lead_id, status, notes)
+            else:
+                persisted = True
+
+            enriched = enrich_lead_card(target_lead)
+
+            self.send_response(200)
+            self.send_cors_headers()
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                "status": "success",
+                "message": "Status penjangkauan berhasil diperbarui.",
+                "persisted": persisted,
+                "lead": enriched
+            }, ensure_ascii=False).encode("utf-8"))
             return
 
         self.send_response(404)

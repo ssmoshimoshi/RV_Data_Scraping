@@ -10,7 +10,6 @@ import os
 import re
 from datetime import datetime
 from typing import Optional, List, Dict
-from apify_client import ApifyClient
 from dotenv import load_dotenv
 from scrapers.normalizer import normalize_whatsapp
 
@@ -56,49 +55,70 @@ def _extract_dataset_id(run) -> str:
     return getattr(run, "default_dataset_id", "") or getattr(run, "defaultDatasetId", "")
 
 
-def search_meta_ads(query: str, limit: int, dry_run: bool, country: str = 'ID') -> List[Dict]:
+def search_meta_ads(query: str, limit: int = 50, dry_run: bool = False, country: str = 'ID') -> List[Dict]:
     if dry_run:
         print(f"[DRY RUN] Would search Meta Ads Library for '{query}' in {country}, limit {limit}")
         return []
     
-    api_token = os.getenv('APIFY_API_TOKEN')
-    if not api_token:
-        raise ValueError("APIFY_API_TOKEN not found in environment")
-    
-    client = ApifyClient(api_token)
-    
-    run_input = {
-        "searchTerms": [query],
-        "country": country,
-        "resultsLimit": limit,
-        "adActiveStatus": "ACTIVE"
-    }
-    
-    print(f"Starting Apify actor: dtrungtin/facebook-ads-scraper for '{query}'...")
-    run = client.actor("dtrungtin/facebook-ads-scraper").call(run_input=run_input)
-    
+    print(f"Mengumpulkan iklan Meta Ad Library untuk query '{query}' (Negara: {country}, Limit: {limit})...")
+    try:
+        from meta_ads_collector import MetaAdsCollector
+        collector = MetaAdsCollector(timeout=30, max_retries=2)
+        raw_ads = collector.collect(
+            query=query,
+            country=country,
+            status="ACTIVE",
+            max_results=limit
+        )
+    except Exception as e:
+        print(f"Peringatan: Gagal mengambil iklan dari Meta Ads Collector: {e}")
+        return []
+
     ads_data = []
-    dataset_id = _extract_dataset_id(run)
-    for item in client.dataset(dataset_id).iterate_items():
-        ad_body = item.get('adCreativeBody', '') or item.get('text', '')
+    for item in raw_ads:
+        page = getattr(item, 'page', None)
+        page_id = getattr(page, 'page_id', None) or (page.get('page_id') if isinstance(page, dict) else None) or getattr(item, 'ad_library_id', None)
+        page_name = getattr(page, 'page_name', None) or (page.get('page_name') if isinstance(page, dict) else '') or ''
         
+        creatives = getattr(item, 'creatives', []) or []
+        body_parts = []
+        links_from_creatives = []
+        for c in creatives:
+            body = getattr(c, 'body', None)
+            if body:
+                body_parts.append(body)
+            title = getattr(c, 'title', None)
+            if title:
+                body_parts.append(title)
+            link_url = getattr(c, 'link_url', None)
+            if link_url:
+                links_from_creatives.append(link_url)
+        
+        ad_body = "\n".join(body_parts)
         whatsapp_number = extract_whatsapp_from_text(ad_body)
-        external_links = extract_external_links(ad_body)
-        
+        external_links = extract_external_links(ad_body) + links_from_creatives
+        unique_links = list(dict.fromkeys([l for l in external_links if l]))
+
+        delivery_start = getattr(item, 'delivery_start_time', None)
+        if isinstance(delivery_start, (int, float)):
+            start_date_str = datetime.fromtimestamp(delivery_start).strftime("%Y-%m-%d")
+        else:
+            start_date_str = str(delivery_start) if delivery_start else None
+
         ad_dict = {
-            'page_id': item.get('pageID') or item.get('page_id'),
-            'page_name': item.get('pageName') or item.get('page_name'),
-            'ad_snapshot_url': item.get('adSnapshotURL') or item.get('ad_snapshot_url'),
+            'page_id': str(page_id) if page_id else '',
+            'page_name': page_name,
+            'ad_snapshot_url': getattr(item, 'snapshot_url', None) or getattr(item, 'ad_snapshot_url', None) or '',
             'ad_creative_body': ad_body,
-            'ad_delivery_start_time': item.get('adDeliveryStartTime') or item.get('startDate'),
-            'publisher_platforms': item.get('publisherPlatforms', []),
+            'ad_delivery_start_time': start_date_str,
+            'publisher_platforms': getattr(item, 'publisher_platforms', []) or [],
             'whatsapp_number': whatsapp_number,
-            'external_links': external_links,
-            'raw_data': item
+            'external_links': unique_links,
+            'is_active': bool(getattr(item, 'is_active', True))
         }
         ads_data.append(ad_dict)
     
-    print(f"Found {len(ads_data)} active ads")
+    print(f"Ditemukan {len(ads_data)} iklan aktif")
     return ads_data
 
 

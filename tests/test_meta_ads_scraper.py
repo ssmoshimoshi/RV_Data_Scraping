@@ -117,5 +117,37 @@ class TestMetaAdsDataStructure(unittest.TestCase):
         self.assertEqual(len(ad_dict['publisher_platforms']), 2)
 
 
+class TestSearchMetaAdsCollectorMock(unittest.TestCase):
+
+    def test_search_meta_ads_success_mock(self):
+        from unittest.mock import patch, MagicMock
+
+        mock_ad = MagicMock()
+        mock_ad.ad_library_id = '999888'
+        mock_ad.page = {'page_id': '999888', 'page_name': 'Kopi Makassar Asli'}
+        mock_creative = MagicMock()
+        mock_creative.body = 'Promo kopi botol dan cup custom. WA 081234567890'
+        mock_creative.title = 'Kopi Makassar'
+        mock_creative.link_url = 'https://linktr.ee/kopimks'
+        mock_ad.creatives = [mock_creative]
+        mock_ad.snapshot_url = 'https://facebook.com/ads/snapshot/999888'
+        mock_ad.delivery_start_time = 1761000000
+        mock_ad.publisher_platforms = ['instagram', 'facebook']
+        mock_ad.is_active = True
+
+        mock_collector = MagicMock()
+        mock_collector.collect.return_value = [mock_ad]
+
+        with patch('meta_ads_collector.MetaAdsCollector', return_value=mock_collector):
+            results = search_meta_ads('kopi', limit=5, dry_run=False)
+
+        self.assertEqual(len(results), 1)
+        res = results[0]
+        self.assertEqual(res['page_name'], 'Kopi Makassar Asli')
+        self.assertEqual(res['whatsapp_number'], '6281234567890')
+        self.assertTrue(res['is_active'])
+        self.assertIn('instagram', res['publisher_platforms'])
+
+
 if __name__ == '__main__':
     unittest.main()

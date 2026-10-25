@@ -174,10 +174,18 @@ function renderDashboard() {
     const painPoints = lead.packaging_pain_points || [];
     const hasPainPoints = painPoints.length > 0;
 
+    const statusText = lead.outreach_status || 'Belum Dihubungi';
+    let statusClass = 'not-linked';
+    if (statusText === 'Dihubungi') statusClass = '';
+    else if (statusText === 'Tertarik' || statusText === 'Closing') statusClass = 'tier-1';
+
     tr.innerHTML = `
       <td>
         <div class="lead-title-text">${escapeHtml(lead.business_name)}</div>
         <div class="lead-address-text">${escapeHtml(lead.address_full || 'Makassar')}</div>
+        <div style="margin-top: 4px;">
+          <span style="font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 4px; background: #F1F5F9; color: #475569; border: 1px solid #CBD5E1;">${escapeHtml(statusText)}</span>
+        </div>
       </td>
       <td>
         <span class="category-tag">${formatCategory(lead.category)}</span>
@@ -374,8 +382,66 @@ function openDrawer(lead) {
   }
 
 
+  // Outreach Status & Notes
+  const outreachSelect = document.getElementById('drawer-outreach-select');
+  const outreachNotes = document.getElementById('drawer-outreach-notes');
+  const outreachFeedback = document.getElementById('drawer-outreach-feedback');
+  if (outreachSelect) outreachSelect.value = lead.outreach_status || 'Belum Dihubungi';
+  if (outreachNotes) outreachNotes.value = lead.outreach_notes || '';
+  if (outreachFeedback) outreachFeedback.style.display = 'none';
+
   document.getElementById('overlay').style.display = 'block';
   document.getElementById('detail-drawer').classList.add('open');
+}
+
+async function saveLeadOutreachStatus() {
+  if (!selectedLead) return;
+  const statusSelect = document.getElementById('drawer-outreach-select');
+  const notesInput = document.getElementById('drawer-outreach-notes');
+  const feedback = document.getElementById('drawer-outreach-feedback');
+
+  const newStatus = statusSelect.value;
+  const newNotes = notesInput.value.trim();
+
+  try {
+    const res = await fetch('/api/leads/update-status', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        lead_id: selectedLead.id,
+        status: newStatus,
+        notes: newNotes
+      })
+    });
+
+    if (!res.ok) throw new Error('Gagal menyimpan status penjangkauan');
+    const data = await res.json();
+
+    selectedLead.outreach_status = newStatus;
+    selectedLead.outreach_notes = newNotes;
+
+    const idx = allLeads.findIndex(l => l.id === selectedLead.id);
+    if (idx !== -1) {
+      allLeads[idx].outreach_status = newStatus;
+      allLeads[idx].outreach_notes = newNotes;
+    }
+
+    if (feedback) {
+      feedback.textContent = 'Status penjangkauan berhasil diperbarui.';
+      feedback.style.color = '#0284C7';
+      feedback.style.display = 'block';
+      setTimeout(() => { if (feedback) feedback.style.display = 'none'; }, 3000);
+    }
+
+    renderTable(allLeads);
+  } catch (err) {
+    console.error('Error saving outreach status:', err);
+    if (feedback) {
+      feedback.textContent = 'Gagal menyimpan status penjangkauan.';
+      feedback.style.color = '#E11D48';
+      feedback.style.display = 'block';
+    }
+  }
 }
 
 function closeDrawer() {
