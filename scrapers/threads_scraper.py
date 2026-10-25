@@ -87,7 +87,7 @@ def scrape_threads_profile(username: str, limit: int = 10, dry_run: bool = False
 
 def main():
     parser = argparse.ArgumentParser(description='Threads Profile Scraper')
-    parser.add_argument('--username', required=True, help='Threads username')
+    parser.add_argument('--username', '--target', dest='username', required=True, help='Threads username')
     parser.add_argument('--limit', type=int, default=10, help='Max posts to fetch')
     parser.add_argument('--dry-run', action='store_true', help='Dry run mode')
     parser.add_argument('--output', default='data/raw/threads_profiles.json', help='Output file')
