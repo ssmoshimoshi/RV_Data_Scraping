@@ -40,6 +40,8 @@ SAMPLE_ENTITY = {
         "address": "Jl. Pettarani No. 1",
         "latitude": -5.15,
         "longitude": 119.44,
+        "total_score": 4.8,
+        "reviews_count": 420,
         "estimated_commercials": {"est_monthly_units_min": 1000, "est_monthly_units_max": 3000},
         "packaging_pain_points": [{"review_text": "kuah bocor", "detected_keywords": ["bocor", "kuah"]}],
     }],
@@ -64,6 +66,8 @@ class TestLoadProcessedDossiers(unittest.TestCase):
             self.assertEqual(lead["packaging_pain_points"][0]["detected_keywords"], ["bocor", "kuah"])
             self.assertIn("RUANG VISUAL", lead["whatsapp_pitch"])
             self.assertEqual(lead["status"], "ready_to_pitch")
+            self.assertEqual(lead["rating"], 4.8)
+            self.assertEqual(lead["reviews_count"], 420)
 
     def test_empty_dir_returns_empty_list(self):
         with tempfile.TemporaryDirectory() as tmp:

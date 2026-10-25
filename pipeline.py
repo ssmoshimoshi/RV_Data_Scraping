@@ -355,6 +355,11 @@ def run_match_pipeline(raw_dir: str, output_dir: str, city: str, dry_run: bool, 
                 if isinstance(rec, dict) and (rec.get('latest_post_date') or rec.get('last_post_date')):
                     ent['last_post_date'] = rec.get('latest_post_date') or rec.get('last_post_date')
                     break
+        if not ent.get('rating'):
+            for rec in ent['records']:
+                if isinstance(rec, dict) and (rec.get('total_score') or rec.get('rating')):
+                    ent['rating'] = rec.get('total_score') or rec.get('rating')
+                    break
         if not ent.get('category') or ent.get('category') == 'general_commercial':
             bio = ent.get('biography') or ''
             raw_cat = ''

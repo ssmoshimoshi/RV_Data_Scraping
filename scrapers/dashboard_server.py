@@ -533,6 +533,14 @@ def enrich_lead_card(lead: dict) -> dict:
     if pitch_info:
         enriched["pitch_text"] = pitch_info["pitch_text"]
         enriched["wa_link"] = pitch_info["wa_link"]
+    elif enriched.get("whatsapp_pitch"):
+        enriched["pitch_text"] = enriched["whatsapp_pitch"]
+        wa_num = enriched.get("whatsapp_number") or ""
+        if wa_num:
+            import urllib.parse
+            enriched["wa_link"] = f"https://wa.me/{wa_num}?text={urllib.parse.quote(enriched['whatsapp_pitch'])}"
+        else:
+            enriched["wa_link"] = ""
     else:
         enriched["pitch_text"] = ""
         enriched["wa_link"] = ""
@@ -677,6 +685,9 @@ def load_processed_dossiers(processed_dir=PROJECT_ROOT / "data" / "processed") -
         pain_points = ent.get("packaging_pain_points") or next(
             (r.get("packaging_pain_points") for r in records if r.get("packaging_pain_points")), [])
         channels = ent.get("channels") or build_channels_from_records(ent, records, first_rec)
+        rating = ent.get("rating") or first_rec.get("total_score") or first_rec.get("rating") or 4.5
+        reviews_count = ent.get("reviews_count") or first_rec.get("reviews_count") or 0
+        place_id = first_rec.get("place_id") or ""
         leads.append({
             "id": ent.get("entity_id") or f"dossier-{len(leads) + 1}",
             "entity_id": ent.get("entity_id", ""),
@@ -688,6 +699,9 @@ def load_processed_dossiers(processed_dir=PROJECT_ROOT / "data" / "processed") -
             "address_full": first_rec.get("address") or first_rec.get("address_full", ""),
             "latitude": first_rec.get("latitude"),
             "longitude": first_rec.get("longitude"),
+            "rating": rating,
+            "reviews_count": reviews_count,
+            "google_maps_place_id": place_id,
             "whatsapp_number": ent.get("whatsapp_number", ""),
             "phone_number": first_rec.get("phone_number", ""),
             "external_website_url": first_rec.get("website") or first_rec.get("external_website_url", ""),
