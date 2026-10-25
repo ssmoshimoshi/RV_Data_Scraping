@@ -392,6 +392,7 @@ function renderChannelsList(lead) {
     { key: 'google_maps', name: 'Google Maps' },
     { key: 'instagram', name: 'Instagram' },
     { key: 'tiktok', name: 'TikTok' },
+    { key: 'threads', name: 'Threads' },
     { key: 'food_delivery', name: 'Food Delivery' }
   ];
 
