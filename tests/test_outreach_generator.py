@@ -6,7 +6,13 @@ if str(PROJECT_ROOT) not in sys.path:
 
 import re
 import unittest
-from scrapers.outreach_generator import generate_whatsapp_pitch, generate_whatsapp_click_url, recommended_products
+from scrapers.outreach_generator import (
+    generate_whatsapp_pitch,
+    generate_whatsapp_click_url,
+    recommended_products,
+    detect_pain_issue,
+    _TEMPLATE_PAIN_POINT,
+)
 
 EMOJI_PATTERN = re.compile(
     r'[\U0001F000-\U0001FAFF\U00002600-\U000027BF\U0001F1E6-\U0001F1FF\u2190-\u21FF\u2B00-\u2BFF\uFE0F]'
@@ -91,6 +97,101 @@ class TestGenerateWhatsappPitch(unittest.TestCase):
         }
         pitch = generate_whatsapp_pitch(dossier)
         self.assertIn('sampel', pitch)
+
+
+class TestPainPointPitch(unittest.TestCase):
+
+    def test_pain_points_list_of_dicts_uses_complaint_template(self):
+        dossier = {
+            'business_name': 'Warung Coto Daeng',
+            'district_area': 'Panakkukang',
+            'category': 'fnb_food_resto',
+            'packaging_pain_points': [
+                {'review_text': 'Kuah bocor sampai ke kantong plastik', 'detected_keywords': ['bocor', 'kuah']},
+            ],
+        }
+        pitch = generate_whatsapp_pitch(dossier)
+        self.assertIn('kendala kemasan bocor/rembes', pitch)
+        self.assertIn('Warung Coto Daeng', pitch)
+        self.assertIn('Panakkukang', pitch)
+        self.assertIn('anti-bocor', pitch)
+
+    def test_pain_points_from_records_used(self):
+        dossier = {
+            'business_name': 'Kopi Susu Viral',
+            'district_area': 'Rappocini',
+            'records': [
+                {'packaging_pain_points': [{'review_text': 'Es kopi tumpah semua pas sampai', 'detected_keywords': ['tumpah']}]},
+            ],
+        }
+        pitch = generate_whatsapp_pitch(dossier)
+        self.assertIn('kendala kemasan bocor/rembes', pitch)
+
+    def test_pain_points_string_penyok_tipis(self):
+        dossier = {
+            'business_name': 'Toko Kue Enak',
+            'district_area': 'Mariso',
+            'packaging_pain_points': 'Box kue tipis dan mudah penyok saat dikirim',
+        }
+        pitch = generate_whatsapp_pitch(dossier)
+        self.assertIn('kendala kemasan mudah penyok', pitch)
+
+    def test_pain_points_rusak_pecah(self):
+        dossier = {
+            'business_name': 'Toko Oleh Oleh',
+            'district_area': 'Tamalanrea',
+            'packaging_pain_points': ['kemasan pecah dan barang rusak'],
+        }
+        pitch = generate_whatsapp_pitch(dossier)
+        self.assertIn('kendala kemasan mudah rusak', pitch)
+
+    def test_no_pain_points_keeps_sector_template(self):
+        dossier = {
+            'business_name': 'Warung Coto Daeng',
+            'district_area': 'Panakkukang',
+            'category': 'fnb_food_resto',
+            'packaging_pain_points': [],
+        }
+        pitch = generate_whatsapp_pitch(dossier)
+        self.assertNotIn('kendala kemasan', pitch)
+        self.assertIn('paper cup', pitch.lower())
+
+    def test_pain_points_without_keywords_keeps_sector_template(self):
+        dossier = {
+            'business_name': 'Butik Anaya',
+            'district_area': 'Rappocini',
+            'category': 'fashion_boutique',
+            'packaging_pain_points': [{'review_text': 'Pengiriman agak lama', 'detected_keywords': ['lama']}],
+        }
+        pitch = generate_whatsapp_pitch(dossier)
+        self.assertNotIn('kendala kemasan', pitch)
+        self.assertIn('polymailer', pitch)
+
+    def test_pain_point_template_has_no_emoji(self):
+        self.assertIsNone(EMOJI_PATTERN.search(_TEMPLATE_PAIN_POINT))
+
+    def test_pain_point_pitch_has_no_emoji(self):
+        dossier = {
+            'business_name': 'Warung Coto Daeng',
+            'district_area': 'Panakkukang',
+            'packaging_pain_points': 'kemasan bocor',
+        }
+        pitch = generate_whatsapp_pitch(dossier)
+        self.assertIsNone(EMOJI_PATTERN.search(pitch))
+
+    def test_pain_point_pitch_url_encoded_in_wa_link(self):
+        dossier = {
+            'business_name': 'Warung Coto Daeng',
+            'district_area': 'Panakkukang',
+            'packaging_pain_points': 'kemasan bocor',
+        }
+        pitch = generate_whatsapp_pitch(dossier)
+        url = generate_whatsapp_click_url('6281234567890', pitch)
+        self.assertTrue(url.startswith('https://wa.me/6281234567890?text='))
+        self.assertNotIn(' ', url)
+
+    def test_detect_pain_issue_none_when_absent(self):
+        self.assertIsNone(detect_pain_issue({'business_name': 'Toko A'}))
 
 
 class TestGenerateWhatsappClickUrl(unittest.TestCase):

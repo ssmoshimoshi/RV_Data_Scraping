@@ -46,14 +46,18 @@ SAMPLE_DOSSIERS = [
 
 class TestCSVColumns(unittest.TestCase):
 
-    def test_csv_has_11_required_columns(self):
+    def test_csv_has_12_required_columns(self):
         required = {
-            'entity_id', 'business_name', 'category', 'district_area',
+            'entity_id', 'business_name', 'category', 'district_area', 'sales_cluster',
             'address_full', 'whatsapp_number', 'wa_link_direct',
             'recommended_products', 'whatsapp_pitch', 'sales_status', 'sales_notes',
         }
         self.assertEqual(set(CSV_COLUMNS), required)
-        self.assertEqual(len(CSV_COLUMNS), 11)
+        self.assertEqual(len(CSV_COLUMNS), 12)
+
+    def test_sales_cluster_positioned_after_district_area(self):
+        idx = CSV_COLUMNS.index('sales_cluster')
+        self.assertEqual(CSV_COLUMNS[idx - 1], 'district_area')
 
     def test_export_writes_correct_columns(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -155,6 +159,81 @@ class TestBuildRow(unittest.TestCase):
         row = build_row(ent)
         self.assertNotEqual(row['category'], '')
         self.assertEqual(row['category'], 'fnb_food_resto')
+
+    def test_sales_cluster_assigned_from_address(self):
+        ent = {
+            'entity_id': 'ent_0005',
+            'business_name': 'Warung Coto Daeng',
+            'category': 'fnb_food_resto',
+            'district_area': 'Panakkukang',
+            'address_full': 'Jl. Boulevard No. 10 Makassar',
+            'records': [],
+        }
+        row = build_row(ent)
+        self.assertEqual(row['sales_cluster'], 'Koridor Panakkukang')
+
+    def test_sales_cluster_assigned_from_district_only(self):
+        ent = {
+            'entity_id': 'ent_0006',
+            'business_name': 'Squid Coffee',
+            'category': 'fnb_beverage',
+            'district_area': 'Tamalanrea',
+            'records': [],
+        }
+        row = build_row(ent)
+        self.assertEqual(row['sales_cluster'], 'Koridor Tamalanrea')
+
+    def test_sales_cluster_fallback(self):
+        ent = {
+            'entity_id': 'ent_0007',
+            'business_name': 'Toko Misteri',
+            'category': 'fnb_food_resto',
+            'address_full': 'Jl. Antah Berantah No. 1',
+            'district_area': 'Entah',
+            'records': [],
+        }
+        row = build_row(ent)
+        self.assertEqual(row['sales_cluster'], 'Makassar Lainnya')
+
+
+class TestExportSorting(unittest.TestCase):
+
+    def test_rows_sorted_by_cluster_then_score_desc(self):
+        dossiers = [
+            {
+                'entity_id': 'e1', 'business_name': 'A', 'category': 'fnb_food_resto',
+                'district_area': 'Tamalanrea', 'address_full': 'Jl. Perintis Km. 8',
+                'whatsapp_number': '628111111111', 'lead_score': 70, 'records': [],
+            },
+            {
+                'entity_id': 'e2', 'business_name': 'B', 'category': 'fnb_beverage',
+                'district_area': 'Panakkukang', 'address_full': 'Jl. Boulevard No. 2',
+                'whatsapp_number': '628222222222', 'lead_score': 60, 'records': [],
+            },
+            {
+                'entity_id': 'e3', 'business_name': 'C', 'category': 'fnb_bakery',
+                'district_area': 'Panakkukang', 'address_full': 'Jl. Pengayoman No. 9',
+                'whatsapp_number': '628333333333', 'lead_score': 90, 'records': [],
+            },
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / 'export.csv'
+            export_dossiers_to_csv(dossiers, out, require_whatsapp=False)
+            with out.open(encoding='utf-8-sig') as f:
+                rows = list(csv.DictReader(f))
+            self.assertEqual([r['entity_id'] for r in rows], ['e3', 'e2', 'e1'])
+            self.assertEqual(rows[0]['sales_cluster'], 'Koridor Panakkukang')
+            self.assertEqual(rows[2]['sales_cluster'], 'Koridor Tamalanrea')
+
+    def test_sort_tolerates_missing_lead_score(self):
+        dossiers = [
+            {'entity_id': 'e1', 'business_name': 'A', 'address_full': 'Jl. Boulevard', 'records': []},
+            {'entity_id': 'e2', 'business_name': 'B', 'address_full': 'Jl. Boulevard No. 3', 'lead_score': 'invalid', 'records': []},
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / 'export.csv'
+            count = export_dossiers_to_csv(dossiers, out, require_whatsapp=False)
+            self.assertEqual(count, 2)
 
 
 class TestFindLatestDossier(unittest.TestCase):

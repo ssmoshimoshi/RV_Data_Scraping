@@ -11,6 +11,7 @@ from datetime import datetime
 from difflib import SequenceMatcher
 
 from scrapers.normalizer import normalize_whatsapp, extract_whatsapp_from_url
+from scrapers.biolink_resolver import is_biolink_url, resolve_biolink_whatsapp
 
 # Referensi: PRD_RUANG_VISUAL_MARKET_INTELLIGENCE.md Bab 5.6
 SIMILARITY_THRESHOLD = 0.85
@@ -90,6 +91,8 @@ def extract_fields(record: dict) -> dict:
     wa = normalize_whatsapp(raw_phone)
     if not wa and record.get('website'):
         wa = extract_whatsapp_from_url(record['website'])
+    if not wa and is_biolink_url(record.get('website') or ''):
+        wa = resolve_biolink_whatsapp(record['website'])
     return {
         'name': name,
         'platform': record.get('platform', ''),

@@ -8,6 +8,13 @@ import urllib.parse
 
 from scrapers.lead_scoring import classify_category
 
+_TEMPLATE_PAIN_POINT = (
+    "Halo Kak {name}, salam dari tim RUANG VISUAL di Makassar. "
+    "Izin Kak, kami membaca ulasan pelanggan mengenai kendala kemasan {issue} pada pesanan outlet Kakak di area {district}. "
+    "Kebetulan kami vendor kemasan lokal di Makassar yang fokus memproduksi bahan kemasan tebal dan anti-bocor. "
+    "Boleh kami antarkan sampel fisik bahan kemasan kami langsung ke outlet untuk dicoba?"
+)
+
 _TEMPLATE_FNB = (
     "Halo Kak {name}, salam dari tim RUANG VISUAL di Makassar. "
     "Izin tanya Kak, untuk kemasan {name} (seperti paper cup atau box) saat ini pakai sablon custom atau masih polos? "
@@ -45,6 +52,38 @@ _RECOMMENDED = {
     'skincare': 'Stiker Segel Tahan Air, Box Lipat, Amplop Kraft',
 }
 
+_PAIN_ISSUE_GROUPS = (
+    (('bocor', 'rembes', 'tumpah'), 'bocor/rembes'),
+    (('penyok', 'tipis'), 'mudah penyok'),
+    (('rusak', 'pecah'), 'mudah rusak'),
+)
+
+def _collect_pain_text(pain_points) -> str:
+    if isinstance(pain_points, str):
+        return pain_points.lower()
+    if isinstance(pain_points, list):
+        parts = []
+        for item in pain_points:
+            if isinstance(item, str):
+                parts.append(item)
+            elif isinstance(item, dict):
+                parts.append(str(item.get('review_text') or ''))
+                parts.extend(str(k) for k in item.get('detected_keywords') or [])
+        return ' '.join(parts).lower()
+    return ''
+
+def detect_pain_issue(dossier: dict):
+    sources = [dossier.get('packaging_pain_points')]
+    sources.extend(rec.get('packaging_pain_points') for rec in dossier.get('records', []) if isinstance(rec, dict))
+    for source in sources:
+        text = _collect_pain_text(source)
+        if not text:
+            continue
+        for keywords, issue in _PAIN_ISSUE_GROUPS:
+            if any(k in text for k in keywords):
+                return issue
+    return None
+
 
 def _resolve_sector(category: str, dossier: dict = None) -> str:
     if category in _FNB_CATEGORIES:
@@ -66,6 +105,9 @@ def _resolve_sector(category: str, dossier: dict = None) -> str:
 def generate_whatsapp_pitch(dossier: dict) -> str:
     name = dossier.get('business_name') or 'Bapak/Ibu'
     district = str(dossier.get('district_area') or dossier.get('city') or 'Makassar').title()
+    issue = detect_pain_issue(dossier)
+    if issue:
+        return _TEMPLATE_PAIN_POINT.format(name=name, issue=issue, district=district)
     category = dossier.get('category') or classify_category(
         name, dossier.get('biography', ''), []
     )

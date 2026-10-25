@@ -11,6 +11,7 @@ from typing import Optional
 
 from scrapers.lead_scoring import classify_category
 from scrapers.outreach_generator import generate_whatsapp_pitch, generate_whatsapp_click_url, recommended_products
+from scrapers.route_cluster import assign_sales_cluster
 
 DEFAULT_PROCESSED_DIR = PROJECT_ROOT / 'data' / 'processed'
 
@@ -19,6 +20,7 @@ CSV_COLUMNS = [
     'business_name',
     'category',
     'district_area',
+    'sales_cluster',
     'address_full',
     'whatsapp_number',
     'wa_link_direct',
@@ -69,6 +71,7 @@ def build_row(ent: dict) -> dict:
         'business_name': ent.get('business_name', ''),
         'category': category,
         'district_area': district,
+        'sales_cluster': assign_sales_cluster(address, district),
         'address_full': address,
         'whatsapp_number': wa,
         'wa_link_direct': wa_link,
@@ -79,8 +82,16 @@ def build_row(ent: dict) -> dict:
     }
 
 
+def _lead_score_value(ent: dict) -> float:
+    try:
+        return float(ent.get('lead_score') or 0)
+    except (TypeError, ValueError):
+        return 0.0
+
 def export_dossiers_to_csv(dossiers: list, output_path: Path, require_whatsapp: bool = True) -> int:
-    rows = [build_row(e) for e in dossiers]
+    paired = [(e, build_row(e)) for e in dossiers]
+    paired.sort(key=lambda p: (p[1].get('sales_cluster', ''), -_lead_score_value(p[0])))
+    rows = [row for _, row in paired]
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
