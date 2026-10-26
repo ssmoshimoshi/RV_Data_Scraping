@@ -16,29 +16,30 @@
 
     <!-- Sidebar Navigation -->
     <aside class="sidebar">
+      <div class="sidebar-top-accent"></div>
       <div class="sidebar-header">
-        <div class="sidebar-logo">RUANG VISUAL</div>
-        <div class="sidebar-badge">Market Intelligence</div>
+        <img src="LOGO.svg" alt="Ruang Visual" class="sidebar-logo-img">
+        <div class="sidebar-badge">Market Intelligence Workspace</div>
       </div>
 
       <nav class="sidebar-nav">
         <button class="nav-item active" data-view="view-dossier" onclick="switchView('view-dossier')">
-          <span class="nav-indicator"></span>
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3M4 7h16M4 7v13a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7M9 12h6M9 16h4"/></svg>
           <span class="nav-text">Database Calon Customer</span>
         </button>
 
         <button class="nav-item" data-view="view-inspector" onclick="switchView('view-inspector')">
-          <span class="nav-indicator"></span>
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
           <span class="nav-text">Inspector 5 Konten Sosial</span>
         </button>
 
         <button class="nav-item" data-view="view-pillars" onclick="switchView('view-pillars')">
-          <span class="nav-indicator"></span>
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
           <span class="nav-text">Matriks 4 Dimensi Meta</span>
         </button>
 
         <button class="nav-item" data-view="view-catalog" onclick="switchView('view-catalog')">
-          <span class="nav-indicator"></span>
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
           <span class="nav-text">Spesifikasi Teknis Kemasan</span>
         </button>
       </nav>
@@ -46,7 +47,7 @@
       <div class="sidebar-footer">
         <div class="system-status-indicator">
           <span class="pulse-dot"></span>
-          <span>Proofing System v2.0 Aktif</span>
+          <span>Sistem Proofing Terkalibrasi Aktif</span>
         </div>
         <div class="sidebar-note">Anchor: Google Maps Makassar Terverifikasi</div>
       </div>
@@ -64,7 +65,7 @@
         </div>
         <div class="header-actions">
           <button class="btn-refresh" id="btn-export-csv">Unduh CSV Dossier</button>
-          <button class="btn-refresh" onclick="fetchLeads()">Perbarui Data</button>
+          <button class="btn-primary-action" onclick="fetchLeads()">Perbarui Data</button>
         </div>
       </header>
 
