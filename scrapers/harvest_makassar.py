@@ -23,14 +23,28 @@ DISTRICTS = {
 }
 
 SECTOR_QUERIES = {
-    'fnb': [
+    'fnb_hospitality': [
         'cafe coffee', 'restoran rumah makan', 'katering', 'ayam geprek', 'bakso mie',
+        'kopi kafe', 'kedai minuman', 'bakery kue roti',
     ],
-    'fashion': [
-        'butik pakaian', 'toko baju fashion', 'hijab store',
+    'retail_apparel': [
+        'butik pakaian', 'toko baju fashion', 'hijab store', 'distro clothing',
+        'toko baju pria wanita', 'butik hijab muslim',
     ],
-    'skincare': [
-        'klinik kecantikan', 'skincare salon estetik',
+    'education': [
+        'sekolah swasta', 'madrasah aliyah tsanawiyah', 'pondok pesantren', 'bimbel les privat',
+        'taman kanak-kanak paud', 'sd smp sma swasta',
+    ],
+    'corporate_legal': [
+        'kantor notaris ppat', 'kantor hukum advokat pengacara', 'klinik kecantikan estetika',
+        'konsultan bisnis hukum', 'kantor advokat legal',
+    ],
+    'event_community': [
+        'event organizer wedding', 'dekorasi pameran acara', 'wedding organizer decoration',
+        'event planner organizer', 'studio dekorasi pesta',
+    ],
+    'beauty_skincare': [
+        'klinik kecantikan estetik', 'skincare salon spa', 'kecantikan klinik dermato',
     ],
 }
 
@@ -187,8 +201,8 @@ def harvest(sector: str = 'all', limit_per_query: int = 10, dry_run: bool = Fals
 
 def main():
     parser = argparse.ArgumentParser(description='Panen massal Google Maps per kecamatan Makassar')
-    parser.add_argument('--sector', choices=['fnb', 'fashion', 'skincare', 'all'], default='all')
-    parser.add_argument('--limit-per-query', type=int, default=10)
+    parser.add_argument('--sector', choices=list(SECTOR_QUERIES.keys()) + ['all'], default='all')
+    parser.add_argument('--limit', '--limit-per-query', dest='limit_per_query', type=int, default=10)
     parser.add_argument('--dry-run', action='store_true')
     args = parser.parse_args()
     harvest(sector=args.sector, limit_per_query=args.limit_per_query, dry_run=args.dry_run)

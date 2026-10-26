@@ -14,29 +14,29 @@ from scrapers.harvest_makassar import build_queries, harvest, DISTRICTS, SECTOR_
 class TestBuildQueries(unittest.TestCase):
 
     def test_fnb_queries_cover_all_districts(self):
-        queries = build_queries('fnb')
+        queries = build_queries('fnb_hospitality')
         districts_covered = {q[1] for q in queries}
         self.assertEqual(districts_covered, set(DISTRICTS.keys()))
 
     def test_all_sector_includes_fnb_fashion_skincare(self):
         queries = build_queries('all')
         sectors_covered = {q[0] for q in queries}
-        self.assertEqual(sectors_covered, {'fnb', 'fashion', 'skincare'})
+        self.assertEqual(sectors_covered, set(SECTOR_QUERIES.keys()))
 
     def test_query_string_contains_keyword_and_area(self):
-        queries = build_queries('fashion')
+        queries = build_queries('retail_apparel')
         query_strings = [q[2] for q in queries]
         self.assertTrue(any('butik pakaian' in qs for qs in query_strings))
         self.assertTrue(any('Makassar' in qs for qs in query_strings))
 
     def test_total_count_is_deterministic(self):
-        q_fnb = build_queries('fnb')
+        q_fnb = build_queries('fnb_hospitality')
         total_areas = sum(len(areas) for areas in DISTRICTS.values())
-        expected = len(SECTOR_QUERIES['fnb']) * total_areas
+        expected = len(SECTOR_QUERIES['fnb_hospitality']) * total_areas
         self.assertEqual(len(q_fnb), expected)
 
     def test_skincare_queries_present(self):
-        queries = build_queries('skincare')
+        queries = build_queries('beauty_skincare')
         query_strings = [q[2] for q in queries]
         self.assertTrue(any('klinik kecantikan' in qs for qs in query_strings))
 

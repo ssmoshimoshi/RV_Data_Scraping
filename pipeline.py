@@ -14,13 +14,16 @@ from scrapers.tiktok_scraper import scrape_tiktok_search, transform_to_lead_form
 from scrapers.threads_scraper import scrape_threads_profile
 from scrapers.food_delivery_scraper import scrape_gofood, scrape_grabfood, scrape_shopeefood
 from scrapers.normalizer import normalize_whatsapp, normalize_address
-from scrapers.lead_scoring import qualify_lead, calculate_score, classify_category, infer_product_needs, generate_whatsapp_pitch
+from scrapers.lead_scoring import qualify_lead, calculate_score, classify_category, infer_product_needs, generate_whatsapp_pitch, calculate_4_pillars_score
 from scrapers.entity_matcher import load_raw_records, match_entities
-from scrapers.outreach_generator import generate_whatsapp_pitch as generate_outreach_pitch
+from scrapers.outreach_generator import generate_whatsapp_pitch as generate_outreach_pitch, _resolve_sector
+from scrapers.route_cluster import assign_sales_cluster
 from scrapers.exporter import export_dossiers_to_csv, find_latest_dossier
 from scrapers.database import insert_lead, get_supabase_client, batch_upsert_dossiers
 from scrapers.harvest_makassar import harvest
 from scrapers.sync_catalog import sync_catalog
+from scrapers.db_sqlite import init_db, upsert_lead as upsert_lead_sqlite
+from scrapers.normalizer import validate_whatsapp_number
 import os
 from pathlib import Path
 from datetime import datetime, timedelta
@@ -327,6 +330,83 @@ def run_food_delivery_pipeline(platform: str, city: str, limit: int, dry_run: bo
     print(f"Selesai. Total ditemukan: {len(merchants)}, Lolos kualifikasi: {qualified_count}, Tersimpan: {saved_count}")
 
 
+_SECTOR_PILLAR = {
+    'education': 'office_school',
+    'corporate_legal': 'office_school',
+    'event_community': 'custom_merch',
+    'retail_apparel': 'apparel',
+    'fnb_hospitality': 'label_sticker',
+    'beauty_skincare': 'label_sticker',
+    'general': 'advertising',
+}
+
+
+def sync_entities_to_sqlite(entities: list, city: str, db_path=None) -> int:
+    init_db(db_path)
+    saved = 0
+    for ent in entities:
+        sector = _resolve_sector(ent.get('category', ''), ent)
+        wa_raw = ent.get('whatsapp_number') or ent.get('phone_number') or ''
+        is_wa_valid, wa_normalized = validate_whatsapp_number(wa_raw)
+        pillars = calculate_4_pillars_score(ent)
+        address = ent.get('address_full', '')
+        district = ent.get('district_area', '')
+        entity_data = {
+            'entity_id': ent.get('entity_id', ''),
+            'business_name': ent.get('business_name', ''),
+            'target_sector': sector,
+            'primary_service_pillar': _SECTOR_PILLAR.get(sector, 'advertising'),
+            'category_raw': ent.get('category', ''),
+            'whatsapp_number': wa_normalized or wa_raw or None,
+            'phone_raw': ent.get('phone_number'),
+            'is_wa_valid': 1 if is_wa_valid else 0,
+            'is_commercial': 1,
+            'locations': {
+                'place_id': ent.get('google_maps_place_id') or ent.get('place_id'),
+                'address_full': address,
+                'district_area': district,
+                'city': city,
+                'sales_cluster': assign_sales_cluster(address, district),
+                'latitude': ent.get('latitude'),
+                'longitude': ent.get('longitude'),
+            },
+            'digital_footprints': {
+                'website_url': ent.get('external_website_url'),
+                'gmaps_rating': ent.get('rating'),
+                'gmaps_reviews_count': ent.get('reviews_count', 0),
+                'review_snippets_json': ent.get('review_snippets') or [],
+                'instagram_handle': ent.get('instagram_handle'),
+                'instagram_bio': ent.get('biography'),
+                'instagram_followers': ent.get('followers_count', 0),
+                'latest_post_date': ent.get('last_post_date'),
+                'tiktok_handle': ent.get('tiktok_handle'),
+                'has_meta_ads': 1 if ent.get('is_ad_active') else 0,
+            },
+            'commercial_intelligence': {
+                'lead_score': pillars.get('score_total', 0),
+                'priority_tier': ent.get('priority_tier') or pillars.get('tier', 'Tier D'),
+                'score_legitimacy': pillars.get('score_legitimacy', 0),
+                'score_velocity': pillars.get('score_velocity', 0),
+                'score_turnover': pillars.get('score_turnover', 0),
+                'score_budget': pillars.get('score_budget', 0),
+                'detected_service_needs': ent.get('detected_service_needs') or [],
+                'service_pain_points': ent.get('packaging_pain_points') or [],
+                'est_order_value_idr': (ent.get('estimated_commercials') or {}).get('est_monthly_value_min_idr', 0),
+                'recommended_products': ent.get('recommended_products', ''),
+            },
+            'outreach_logs': {
+                'outreach_status': 'Belum Dihubungi',
+                'whatsapp_pitch': ent.get('whatsapp_pitch', ''),
+            },
+        }
+        try:
+            if upsert_lead_sqlite(entity_data, db_path):
+                saved += 1
+        except Exception as e:
+            print(f"Gagal menyimpan entitas {ent.get('entity_id')} ke SQLite: {e}")
+    return saved
+
+
 def run_match_pipeline(raw_dir: str, output_dir: str, city: str, dry_run: bool, save_db: bool = False):
     print(f"Menjalankan entity matcher lintas platform (Raw: {raw_dir}, Kota: {city}, Dry-run: {dry_run})")
     
@@ -397,6 +477,9 @@ def run_match_pipeline(raw_dir: str, output_dir: str, city: str, dry_run: bool, 
     if save_db:
         count, msg = batch_upsert_dossiers(entities, dry_run=False)
         print(msg)
+
+    saved_sqlite = sync_entities_to_sqlite(entities, city)
+    print(f"Entitas tersimpan ke SQLite (data/leads.sqlite): {saved_sqlite}")
 
 
 def run_export_pipeline(input_path: str, output_path: str, dry_run: bool, include_no_wa: bool = False):
@@ -502,7 +585,7 @@ def main():
 
     # Subcommand: harvest
     harvest_parser = subparsers.add_parser("harvest", help="Panen massal prospek terarah per kecamatan di Makassar")
-    harvest_parser.add_argument("--sector", choices=["fnb", "fashion", "skincare", "all"], default="fnb", help="Sektor bisnis target")
+    harvest_parser.add_argument("--sector", choices=["fnb_hospitality", "retail_apparel", "education", "corporate_legal", "event_community", "beauty_skincare", "all"], default="all", help="Sektor bisnis target")
     harvest_parser.add_argument("--limit-per-query", type=int, default=5, help="Batas maksimal tempat per query")
     harvest_parser.add_argument("--dry-run", action="store_true", help="Simulasi tanpa pemanggilan berbayar")
 

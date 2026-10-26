@@ -10,7 +10,15 @@ import os
 import re
 import tempfile
 import unittest
-from scrapers.exporter import export_dossiers_to_csv, find_latest_dossier, CSV_COLUMNS, build_row
+from scrapers.exporter import (
+    export_dossiers_to_csv,
+    export_full_dossiers_to_csv,
+    find_latest_dossier,
+    CSV_COLUMNS,
+    CSV_COLUMNS_FULL,
+    build_row,
+    build_row_full,
+)
 
 EMOJI_PATTERN = re.compile(
     r'[\U0001F000-\U0001FAFF\U00002600-\U000027BF\U0001F1E6-\U0001F1FF\u2190-\u21FF\u2B00-\u2BFF\uFE0F]'
@@ -46,14 +54,14 @@ SAMPLE_DOSSIERS = [
 
 class TestCSVColumns(unittest.TestCase):
 
-    def test_csv_has_12_required_columns(self):
+    def test_csv_has_13_required_columns(self):
         required = {
             'entity_id', 'business_name', 'category', 'district_area', 'sales_cluster',
             'address_full', 'whatsapp_number', 'wa_link_direct',
-            'recommended_products', 'whatsapp_pitch', 'sales_status', 'sales_notes',
+            'recommended_products', 'whatsapp_pitch', 'tier', 'sales_status', 'sales_notes',
         }
         self.assertEqual(set(CSV_COLUMNS), required)
-        self.assertEqual(len(CSV_COLUMNS), 12)
+        self.assertEqual(len(CSV_COLUMNS), 13)
 
     def test_sales_cluster_positioned_after_district_area(self):
         idx = CSV_COLUMNS.index('sales_cluster')
@@ -324,6 +332,78 @@ class TestWhatsAppFiltering(unittest.TestCase):
             self.assertEqual(count, 2)
             secondary_files = list(Path(tmp).glob('dossiers_perlu_riset_*.csv'))
             self.assertEqual(len(secondary_files), 0)
+
+
+class TestExportFullCSV(unittest.TestCase):
+
+    def test_csv_full_has_32_columns(self):
+        self.assertEqual(len(CSV_COLUMNS_FULL), 32)
+        expected_keys = {
+            'entity_id', 'business_name', 'target_sector', 'primary_service_pillar',
+            'category_raw', 'priority_tier', 'lead_score', 'score_legitimacy',
+            'score_velocity', 'score_turnover', 'score_budget', 'detected_service_needs',
+            'service_pain_points', 'est_order_value_idr', 'recommended_products',
+            'address_full', 'district_area', 'sales_cluster', 'latitude', 'longitude',
+            'place_id', 'gmaps_rating', 'gmaps_reviews_count', 'review_samples',
+            'website_url', 'instagram_handle', 'whatsapp_number', 'is_wa_valid',
+            'has_meta_ads', 'whatsapp_pitch', 'sales_status', 'sales_notes',
+        }
+        self.assertEqual(set(CSV_COLUMNS_FULL), expected_keys)
+
+    def test_build_row_full_calculates_scores_accurately(self):
+        dossier = {
+            'entity_id': 'ent_test_full',
+            'business_name': 'Kopi Sejahtera Makassar',
+            'category': 'fnb_hospitality',
+            'target_sector': 'fnb_hospitality',
+            'primary_service_pillar': 'label_sticker',
+            'address_full': 'Jl. Pengayoman No. 12',
+            'district_area': 'Panakkukang',
+            'google_maps_place_id': 'place_kopi_123',
+            'rating': 4.7,
+            'whatsapp_number': '6281234567890',
+            'latest_post_date': '2026-10-25T12:00:00',
+            'is_ad_active': True,
+            'outreach_status': 'Tertarik',
+            'sales_notes': 'Sampel cup sudah dikirimkan.',
+        }
+        row = build_row_full(dossier)
+        self.assertGreaterEqual(row['lead_score'], 80)
+        self.assertEqual(row['score_legitimacy'], 25)
+        self.assertEqual(row['score_turnover'], 30)
+        self.assertEqual(row['score_budget'], 20)
+        self.assertEqual(row['priority_tier'], 'Tier A')
+        self.assertEqual(row['sales_status'], 'Tertarik')
+        self.assertEqual(row['sales_notes'], 'Sampel cup sudah dikirimkan.')
+
+    def test_export_full_writes_correct_csv(self):
+        dossiers = [
+            {
+                'entity_id': 'ent_101',
+                'business_name': 'SMA Unggulan Harapan',
+                'category': 'education',
+                'target_sector': 'education',
+                'primary_service_pillar': 'office_school',
+                'address_full': 'Jl. Perintis Kemerdekaan KM 10',
+                'district_area': 'Tamalanrea',
+                'place_id': 'place_sma_101',
+                'gmaps_rating': 4.8,
+                'whatsapp_number': '628114455667',
+                'records': [],
+            }
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            out_csv = Path(tmp) / 'full_export.csv'
+            count = export_full_dossiers_to_csv(dossiers, out_csv)
+            self.assertEqual(count, 1)
+
+            with out_csv.open(encoding='utf-8-sig') as f:
+                reader = csv.DictReader(f)
+                rows = list(reader)
+                self.assertEqual(len(rows), 1)
+                self.assertEqual(rows[0]['entity_id'], 'ent_101')
+                self.assertGreater(int(rows[0]['lead_score']), 0)
+                self.assertGreater(int(rows[0]['score_turnover']), 0)
 
 
 if __name__ == '__main__':

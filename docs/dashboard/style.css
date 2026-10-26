@@ -937,7 +937,7 @@ select:focus, input[type="text"]:focus {
 }
 
 .drawer-header {
-  padding: 22px 28px 18px 28px;
+  padding: 20px 24px 16px 24px;
   border-bottom: 1px solid var(--border-subtle);
   display: flex;
   justify-content: space-between;
@@ -945,12 +945,36 @@ select:focus, input[type="text"]:focus {
   background: #ffffff;
 }
 
-.drawer-pretitle {
-  font-size: 11px;
-  font-weight: 800;
+.drawer-meta-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.drawer-badge-pill {
+  font-size: 10px;
+  font-weight: 700;
   text-transform: uppercase;
-  color: var(--cmyk-key);
-  letter-spacing: 0.8px;
+  letter-spacing: 0.5px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: var(--bg-surface-container);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+}
+
+.drawer-badge-pill.pillar {
+  background: rgba(0, 174, 239, 0.08);
+  color: #0284c7;
+  border-color: rgba(0, 174, 239, 0.3);
+}
+
+.drawer-badge-pill.tier {
+  background: rgba(236, 0, 140, 0.08);
+  color: #db2777;
+  border-color: rgba(236, 0, 140, 0.3);
+  font-weight: 800;
 }
 
 .drawer-title {
@@ -973,8 +997,217 @@ select:focus, input[type="text"]:focus {
   color: var(--text-key);
 }
 
+/* 4 Tabs Drawer Nav */
+.drawer-tabs-nav {
+  display: flex;
+  background: #f8fafc;
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 0 16px;
+  gap: 4px;
+  overflow-x: auto;
+}
+
+.drawer-tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 14px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.18s ease;
+  white-space: nowrap;
+}
+
+.drawer-tab-btn:hover {
+  color: var(--text-key);
+  background: rgba(0, 174, 239, 0.04);
+}
+
+.drawer-tab-btn.active {
+  color: var(--cmyk-key);
+  border-bottom-color: var(--cmyk-cyan);
+  background: #ffffff;
+  font-weight: 800;
+}
+
+.drawer-tab-btn svg {
+  flex-shrink: 0;
+}
+
+/* Drawer Tab Content */
+.drawer-tab-content {
+  display: none;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.drawer-tab-content.active {
+  display: flex;
+  animation: fadeInTab 0.2s ease-out;
+}
+
+@keyframes fadeInTab {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Contact & Status Box in Drawer */
+.contact-status-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.wa-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #047857;
+  background: #ECFDF5;
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid #A7F3D0;
+}
+
+.wa-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10B981;
+}
+
+.cluster-badge {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--cmyk-key);
+  background: #FEF3C7;
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid #FDE68A;
+}
+
+/* Review Snippets */
+.review-snippets-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.review-snippet-item {
+  background: #F8FAFC;
+  border: 1px solid var(--border-subtle);
+  border-left: 3px solid var(--cmyk-cyan);
+  border-radius: 4px;
+  padding: 10px 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.45;
+  font-style: italic;
+}
+
+/* Table Badges: 5 Service Pillars */
+.pillar-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  margin-top: 4px;
+  letter-spacing: 0.3px;
+}
+
+.pillar-badge.advertising {
+  background: rgba(0, 174, 239, 0.1);
+  color: #0284c7;
+  border: 1px solid rgba(0, 174, 239, 0.3);
+}
+
+.pillar-badge.custom_merch {
+  background: rgba(236, 0, 140, 0.1);
+  color: #be185d;
+  border: 1px solid rgba(236, 0, 140, 0.3);
+}
+
+.pillar-badge.apparel {
+  background: rgba(35, 31, 32, 0.08);
+  color: #1e293b;
+  border: 1px solid rgba(35, 31, 32, 0.2);
+}
+
+.pillar-badge.office_school {
+  background: rgba(99, 102, 241, 0.1);
+  color: #4338ca;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+}
+
+.pillar-badge.label_sticker {
+  background: rgba(234, 179, 8, 0.15);
+  color: #854d0e;
+  border: 1px solid rgba(234, 179, 8, 0.35);
+}
+
+/* Table Badges: Tier A-D */
+.tier-tag {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 4px;
+  letter-spacing: 0.4px;
+}
+
+.tier-tag.tier-a {
+  background: rgba(0, 174, 239, 0.12);
+  color: #0284c7;
+  border: 1px solid #0284c7;
+}
+
+.tier-tag.tier-b {
+  background: rgba(236, 0, 140, 0.1);
+  color: #db2777;
+  border: 1px solid #db2777;
+}
+
+.tier-tag.tier-c {
+  background: rgba(234, 179, 8, 0.12);
+  color: #b45309;
+  border: 1px solid #d97706;
+}
+
+.tier-tag.tier-d {
+  background: #f1f5f9;
+  color: #64748b;
+  border: 1px solid #cbd5e1;
+}
+
+/* WhatsApp Verified Check */
+.wa-verified-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #059669;
+  background: #ecfdf5;
+  padding: 2px 6px;
+  border-radius: 3px;
+  border: 1px solid #a7f3d0;
+  margin-top: 3px;
+}
+
 .drawer-body {
-  padding: 24px 28px;
+  padding: 20px 24px;
   overflow-y: auto;
   flex: 1;
   display: flex;

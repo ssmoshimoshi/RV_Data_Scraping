@@ -64,7 +64,8 @@
           <span class="crumb-current" id="current-view-title">Database Calon Customer</span>
         </div>
         <div class="header-actions">
-          <button class="btn-refresh" id="btn-export-csv">Unduh CSV Dossier</button>
+          <button class="btn-refresh" id="btn-export-csv" title="Unduh CSV Ringkas 13 Kolom untuk Sales">Unduh CSV Dossier (13 Kolom)</button>
+          <button class="btn-refresh" id="btn-export-csv-full" title="Unduh CSV Lengkap 32 Kolom Intelijen Pasar">Unduh CSV Full (32 Kolom)</button>
           <button class="btn-primary-action" onclick="fetchLeads()">Perbarui Data</button>
         </div>
       </header>
@@ -80,9 +81,9 @@
             <div class="metric-caption">Jangkar Google Maps Makassar</div>
           </div>
           <div class="metric-card magenta">
-            <div class="metric-label">Potensi Tinggi (Skor &gt; 80)</div>
+            <div class="metric-label">Potensi Tinggi (Tier A &amp; B)</div>
             <div class="metric-value" id="metric-hot">0</div>
-            <div class="metric-caption">Prioritas kebutuhan kemasan berulang</div>
+            <div class="metric-caption">Prioritas kebutuhan promosi &amp; cetak</div>
           </div>
           <div class="metric-card yellow">
             <div class="metric-label">Terhubung Multi-Kanal</div>
@@ -130,30 +131,47 @@
         <!-- Filter & Search Toolbar -->
         <div class="toolbar-card">
           <div class="toolbar-group">
-            <label for="filter-category">Kategori Industri</label>
+            <label for="filter-category">Sektor Industri</label>
             <select id="filter-category">
-              <option value="all">Semua Kategori</option>
+              <option value="all">Semua Sektor</option>
               <option value="fnb_beverage">F&amp;B: Coffee &amp; Minuman</option>
-              <option value="fnb_food_resto">F&amp;B: Restoran &amp; Katering</option>
+              <option value="fnb_food_resto">F&amp;B: Resto &amp; Katering</option>
+              <option value="fnb_hospitality">F&amp;B: Hospitality &amp; Hotel</option>
+              <option value="retail_apparel">Retail &amp; Distro Pakaian</option>
               <option value="fashion_retail">Fashion &amp; Butik</option>
               <option value="beauty_skincare">Kecantikan &amp; Skincare</option>
-              <option value="new_store_opening">Grand Opening (Outlet Baru)</option>
+              <option value="education">Institusi &amp; Sekolah</option>
               <option value="corporate_legal">Korporat, Notaris &amp; Legal</option>
+              <option value="event_community">Event &amp; Komunitas</option>
+              <option value="new_store_opening">Grand Opening (Outlet Baru)</option>
             </select>
           </div>
 
           <div class="toolbar-group">
-            <label for="filter-tier">Tingkat Potensi Prospek</label>
+            <label for="filter-pillar">5 Pilar Layanan Master</label>
+            <select id="filter-pillar">
+              <option value="all">Semua 5 Pilar</option>
+              <option value="advertising">1. Reklame &amp; Promosi Visual</option>
+              <option value="custom_merch">2. Merchandise &amp; Souvenir</option>
+              <option value="apparel">3. Konveksi &amp; Sablon Tekstil</option>
+              <option value="office_school">4. Institusi, Sekolah &amp; Kantor</option>
+              <option value="label_sticker">5. Labeling Produk &amp; Stiker</option>
+            </select>
+          </div>
+
+          <div class="toolbar-group">
+            <label for="filter-tier">Tingkat Prioritas (Tier)</label>
             <select id="filter-tier">
-              <option value="all">Semua Tingkatan Skor</option>
-              <option value="tier_high">Tinggi (Skor 80 - 100)</option>
-              <option value="tier_med">Menengah (Skor 60 - 79)</option>
-              <option value="tier_low">Pantauan (Skor &lt; 60)</option>
+              <option value="all">Semua Prioritas</option>
+              <option value="Tier A">Tier A (Prioritas Utama, Skor &gt;= 80)</option>
+              <option value="Tier B">Tier B (Prioritas Menengah, Skor 65 - 79)</option>
+              <option value="Tier C">Tier C (Standar, Skor 50 - 64)</option>
+              <option value="Tier D">Tier D (Riset Lanjutan, Skor &lt; 50)</option>
             </select>
           </div>
 
           <div class="toolbar-group">
-            <label for="filter-outreach">Status Penjangkauan</label>
+            <label for="filter-outreach">Status CRM</label>
             <select id="filter-outreach">
               <option value="all">Semua Status</option>
               <option value="Belum Dihubungi">Belum Dihubungi</option>
@@ -165,7 +183,7 @@
           </div>
 
           <div class="toolbar-group search-flex">
-            <label for="search-input">Cari Nama Usaha / Alamat Jalan</label>
+            <label for="search-input">Cari Nama Usaha / Alamat / Wilayah</label>
             <input type="text" id="search-input" placeholder="Ketik nama bisnis, merek, atau lokasi jalan Makassar...">
           </div>
         </div>
@@ -175,12 +193,12 @@
           <table class="leads-table">
             <thead>
               <tr>
-                <th style="width: 28%;">Profil Usaha &amp; Lokasi</th>
-                <th style="width: 14%;">Kategori</th>
-                <th style="width: 15%;">Status Penjangkauan</th>
-                <th style="width: 17%;">Estimasi Komersial</th>
-                <th style="width: 14%;">Skor Potensi</th>
-                <th style="width: 12%; text-align: right;">Aksi</th>
+                <th style="width: 25%;">Entitas Bisnis &amp; Kontak</th>
+                <th style="width: 19%;">Sektor &amp; 5 Pilar Layanan</th>
+                <th style="width: 16%;">Prioritas &amp; Status CRM</th>
+                <th style="width: 16%;">Komersial &amp; Mutu</th>
+                <th style="width: 14%;">Skor 4 Dimensi Meta</th>
+                <th style="width: 10%; text-align: right;">Aksi</th>
               </tr>
             </thead>
             <tbody id="leads-table-body">
@@ -343,184 +361,247 @@
   <aside class="drawer" id="detail-drawer">
     <div class="drawer-header">
       <div>
-        <div class="drawer-pretitle" id="drawer-category">Kategori Usaha</div>
+        <div class="drawer-meta-badges">
+          <span class="drawer-badge-pill" id="drawer-sector-badge">Sektor Usaha</span>
+          <span class="drawer-badge-pill pillar" id="drawer-pillar-badge">5 Pilar Layanan</span>
+          <span class="drawer-badge-pill tier" id="drawer-tier-badge">Tier -</span>
+        </div>
         <h2 class="drawer-title" id="drawer-title">Nama Calon Customer</h2>
       </div>
       <button class="drawer-close-btn" onclick="closeDrawer()">&times;</button>
     </div>
 
+    <!-- 4 Tabs Navigation -->
+    <div class="drawer-tabs-nav">
+      <button class="drawer-tab-btn active" id="tab-btn-outreach" onclick="switchDrawerTab('tab-outreach')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+        <span>1. Kontak &amp; Pitch</span>
+      </button>
+      <button class="drawer-tab-btn" id="tab-btn-intel" onclick="switchDrawerTab('tab-intel')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10M18 20V4M6 20v-4"/></svg>
+        <span>2. Intelijen &amp; Order</span>
+      </button>
+      <button class="drawer-tab-btn" id="tab-btn-reviews" onclick="switchDrawerTab('tab-reviews')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        <span>3. Ulasan &amp; Mutu</span>
+      </button>
+      <button class="drawer-tab-btn" id="tab-btn-channels" onclick="switchDrawerTab('tab-channels')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+        <span>4. Jejak Multi-Kanal</span>
+      </button>
+    </div>
+
     <div class="drawer-body">
 
-      <!-- Section: Verified Location -->
-      <div class="drawer-section">
-        <div class="section-mini-label">Jangkar Google Maps &amp; Lokasi Fisik</div>
-        <div class="location-box">
-          <div class="loc-name" id="drawer-maps-name">Google Maps Terverifikasi</div>
-          <div class="loc-address" id="drawer-address">Alamat lengkap</div>
-          <div class="loc-meta">
-            <span class="loc-badge" id="drawer-rating">Rating 4.8</span>
-            <span class="loc-badge" id="drawer-reviews">400+ Ulasan</span>
-            <a id="drawer-maps-link" href="#" target="_blank" class="loc-link">Lihat di Google Maps</a>
-          </div>
-        </div>
-      </div>
-
-      <!-- Section: 4 Pillars Breakdown -->
-      <div class="drawer-section">
-        <div class="section-mini-label">Breakdown Skor 4 Dimensi Meta</div>
-        <div class="score-summary-bar">
-          <span class="score-summary-title">Total Skor Potensi</span>
-          <span class="score-summary-value" id="drawer-total-score">95 / 100</span>
-        </div>
-        
-        <div class="pillar-bars-list">
-          <div class="p-bar-item">
-            <div class="p-bar-header">
-              <span>Legitimasi Fisik</span>
-              <strong id="p-score-legitimacy">25 / 25</strong>
+      <!-- TAB 1: KONTAK & PITCH PENJUALAN -->
+      <div class="drawer-tab-content active" id="tab-outreach">
+        <!-- Section: Verified Contact & Location -->
+        <div class="drawer-section">
+          <div class="section-mini-label">Kontak Resmi &amp; Jangkar Lokasi Fisik</div>
+          <div class="location-box">
+            <div class="contact-status-row">
+              <div class="wa-status-pill" id="drawer-wa-status">
+                <span class="wa-dot"></span>
+                <span id="drawer-wa-number-text">WhatsApp: -</span>
+              </div>
+              <span class="cluster-badge" id="drawer-cluster">Cluster Rute: -</span>
             </div>
-            <div class="p-bar-track"><div class="p-bar-fill cyan-fill" id="p-fill-legitimacy" style="width: 100%;"></div></div>
-          </div>
-
-          <div class="p-bar-item">
-            <div class="p-bar-header">
-              <span>Kecepatan Komersial</span>
-              <strong id="p-score-velocity">25 / 25</strong>
+            <div class="loc-address" id="drawer-address" style="margin-top: 8px;">Alamat lengkap</div>
+            <div class="loc-meta" style="margin-top: 8px;">
+              <span class="loc-badge" id="drawer-rating">Rating 4.8</span>
+              <span class="loc-badge" id="drawer-reviews">400+ Ulasan</span>
+              <a id="drawer-maps-link" href="#" target="_blank" class="loc-link">Lihat di Google Maps</a>
             </div>
-            <div class="p-bar-track"><div class="p-bar-fill magenta-fill" id="p-fill-velocity" style="width: 100%;"></div></div>
-          </div>
-
-          <div class="p-bar-item">
-            <div class="p-bar-header">
-              <span>Turnover Kemasan Berulang</span>
-              <strong id="p-score-turnover">30 / 30</strong>
-            </div>
-            <div class="p-bar-track"><div class="p-bar-fill yellow-fill" id="p-fill-turnover" style="width: 100%;"></div></div>
-          </div>
-
-          <div class="p-bar-item">
-            <div class="p-bar-header">
-              <span>Sinyal Anggaran Pemasaran</span>
-              <strong id="p-score-budget">20 / 20</strong>
-            </div>
-            <div class="p-bar-track"><div class="p-bar-fill key-fill" id="p-fill-budget" style="width: 100%;"></div></div>
           </div>
         </div>
-      </div>
 
-      <!-- Section: Explainable Intelligence Narrative -->
-      <div class="drawer-section">
-        <div class="section-mini-label">Analisis Intelijen Transparan</div>
-        <div class="reason-narrative-box" id="drawer-reason-summary">
-          Analisis objektif alasan potensi calon customer.
-        </div>
-      </div>
-
-      <!-- Section: Estimasi Komersial & Omzet Kemasan -->
-      <div class="drawer-section">
-        <div class="section-mini-label">Estimasi Komersial &amp; Potensi Pesanan Berulang</div>
-        <div class="commercial-grid">
-          <div class="comm-card cyan">
-            <div class="comm-label">Prioritas Nilai Komersial</div>
-            <div class="comm-value" id="drawer-comm-tier">-</div>
-            <div class="comm-sub" id="drawer-comm-cycle">Siklus Restock: -</div>
-          </div>
-          <div class="comm-card magenta">
-            <div class="comm-label">Estimasi Kebutuhan Unit</div>
-            <div class="comm-value" id="drawer-comm-units">-</div>
-            <div class="comm-sub">Konsumsi Bulanan</div>
-          </div>
-          <div class="comm-card yellow">
-            <div class="comm-label">Estimasi Nilai Omzet</div>
-            <div class="comm-value" id="drawer-comm-value">-</div>
-            <div class="comm-sub">Potensi Nilai Pengadaan</div>
+        <!-- Section: Draft WhatsApp Link -->
+        <div class="drawer-section" id="drawer-wa-section">
+          <div class="section-mini-label">Draf Komunikasi &amp; Pitch Penawaran Personal</div>
+          <textarea id="drawer-pitch-text" class="pitch-textarea" readonly></textarea>
+          <div class="pitch-actions-row">
+            <a id="drawer-wa-button" href="#" target="_blank" class="btn-wa">Kirim Pesan WhatsApp Resmi</a>
+            <button type="button" class="btn-copy-pitch" onclick="copyWhatsAppPitch()">Salin Teks Pitch</button>
+            <span class="copy-feedback-toast" id="drawer-copy-feedback">Teks berhasil disalin ke clipboard</span>
           </div>
         </div>
-      </div>
 
-      <!-- Section: Deteksi Keluhan Kemasan Pelanggan -->
-      <div class="drawer-section">
-        <div class="section-mini-label">Deteksi Keluhan Kemasan Publik (Pain Points)</div>
-        <div id="drawer-pain-points-list">
-          <!-- Rendered in app.js -->
-        </div>
-      </div>
-
-
-      <!-- Section: Progressive Multi-Channel Linking -->
-      <div class="drawer-section">
-        <div class="section-mini-label">Hub Multi-Kanal &amp; Pengayaan Data</div>
-        <div class="channels-status-grid" id="drawer-channels-list">
-          <!-- Rendered in app.js -->
-        </div>
-
-        <!-- Form Link Social Account -->
-        <div class="link-account-box">
-          <div class="link-box-title">Hubungkan Akun Sosial Baru</div>
-          <div class="link-inputs-row">
-            <select id="link-platform-select">
-              <option value="instagram">Instagram</option>
-              <option value="tiktok">TikTok</option>
-              <option value="threads">Threads</option>
+        <!-- Section: Status Penjangkauan & Catatan -->
+        <div class="drawer-section" id="drawer-outreach-section">
+          <div class="section-mini-label">Status Penjangkauan CRM &amp; Catatan Tim Sales</div>
+          <div id="drawer-outreach-timestamp" style="font-size: 11px; color: var(--text-muted); margin-top: 4px; display: none;"></div>
+          <div style="display: flex; gap: 8px; margin-top: 8px;">
+            <select id="drawer-outreach-select" style="flex: 1; padding: 9px; border-radius: 6px; border: 1px solid var(--border-subtle); background: white; font-size: 13px; font-weight: 600;">
+              <option value="Belum Dihubungi">Belum Dihubungi</option>
+              <option value="Dihubungi">Dihubungi</option>
+              <option value="Tertarik">Tertarik</option>
+              <option value="Closing">Closing</option>
+              <option value="Tidak Relevan">Tidak Relevan</option>
             </select>
-            <input type="text" id="link-handle-input" placeholder="Masukkan username atau link...">
-            <button class="btn-secondary" onclick="submitChannelLink()">Tarik 5 Konten</button>
+            <button class="btn-secondary" onclick="saveLeadOutreachStatus()" style="white-space: nowrap;">Simpan Status</button>
+          </div>
+          <div style="margin-top: 8px;">
+            <input type="text" id="drawer-outreach-notes" placeholder="Catatan interaksi (contoh: Minta sampel box A3, follow up hari Rabu)..." style="width: 100%; padding: 9px; border-radius: 6px; border: 1px solid var(--border-subtle); font-size: 12px; box-sizing: border-box;">
+          </div>
+          <div id="drawer-outreach-feedback" style="display: none; font-size: 11px; margin-top: 6px; color: #0284C7; font-weight: 600;"></div>
+        </div>
+      </div>
+
+      <!-- TAB 2: INTELIJEN LAYANAN & ESTIMASI ORDER -->
+      <div class="drawer-tab-content" id="tab-intel">
+        <!-- Section: 4 Pillars Breakdown -->
+        <div class="drawer-section">
+          <div class="section-mini-label">Kalkulasi 4 Dimensi Skor Potensi</div>
+          <div class="score-summary-bar">
+            <span class="score-summary-title">Total Skor Potensi</span>
+            <span class="score-summary-value" id="drawer-total-score">95 / 100</span>
+          </div>
+          
+          <div class="pillar-bars-list">
+            <div class="p-bar-item">
+              <div class="p-bar-header">
+                <span>1. Legitimasi Fisik</span>
+                <strong id="p-score-legitimacy">25 / 25</strong>
+              </div>
+              <div class="p-bar-track"><div class="p-bar-fill cyan-fill" id="p-fill-legitimacy" style="width: 100%;"></div></div>
+            </div>
+
+            <div class="p-bar-item">
+              <div class="p-bar-header">
+                <span>2. Kecepatan Komersial</span>
+                <strong id="p-score-velocity">25 / 25</strong>
+              </div>
+              <div class="p-bar-track"><div class="p-bar-fill magenta-fill" id="p-fill-velocity" style="width: 100%;"></div></div>
+            </div>
+
+            <div class="p-bar-item">
+              <div class="p-bar-header">
+                <span>3. Turnover Pesanan Berulang</span>
+                <strong id="p-score-turnover">30 / 30</strong>
+              </div>
+              <div class="p-bar-track"><div class="p-bar-fill yellow-fill" id="p-fill-turnover" style="width: 100%;"></div></div>
+            </div>
+
+            <div class="p-bar-item">
+              <div class="p-bar-header">
+                <span>4. Sinyal Anggaran Promosi</span>
+                <strong id="p-score-budget">20 / 20</strong>
+              </div>
+              <div class="p-bar-track"><div class="p-bar-fill key-fill" id="p-fill-budget" style="width: 100%;"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section: Explainable Intelligence Narrative -->
+        <div class="drawer-section">
+          <div class="section-mini-label">Analisis Intelijen Transparan</div>
+          <div class="reason-narrative-box" id="drawer-reason-summary">
+            Analisis objektif alasan potensi calon customer.
+          </div>
+        </div>
+
+        <!-- Section: Estimasi Komersial & Omzet Pengadaan -->
+        <div class="drawer-section">
+          <div class="section-mini-label">Estimasi Nilai Pengadaan &amp; Transaksi (IDR)</div>
+          <div class="commercial-grid">
+            <div class="comm-card cyan">
+              <div class="comm-label">Tingkat Prioritas</div>
+              <div class="comm-value" id="drawer-comm-tier">-</div>
+              <div class="comm-sub" id="drawer-comm-cycle">Siklus: -</div>
+            </div>
+            <div class="comm-card magenta">
+              <div class="comm-label">Estimasi Unit</div>
+              <div class="comm-value" id="drawer-comm-units">-</div>
+              <div class="comm-sub">Konsumsi Bulanan</div>
+            </div>
+            <div class="comm-card yellow">
+              <div class="comm-label">Estimasi Nilai Omzet</div>
+              <div class="comm-value" id="drawer-comm-value">-</div>
+              <div class="comm-sub">Potensi Transaksi IDR</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section: Solution & Recommendations -->
+        <div class="drawer-section">
+          <div class="section-mini-label">Rekomendasi Produk &amp; Solusi RUANG VISUAL</div>
+          <div class="solution-card">
+            <div class="sol-title">Produk Terkait yang Direkomendasikan:</div>
+            <ul class="sol-list" id="drawer-solution-products"></ul>
+            
+            <div class="sol-title" style="margin-top: 12px;">Spesifikasi Bahan &amp; Finishing:</div>
+            <div class="sol-text" id="drawer-solution-specs">-</div>
+
+            <div class="sol-title" style="margin-top: 12px;">Nilai Tambah (Value Proposition):</div>
+            <div class="sol-text" id="drawer-solution-value">-</div>
           </div>
         </div>
       </div>
 
-      <!-- Section: 5 Inspected Posts Previews -->
-      <div class="drawer-section">
-        <div class="section-mini-label">Inspeksi 5 Konten Terpopuler</div>
-        <div class="drawer-posts-list" id="drawer-posts-list">
-          <!-- Rendered in app.js -->
+      <!-- TAB 3: ULASAN PUBLIK & KELUHAN MUTU -->
+      <div class="drawer-tab-content" id="tab-reviews">
+        <!-- Section: Google Maps Reviews Summary -->
+        <div class="drawer-section">
+          <div class="section-mini-label">Reputasi &amp; Sentimen Konsumen Publik</div>
+          <div class="location-box">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <div style="font-size: 20px; font-weight: 800; color: var(--text-key);" id="drawer-tab3-rating">4.8 / 5.0</div>
+                <div style="font-size: 12px; color: var(--text-muted);" id="drawer-tab3-reviews-count">Berdasarkan ulasan Google Maps</div>
+              </div>
+              <a id="drawer-tab3-maps-link" href="#" target="_blank" class="loc-link" style="font-weight: 700;">Lihat di Maps</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section: Pain Points -->
+        <div class="drawer-section">
+          <div class="section-mini-label">Deteksi Keluhan Vendor / Percetakan Lama (Pain Points)</div>
+          <div id="drawer-pain-points-list">
+            <!-- Rendered in app.js -->
+          </div>
+        </div>
+
+        <!-- Section: Review Snippets -->
+        <div class="drawer-section">
+          <div class="section-mini-label">Sampel Cuplikan Ulasan Konsumen Asli</div>
+          <div id="drawer-review-snippets-list" class="review-snippets-container">
+            <!-- Rendered in app.js -->
+          </div>
         </div>
       </div>
 
-      <!-- Section: Packaging Solution Recommendation -->
-      <div class="drawer-section">
-        <div class="section-mini-label">Rekomendasi Solusi Kemasan RUANG VISUAL</div>
-        <div class="solution-card">
-          <div class="sol-title">Produk Kemasan Direkomendasikan:</div>
-          <ul class="sol-list" id="drawer-solution-products"></ul>
-          
-          <div class="sol-title" style="margin-top: 12px;">Spesifikasi Bahan &amp; Finishing:</div>
-          <div class="sol-text" id="drawer-solution-specs">-</div>
+      <!-- TAB 4: JEJAK MULTI-KANAL & PEMICU PROMOSI -->
+      <div class="drawer-tab-content" id="tab-channels">
+        <!-- Section: Multi-Channel Footprints -->
+        <div class="drawer-section">
+          <div class="section-mini-label">Jejak Digital Multi-Kanal</div>
+          <div class="channels-status-grid" id="drawer-channels-list">
+            <!-- Rendered in app.js -->
+          </div>
 
-          <div class="sol-title" style="margin-top: 12px;">Nilai Tambah (Value Proposition):</div>
-          <div class="sol-text" id="drawer-solution-value">-</div>
+          <!-- Form Link Social Account -->
+          <div class="link-account-box">
+            <div class="link-box-title">Hubungkan Akun Sosial Baru</div>
+            <div class="link-inputs-row">
+              <select id="link-platform-select">
+                <option value="instagram">Instagram</option>
+                <option value="tiktok">TikTok</option>
+                <option value="threads">Threads</option>
+              </select>
+              <input type="text" id="link-handle-input" placeholder="Masukkan username atau link...">
+              <button class="btn-secondary" onclick="submitChannelLink()">Tarik 5 Konten</button>
+            </div>
+          </div>
         </div>
-      </div>
 
-      <!-- Section: Draft WhatsApp Link -->
-      <div class="drawer-section" id="drawer-wa-section">
-        <div class="section-mini-label">Draft Komunikasi &amp; Penawaran Sampel</div>
-        <textarea id="drawer-pitch-text" class="pitch-textarea" readonly></textarea>
-        <div class="pitch-actions-row">
-          <a id="drawer-wa-button" href="#" target="_blank" class="btn-wa">Kirim Pesan WhatsApp Resmi</a>
-          <button type="button" class="btn-copy-pitch" onclick="copyWhatsAppPitch()">Salin Teks Pitch</button>
-          <span class="copy-feedback-toast" id="drawer-copy-feedback">Teks berhasil disalin ke clipboard</span>
+        <!-- Section: 5 Inspected Posts Previews -->
+        <div class="drawer-section">
+          <div class="section-mini-label">Inspeksi 5 Konten Terpopuler &amp; Sinyal Pemicu</div>
+          <div class="drawer-posts-list" id="drawer-posts-list">
+            <!-- Rendered in app.js -->
+          </div>
         </div>
-      </div>
-
-      <!-- Section: Status Penjangkauan & Catatan -->
-      <div class="drawer-section" id="drawer-outreach-section">
-        <div class="section-mini-label">Status Penjangkauan &amp; Catatan Tim</div>
-        <div id="drawer-outreach-timestamp" style="font-size: 11px; color: var(--text-muted); margin-top: 4px; display: none;"></div>
-        <div style="display: flex; gap: 8px; margin-top: 8px;">
-          <select id="drawer-outreach-select" style="flex: 1; padding: 8px; border-radius: 6px; border: 1px solid var(--border-subtle); background: white; font-size: 13px;">
-            <option value="Belum Dihubungi">Belum Dihubungi</option>
-            <option value="Dihubungi">Dihubungi</option>
-            <option value="Tertarik">Tertarik</option>
-            <option value="Closing">Closing</option>
-            <option value="Tidak Relevan">Tidak Relevan</option>
-          </select>
-          <button class="btn-secondary" onclick="saveLeadOutreachStatus()" style="white-space: nowrap;">Simpan Status</button>
-        </div>
-        <div style="margin-top: 8px;">
-          <input type="text" id="drawer-outreach-notes" placeholder="Catatan interaksi (contoh: Minta sampel box A3)..." style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border-subtle); font-size: 12px; box-sizing: border-box;">
-        </div>
-        <div id="drawer-outreach-feedback" style="display: none; font-size: 11px; margin-top: 6px; color: #0284C7; font-weight: 600;"></div>
       </div>
 
     </div>

@@ -6,7 +6,21 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from datetime import datetime, timedelta
 import re
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Dict, Any
+
+
+def assign_tier(score: int, lead: dict) -> str:
+    is_ad_active = lead.get('is_ad_active', False)
+    has_multi_platform = bool(lead.get('platforms') and len(lead.get('platforms', [])) > 1)
+
+    if score >= 80 and (is_ad_active or has_multi_platform):
+        return 'Tier A'
+    elif score >= 65:
+        return 'Tier B'
+    elif score >= 50:
+        return 'Tier C'
+    else:
+        return 'Tier D'
 
 
 NON_COMMERCIAL_KEYWORDS = [
@@ -19,29 +33,41 @@ FREE_DOMAIN_PATTERNS = ['linktr.ee', 'bit.ly', 'bio.link', 'blogspot', 'wordpres
 
 CATEGORY_KEYWORDS = {
     'fnb_beverage': [
-        'kopi', 'coffee', 'cafe', 'minuman', 'drink', 'juice', 'tea', 'boba', 'milk',
+        'kopi', 'coffee', 'cafe', 'kafe', 'minuman', 'drink', 'juice', 'tea', 'boba', 'milk',
         'ngopi', 'roastery', 'espresso',
     ],
     'fnb_food_resto': [
         'resto', 'restaurant', 'kuliner', 'food', 'makan', 'catering', 'bakery', 'cake',
         'ayam', 'geprek', 'konro', 'coto', 'mie', 'bakso', 'roti', 'kue', 'sambal',
-        'seafood', 'ikan', 'nasi', 'bebek', 'dapur', 'warung', 'snack', 'martabak', 'katering',
+        'seafood', 'ikan', 'nasi', 'bebek', 'dapur', 'warung', 'snack', 'martabak', 'katering', 'rumah makan',
+    ],
+    'fnb_hospitality': [
+        'hospitality', 'hotel', 'penginapan', 'guest house', 'homestay', 'resort',
     ],
     'fashion_retail': [
         'fashion', 'clothing', 'baju', 'hijab', 'dress', 'outfit', 'store', 'boutique',
         'butik', 'distro', 'apparel', 'gamis', 'kaos', 'sablon', 'batik', 'kebaya', 'hijabers',
+        'toko baju',
     ],
-    'beauty_skincare': [
-        'beauty', 'skincare', 'kosmetik', 'makeup', 'salon', 'kecantikan', 'clinic',
-        'estetika', 'facial', 'perawatan', 'dermatology', 'skin', 'beauty bar', 'ahli estetika',
+    'retail_apparel': [
+        'retail', 'distro clothing', 'toko pakaian',
+    ],
+    'education': [
+        'sekolah', 'madrasah', 'pesantren', 'sma', 'smk', 'smp', 'sd', 'bimbel',
+        'yayasan pendidikan', 'universitas', 'kampus', 'les privat', 'tutor',
     ],
     'corporate_legal': [
         'law', 'lawyer', 'legal', 'notaris', 'ppat', 'konsultan', 'corporate', 'advisory',
         'kantor hukum', 'kantor notaris', 'advokat', 'pengacara',
     ],
-    'event_service': [
+    'event_community': [
         'event', 'wedding', 'organizer', 'eo', 'decoration', 'photography', 'video',
-        'seminar', 'workshop', 'pameran', 'expo',
+        'seminar', 'workshop', 'pameran', 'expo', 'festival', 'komunitas', 'dies natalis',
+        'turnamen', 'event organizer',
+    ],
+    'beauty_skincare': [
+        'beauty', 'skincare', 'kosmetik', 'makeup', 'salon', 'kecantikan', 'clinic',
+        'estetika', 'facial', 'perawatan', 'dermatology', 'skin', 'beauty bar', 'ahli estetika', 'klinik kecantikan',
     ],
     'new_store_opening': ['grand opening', 'new store', 'baru buka', 'coming soon', 'soft opening'],
     'general_commercial': ['bisnis', 'usaha', 'jasa', 'service', 'produk', 'toko', 'umkm']
@@ -104,11 +130,15 @@ def classify_category(business_name: str, biography: str, caption_samples: list[
 TURNOVER_SCORES = {
     'fnb_beverage': 30,
     'fnb_food_resto': 30,
+    'fnb_hospitality': 30,
     'fashion_retail': 30,
+    'retail_apparel': 30,
     'beauty_skincare': 30,
     'event_service': 25,
+    'event_community': 25,
     'new_store_opening': 25,
     'corporate_legal': 20,
+    'education': 20,
     'general_commercial': 15,
 }
 
@@ -128,11 +158,11 @@ def _parse_last_post(last_post):
 
 def calculate_4_pillars_score(lead: dict) -> dict:
     legitimacy = 0
-    if lead.get('google_maps_place_id'):
+    if lead.get('google_maps_place_id') or lead.get('place_id'):
         legitimacy += 10
     if lead.get('address_full'):
         legitimacy += 8
-    rating = lead.get('rating')
+    rating = lead.get('rating') if lead.get('rating') is not None else lead.get('gmaps_rating')
     try:
         if rating is not None and float(rating) >= 4.0:
             legitimacy += 7
@@ -154,16 +184,18 @@ def calculate_4_pillars_score(lead: dict) -> dict:
         elif days < 30:
             velocity = 10
 
-    category = lead.get('category') or 'general_commercial'
+    category = lead.get('category') or lead.get('target_sector') or lead.get('category_raw') or 'general_commercial'
     turnover = TURNOVER_SCORES.get(category, 15)
 
     budget = 0
-    if lead.get('is_ad_active'):
+    if lead.get('is_ad_active') or lead.get('has_meta_ads'):
         budget = 20
-    elif lead.get('external_website_url'):
-        url = lead['external_website_url'].lower()
-        if not any(domain in url for domain in FREE_DOMAIN_PATTERNS):
-            budget = 10
+    else:
+        web_url = lead.get('external_website_url') or lead.get('website_url')
+        if web_url and isinstance(web_url, str):
+            url = web_url.lower()
+            if not any(domain in url for domain in FREE_DOMAIN_PATTERNS):
+                budget = 10
 
     total = min(legitimacy + velocity + turnover + budget, 100)
 
@@ -192,6 +224,7 @@ def calculate_4_pillars_score(lead: dict) -> dict:
         'score_budget': budget,
         'score_total': total,
         'reason_summary': reason_summary,
+        'tier': assign_tier(total, lead),
     }
 
 
@@ -333,8 +366,20 @@ def generate_whatsapp_pitch(lead: dict) -> Optional[dict]:
     category = lead.get('category', 'general_commercial')
     needs = infer_product_needs(category, name, lead.get('biography', ''))
     products = ', '.join(needs['recommended_products'][:3])
+
+    top_posts = lead.get('top_posts')
+    opening_context = ''
+    if top_posts:
+        if isinstance(top_posts, list) and len(top_posts) > 0:
+            first_post = top_posts[0]
+            if isinstance(first_post, dict):
+                caption = first_post.get('caption', '') or first_post.get('text', '')
+                if caption:
+                    caption_preview = caption[:100] if len(caption) > 100 else caption
+                    opening_context = f"Kami melihat postingan terbaru Anda mengenai {caption_preview}, "
+
     pitch = (
-        f"Halo {name}, kami dari RUANG VISUAL menyediakan cetak {products} "
+        f"{opening_context}Halo {name}, kami dari RUANG VISUAL menyediakan cetak {products} "
         f"untuk mendukung branding usaha Anda. {needs['value_proposition']} "
         "Apakah boleh kami kirimkan penawaran harga?"
     )

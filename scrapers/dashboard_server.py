@@ -17,8 +17,8 @@ from scrapers.lead_scoring import (
     generate_whatsapp_pitch,
     estimate_packaging_volume_and_value,
 )
-from scrapers.database import get_supabase_client
-from scrapers.exporter import export_dossiers_to_csv, find_latest_dossier
+from scrapers.db_sqlite import get_all_leads as get_all_leads_from_sqlite, update_outreach_log
+from scrapers.exporter import export_dossiers_to_csv, export_full_dossiers_to_csv, find_latest_dossier
 
 PORT = 3000
 
@@ -788,21 +788,92 @@ def persist_channel_to_dossier(entity_id: str, platform: str, channel_value: str
     return False
 
 
-def get_all_leads():
-    client = get_supabase_client()
-    if client:
-        try:
-            res = client.table("leads").select("*").limit(100).execute()
-            if res.data and len(res.data) > 0:
-                return [enrich_lead_card(item) for item in res.data]
-        except Exception:
-            pass
+def adapt_sqlite_lead_for_dashboard(item: dict) -> dict:
+    entity_id = item.get("entity_id") or ""
+    cat = item.get("category_raw") or item.get("target_sector") or "general_commercial"
+    place_id = item.get("place_id") or ""
+    phone = item.get("phone_raw") or ""
+    wa = item.get("whatsapp_number") or ""
+    rating = item.get("gmaps_rating")
+    try:
+        rating = float(rating) if rating is not None else 4.5
+    except (ValueError, TypeError):
+        rating = 4.5
+    reviews_count = item.get("gmaps_reviews_count") or 0
+    web_url = item.get("website_url") or ""
+    ig = item.get("instagram_handle") or ""
+    tt = item.get("tiktok_handle") or ""
 
+    channels = {
+        "google_maps": f"https://maps.google.com/?cid={place_id}" if place_id else "",
+        "instagram": ig,
+        "tiktok": tt,
+        "threads": "",
+        "food_delivery": "",
+    }
+
+    status = item.get("outreach_status") or "Belum Dihubungi"
+    notes = item.get("sales_notes") or ""
+
+    return {
+        "id": entity_id,
+        "entity_id": entity_id,
+        "business_name": item.get("business_name") or "",
+        "category": cat,
+        "target_sector": item.get("target_sector") or "",
+        "primary_service_pillar": item.get("primary_service_pillar") or "",
+        "platforms": ["google_maps"] + (["instagram"] if ig else []) + (["tiktok"] if tt else []),
+        "city": item.get("city") or "Makassar",
+        "district_area": item.get("district_area") or "",
+        "sales_cluster": item.get("sales_cluster") or "",
+        "address_full": item.get("address_full") or "",
+        "latitude": item.get("latitude"),
+        "longitude": item.get("longitude"),
+        "rating": rating,
+        "reviews_count": reviews_count,
+        "google_maps_place_id": place_id,
+        "place_id": place_id,
+        "whatsapp_number": wa,
+        "phone_number": phone,
+        "external_website_url": web_url,
+        "website_url": web_url,
+        "lead_score": item.get("lead_score"),
+        "priority_tier": item.get("priority_tier") or "Tier D",
+        "score_legitimacy": item.get("score_legitimacy", 0),
+        "score_velocity": item.get("score_velocity", 0),
+        "score_turnover": item.get("score_turnover", 0),
+        "score_budget": item.get("score_budget", 0),
+        "estimated_commercials": {"est_monthly_value_min_idr": item.get("est_order_value_idr") or 0},
+        "packaging_pain_points": item.get("service_pain_points") or [],
+        "detected_service_needs": item.get("detected_service_needs") or [],
+        "recommended_products": item.get("recommended_products") or "",
+        "channels": channels,
+        "top_posts": [],
+        "whatsapp_pitch": item.get("whatsapp_pitch") or "",
+        "is_active_verified": bool(item.get("is_wa_valid") or wa),
+        "is_ad_active": bool(item.get("has_meta_ads")),
+        "has_meta_ads": bool(item.get("has_meta_ads")),
+        "status": "ready_to_pitch" if wa else "new_lead",
+        "outreach_status": status,
+        "outreach_notes": notes,
+        "sales_notes": notes,
+        "contacted_at": item.get("contacted_at"),
+    }
+
+
+def get_all_leads():
+    # 1. SQLite (Utama)
+    leads_sqlite = get_all_leads_from_sqlite()
+    if leads_sqlite:
+        return [enrich_lead_card(adapt_sqlite_lead_for_dashboard(item)) for item in leads_sqlite]
+
+    # 2. Fallback (Dossier & Raw)
     processed = load_processed_dossiers()
     scraped = load_raw_scraped_leads()
     seen = {p["business_name"].lower() for p in processed if p.get("business_name")}
     combined = list(processed)
     combined += [s for s in scraped if s["business_name"].lower() not in seen]
+    
     seen = {c["business_name"].lower() for c in combined if c.get("business_name")}
     for sample in SAMPLE_LEADS:
         if sample.get("business_name", "").lower() not in seen:
@@ -832,6 +903,30 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
             data = json.loads(body) if body else {}
         except Exception:
             data = {}
+
+        if parsed.path == "/api/leads/update-notes":
+            try:
+                entity_id = data.get("entity_id")
+                status = data.get("outreach_status")
+                notes = data.get("sales_notes")
+                
+                if not entity_id:
+                    raise ValueError("Missing entity_id")
+                    
+                update_outreach_log(entity_id, status, notes)
+                
+                self.send_response(200)
+                self.send_cors_headers()
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"status": "ok"}, ensure_ascii=False).encode("utf-8"))
+            except Exception as exc:
+                self.send_response(400)
+                self.send_cors_headers()
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": str(exc)}, ensure_ascii=False).encode("utf-8"))
+            return
 
         if parsed.path == "/api/leads/link-channel":
             lead_id = data.get("lead_id")
@@ -943,6 +1038,12 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
                         break
 
             if not target_lead:
+                for lead in get_all_leads():
+                    if lead.get("id") == lead_id or lead.get("entity_id") == lead_id:
+                        target_lead = lead
+                        break
+
+            if not target_lead:
                 self.send_response(404)
                 self.send_cors_headers()
                 self.send_header("Content-Type", "application/json")
@@ -952,15 +1053,20 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
 
             target_lead["outreach_status"] = status
             target_lead["outreach_notes"] = notes
+            target_lead["sales_notes"] = notes
             if status in ("Dihubungi", "Closing"):
                 target_lead["contacted_at"] = datetime.now().isoformat()
 
             persisted = False
-            if from_dossier:
-                persisted = persist_status_to_dossier(
-                    target_lead.get("entity_id") or lead_id, status, notes)
-            else:
+            entity_id_target = target_lead.get("entity_id") or lead_id
+            try:
+                update_outreach_log(entity_id_target, status, notes)
                 persisted = True
+            except Exception:
+                pass
+
+            if from_dossier:
+                persist_status_to_dossier(entity_id_target, status, notes)
 
             enriched = enrich_lead_card(target_lead)
 
@@ -1011,6 +1117,27 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
             self.wfile.write(csv_path.read_bytes())
             return
 
+        # API Endpoint: Unduh CSV 32 Kolom (Full)
+        if parsed.path == "/api/export/csv-full":
+            try:
+                all_leads = get_all_leads()
+                csv_path = PROJECT_ROOT / "data" / "processed" / "dossiers_export_full.csv"
+                export_full_dossiers_to_csv(all_leads, csv_path)
+            except Exception as exc:
+                self.send_response(500)
+                self.send_cors_headers()
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": str(exc)}, ensure_ascii=False).encode("utf-8"))
+                return
+            self.send_response(200)
+            self.send_cors_headers()
+            self.send_header("Content-Type", "text/csv; charset=utf-8")
+            self.send_header("Content-Disposition", 'attachment; filename="dossiers_export_full.csv"')
+            self.end_headers()
+            self.wfile.write(csv_path.read_bytes())
+            return
+
         # API Endpoint: Get Leads
         if parsed.path == "/api/leads":
             leads = get_all_leads()
@@ -1026,7 +1153,7 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
             params = urllib.parse.parse_qs(parsed.query)
             lead_id = params.get("id", [None])[0]
             leads = get_all_leads()
-            found = next((l for l in leads if l["id"] == lead_id), None)
+            found = next((l for l in leads if l.get("id") == lead_id or l.get("entity_id") == lead_id), None)
             if found:
                 self.send_response(200)
                 self.send_cors_headers()

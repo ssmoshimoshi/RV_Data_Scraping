@@ -14,7 +14,8 @@ from scrapers.lead_scoring import (
     infer_product_needs,
     generate_whatsapp_pitch,
     estimate_packaging_volume_and_value,
-    is_non_commercial
+    is_non_commercial,
+    assign_tier
 )
 
 
@@ -348,6 +349,46 @@ class TestEstimatePackagingVolumeAndValue(unittest.TestCase):
         res = estimate_packaging_volume_and_value(lead)
         self.assertEqual(res['priority_commercial_tier'], 'Tier 3 (Standard)')
         self.assertEqual(res['restock_cycle_days'], 30)
+
+
+    def test_assign_tier_A(self):
+        lead = {
+            'score_total': 85,
+            'is_ad_active': True,
+            'platforms': ['instagram', 'tiktok']
+        }
+        tier = assign_tier(85, lead)
+        self.assertEqual(tier, 'Tier A')
+
+
+    def test_assign_tier_B(self):
+        lead = {'score_total': 72, 'is_ad_active': False}
+        tier = assign_tier(72, lead)
+        self.assertEqual(tier, 'Tier B')
+
+
+    def test_assign_tier_C(self):
+        lead = {'score_total': 58, 'is_ad_active': False}
+        tier = assign_tier(58, lead)
+        self.assertEqual(tier, 'Tier C')
+
+
+    def test_turnover_scores_for_new_sectors(self):
+        lead_edu = {'category': 'education', 'google_maps_place_id': 'place_edu', 'address_full': 'Jl. Pendidikan'}
+        score_edu = calculate_4_pillars_score(lead_edu)
+        self.assertEqual(score_edu['score_turnover'], 20)
+
+        lead_hospitality = {'category': 'fnb_hospitality', 'google_maps_place_id': 'place_fnb', 'address_full': 'Jl. Somba Opu'}
+        score_hosp = calculate_4_pillars_score(lead_hospitality)
+        self.assertEqual(score_hosp['score_turnover'], 30)
+
+        lead_apparel = {'category': 'retail_apparel', 'google_maps_place_id': 'place_retail', 'address_full': 'Mall Panakkukang'}
+        score_apparel = calculate_4_pillars_score(lead_apparel)
+        self.assertEqual(score_apparel['score_turnover'], 30)
+
+        lead_event = {'category': 'event_community', 'google_maps_place_id': 'place_ev', 'address_full': 'Jl. Ujung Pandang'}
+        score_event = calculate_4_pillars_score(lead_event)
+        self.assertEqual(score_event['score_turnover'], 25)
 
 
 if __name__ == '__main__':

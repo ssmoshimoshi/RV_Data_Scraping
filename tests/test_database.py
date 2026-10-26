@@ -44,7 +44,7 @@ class TestDatabaseModule(unittest.TestCase):
         self.assertEqual(count, 0)
         self.assertIn('SUPABASE', msg)
 
-    def test_batch_upsert_with_mock_client(self):
+    def test_batch_upsert_enforces_read_only(self):
         dossiers = [
             {'entity_id': 'ent_0001', 'business_name': 'Warung Makan Asri', 'category': 'fnb_food_resto',
              'city': 'Makassar', 'whatsapp_number': '6281234567890', 'lead_score': 82,
@@ -53,14 +53,11 @@ class TestDatabaseModule(unittest.TestCase):
              'whatsapp_pitch': 'Halo...', 'platforms': ['google_maps', 'tiktok']},
         ]
         mock_client = MagicMock()
-        mock_client.table.return_value.upsert.return_value.execute.return_value = MagicMock()
-
         with patch('scrapers.database.get_supabase_client', return_value=mock_client):
             count, msg = batch_upsert_dossiers(dossiers, dry_run=False)
 
-        self.assertEqual(count, 1)
-        mock_client.table.assert_called_with("leads")
-        mock_client.table.return_value.upsert.assert_called_once()
+        self.assertEqual(count, 0)
+        self.assertIn('read-only', msg.lower())
 
 
 if __name__ == '__main__':
