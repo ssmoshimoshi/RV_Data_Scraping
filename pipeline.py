@@ -49,6 +49,12 @@ def run_gmaps_pipeline(query: str, city: str, limit: int, dry_run: bool, save_db
     if dry_run or not places:
         print("Pipeline selesai (mode dry-run aktif atau tidak ada hasil).")
         return
+
+    raw_dir = PROJECT_ROOT / 'data' / 'raw'
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    raw_file = raw_dir / f"gmaps_{city}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    raw_file.write_text(json.dumps(places, indent=2, ensure_ascii=False), encoding='utf-8')
+    print(f"Data mentah tersimpan: {raw_file}")
     
     qualified_count = 0
     saved_count = 0

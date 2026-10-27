@@ -607,8 +607,9 @@ def get_all_leads():
             seen_ids.add(entity_id)
             combined.append(enrich_lead_card(adapt_sqlite_lead_for_dashboard(item)))
     
-    # 3. Fallback: Processed Dossiers & Raw Scraped
-    if not combined:
+    # 3. Fallback: Processed Dossiers & Raw Scraped (Hanya jika data/leads.sqlite belum ada)
+    db_file = PROJECT_ROOT / 'data' / 'leads.sqlite'
+    if not combined and not db_file.exists():
         processed = load_processed_dossiers()
         scraped = load_raw_scraped_leads()
         seen_names = {p["business_name"].lower() for p in processed if p.get("business_name")}
