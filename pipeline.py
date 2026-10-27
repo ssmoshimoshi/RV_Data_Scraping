@@ -729,6 +729,10 @@ def main():
     android_parser.add_argument("--limit", type=int, default=10, help="Batas maksimal profil yang dirayap")
     android_parser.add_argument("--dry-run", action="store_true", help="Simulasi ekstraksi tanpa menulis ke database")
 
+    # Subcommand: telegram
+    telegram_parser = subparsers.add_parser("telegram", help="Jalankan bot controller Telegram untuk perayapan via grup")
+    telegram_parser.add_argument("--once", action="store_true", help="Jalankan sekali periksa pesan dan keluar")
+
     args = parser.parse_args()
 
     if args.command == "gmaps":
@@ -797,6 +801,9 @@ def main():
             dry_run=args.dry_run,
             device=args.device
         )
+    elif args.command == "telegram":
+        from scrapers.telegram_bridge import start_telegram_bridge
+        start_telegram_bridge(run_once=args.once)
 
 
 if __name__ == "__main__":
