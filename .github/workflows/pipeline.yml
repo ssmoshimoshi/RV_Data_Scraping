@@ -61,7 +61,7 @@ jobs:
 
       - name: Install Playwright Headless Browser
         run: |
-          playwright install --with-deps chromium
+          python -m playwright install --with-deps chromium
 
       - name: Run Pipeline and Send Telegram Report
         env:
