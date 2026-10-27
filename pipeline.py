@@ -347,6 +347,29 @@ def sync_entities_to_sqlite(entities: list, city: str, db_path=None) -> int:
         pillars = calculate_4_pillars_score(ent)
         address = ent.get('address_full', '')
         district = ent.get('district_area', '')
+        ch = ent.get('channels') or {}
+        records = ent.get('records') or []
+        ig_handle = ent.get('instagram_handle') or ch.get('instagram')
+        food_del = ch.get('food_delivery')
+        tt_handle = ent.get('tiktok_handle') or ch.get('tiktok')
+        threads_h = ch.get('threads')
+
+        if not ig_handle:
+            for r in records:
+                if isinstance(r, dict):
+                    if r.get('platform') == 'instagram':
+                        ig_handle = r.get('platform_handle') or r.get('username')
+                    web = r.get('website') or r.get('external_website_url') or ''
+                    if 'instagram.com/' in web and not ig_handle:
+                        ig_handle = web.split('instagram.com/')[-1].strip('/')
+        if not food_del:
+            for r in records:
+                if isinstance(r, dict):
+                    if r.get('platform') in ('gofood', 'grabfood', 'shopeefood'):
+                        food_del = r.get('url') or r.get('merchant_url') or r.get('platform')
+
+        place_id_val = ent.get('google_maps_place_id') or ent.get('place_id') or ent.get('url')
+
         entity_data = {
             'entity_id': ent.get('entity_id', ''),
             'business_name': ent.get('business_name', ''),
@@ -358,7 +381,7 @@ def sync_entities_to_sqlite(entities: list, city: str, db_path=None) -> int:
             'is_wa_valid': 1 if is_wa_valid else 0,
             'is_commercial': 1,
             'locations': {
-                'place_id': ent.get('google_maps_place_id') or ent.get('place_id'),
+                'place_id': place_id_val,
                 'address_full': address,
                 'district_area': district,
                 'city': city,
@@ -367,16 +390,18 @@ def sync_entities_to_sqlite(entities: list, city: str, db_path=None) -> int:
                 'longitude': ent.get('longitude'),
             },
             'digital_footprints': {
-                'website_url': ent.get('external_website_url'),
+                'website_url': ent.get('external_website_url') or ent.get('website'),
                 'gmaps_rating': ent.get('rating'),
                 'gmaps_reviews_count': ent.get('reviews_count', 0),
                 'review_snippets_json': ent.get('review_snippets') or [],
-                'instagram_handle': ent.get('instagram_handle'),
+                'instagram_handle': ig_handle,
                 'instagram_bio': ent.get('biography'),
                 'instagram_followers': ent.get('followers_count', 0),
                 'latest_post_date': ent.get('last_post_date'),
-                'tiktok_handle': ent.get('tiktok_handle'),
+                'tiktok_handle': tt_handle,
                 'has_meta_ads': 1 if ent.get('is_ad_active') else 0,
+                'food_delivery_url': food_del,
+                'threads_handle': threads_h,
             },
             'commercial_intelligence': {
                 'lead_score': pillars.get('score_total', 0),
@@ -403,7 +428,7 @@ def sync_entities_to_sqlite(entities: list, city: str, db_path=None) -> int:
     return saved
 
 
-def run_match_pipeline(raw_dir: str, output_dir: str, city: str, dry_run: bool, save_db: bool = False):
+def run_match_pipeline(raw_dir: str, output_dir: str, city: str, dry_run: bool, save_db: bool = False, db_path=None):
     print(f"Menjalankan entity matcher lintas platform (Raw: {raw_dir}, Kota: {city}, Dry-run: {dry_run})")
     
     ensure_catalog_synced()
@@ -417,7 +442,8 @@ def run_match_pipeline(raw_dir: str, output_dir: str, city: str, dry_run: bool, 
     entities = match_entities(records)
     merge_keys = ('whatsapp_number', 'phone_number', 'address_full', 'latitude', 'longitude',
                   'last_post_date', 'followers_count', 'reviews_count', 'is_ad_active',
-                  'is_active_verified', 'external_website_url', 'category', 'packaging_pain_points', 'sector')
+                  'is_active_verified', 'external_website_url', 'website', 'url', 'place_id',
+                  'google_maps_place_id', 'biography', 'category', 'packaging_pain_points', 'sector')
     for ent in entities:
         for key in merge_keys:
             if ent.get(key):
@@ -426,6 +452,10 @@ def run_match_pipeline(raw_dir: str, output_dir: str, city: str, dry_run: bool, 
                 if isinstance(rec, dict) and rec.get(key):
                     ent[key] = rec[key]
                     break
+        if not ent.get('external_website_url') and ent.get('website'):
+            ent['external_website_url'] = ent['website']
+        if not ent.get('google_maps_place_id') and ent.get('place_id'):
+            ent['google_maps_place_id'] = ent['place_id']
         if not ent.get('last_post_date'):
             for rec in ent['records']:
                 if isinstance(rec, dict) and (rec.get('latest_post_date') or rec.get('last_post_date')):
@@ -480,8 +510,8 @@ def run_match_pipeline(raw_dir: str, output_dir: str, city: str, dry_run: bool, 
         count, msg = batch_upsert_dossiers(entities, dry_run=False)
         print(msg)
 
-    saved_sqlite = sync_entities_to_sqlite(entities, city)
-    print(f"Entitas tersimpan ke SQLite (data/leads.sqlite): {saved_sqlite}")
+    saved_sqlite = sync_entities_to_sqlite(entities, city, db_path=db_path)
+    print(f"Entitas tersimpan ke SQLite: {saved_sqlite}")
 
 
 def run_export_pipeline(input_path: str, output_path: str, dry_run: bool, include_no_wa: bool = False):

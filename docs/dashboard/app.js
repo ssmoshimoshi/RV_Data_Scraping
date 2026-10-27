@@ -285,7 +285,8 @@ function formatPillar(key) {
 
 function getLeadTier(lead) {
   if (lead.priority_tier && /^Tier [A-D]$/i.test(lead.priority_tier.trim())) {
-    return lead.priority_tier.trim().toUpperCase();
+    const letter = lead.priority_tier.trim().slice(-1).toUpperCase();
+    return `Tier ${letter}`;
   }
   const score = Number(lead.lead_score || lead.score || lead.pillars_total || 0);
   if (score >= 80) return 'Tier A';

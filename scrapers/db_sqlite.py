@@ -53,6 +53,8 @@ CREATE TABLE IF NOT EXISTS digital_footprints (
     tiktok_handle TEXT,
     has_meta_ads INTEGER DEFAULT 0,
     meta_ads_data_json TEXT,
+    food_delivery_url TEXT,
+    threads_handle TEXT,
     FOREIGN KEY (entity_id) REFERENCES entities(entity_id) ON DELETE CASCADE
 );
 
@@ -113,6 +115,12 @@ def init_db(db_path: Optional[Path] = None) -> bool:
             stmt = stmt.strip()
             if stmt:
                 cursor.execute(stmt)
+        # Migrasi kolom tambahan tabel digital_footprints jika belum ada
+        for col_name in ['food_delivery_url', 'threads_handle']:
+            try:
+                cursor.execute(f"ALTER TABLE digital_footprints ADD COLUMN {col_name} TEXT")
+            except sqlite3.OperationalError:
+                pass
         conn.commit()
         conn.close()
         return True
@@ -203,8 +211,8 @@ def upsert_lead(entity_data: Dict[str, Any], db_path: Optional[Path] = None) -> 
             INSERT INTO digital_footprints (
                 entity_id, website_url, gmaps_rating, gmaps_reviews_count, review_snippets_json,
                 instagram_handle, instagram_bio, instagram_followers, latest_post_date,
-                tiktok_handle, has_meta_ads, meta_ads_data_json
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                tiktok_handle, has_meta_ads, meta_ads_data_json, food_delivery_url, threads_handle
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(entity_id) DO UPDATE SET
                 website_url = COALESCE(excluded.website_url, digital_footprints.website_url),
                 gmaps_rating = COALESCE(excluded.gmaps_rating, digital_footprints.gmaps_rating),
@@ -216,7 +224,9 @@ def upsert_lead(entity_data: Dict[str, Any], db_path: Optional[Path] = None) -> 
                 latest_post_date = COALESCE(excluded.latest_post_date, digital_footprints.latest_post_date),
                 tiktok_handle = COALESCE(excluded.tiktok_handle, digital_footprints.tiktok_handle),
                 has_meta_ads = MAX(digital_footprints.has_meta_ads, excluded.has_meta_ads),
-                meta_ads_data_json = COALESCE(excluded.meta_ads_data_json, digital_footprints.meta_ads_data_json)
+                meta_ads_data_json = COALESCE(excluded.meta_ads_data_json, digital_footprints.meta_ads_data_json),
+                food_delivery_url = COALESCE(excluded.food_delivery_url, digital_footprints.food_delivery_url),
+                threads_handle = COALESCE(excluded.threads_handle, digital_footprints.threads_handle)
             ''',
             (
                 entity_id,
@@ -231,6 +241,8 @@ def upsert_lead(entity_data: Dict[str, Any], db_path: Optional[Path] = None) -> 
                 digital_data.get('tiktok_handle'),
                 int(digital_data.get('has_meta_ads', 0)),
                 json.dumps(digital_data.get('meta_ads_data_json', {})) if digital_data.get('meta_ads_data_json') else None,
+                digital_data.get('food_delivery_url'),
+                digital_data.get('threads_handle'),
             )
         )
 
@@ -312,8 +324,11 @@ def upsert_lead(entity_data: Dict[str, Any], db_path: Optional[Path] = None) -> 
 
 def get_all_leads(db_path: Optional[Path] = None) -> List[Dict[str, Any]]:
     db = db_path or DB_PATH
+    if not db.exists():
+        return []
     
     try:
+        init_db(db)
         conn = sqlite3.connect(str(db))
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
@@ -327,6 +342,7 @@ def get_all_leads(db_path: Optional[Path] = None) -> List[Dict[str, Any]]:
                 df.website_url, df.gmaps_rating, df.gmaps_reviews_count, df.review_snippets_json,
                 df.instagram_handle, df.instagram_bio, df.instagram_followers,
                 df.latest_post_date, df.tiktok_handle, df.has_meta_ads, df.meta_ads_data_json,
+                df.food_delivery_url, df.threads_handle,
                 ci.lead_score, ci.priority_tier, ci.score_legitimacy, ci.score_velocity,
                 ci.score_turnover, ci.score_budget, ci.detected_service_needs,
                 ci.service_pain_points, ci.est_order_value_idr, ci.recommended_products,
@@ -417,6 +433,8 @@ def seed_sample_leads_to_sqlite(db_path: Optional[Path] = None) -> int:
                 "gmaps_reviews_count": lead.get("reviews_count", 0),
                 "instagram_handle": (lead.get("channels") or {}).get("instagram"),
                 "tiktok_handle": (lead.get("channels") or {}).get("tiktok"),
+                "food_delivery_url": (lead.get("channels") or {}).get("food_delivery"),
+                "threads_handle": (lead.get("channels") or {}).get("threads"),
                 "latest_post_date": lead.get("latest_post_date"),
                 "has_meta_ads": 1 if lead.get("is_ad_active") else 0,
             },

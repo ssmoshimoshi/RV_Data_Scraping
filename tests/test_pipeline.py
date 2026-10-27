@@ -194,7 +194,7 @@ class TestMatchPipeline(unittest.TestCase):
     def test_match_writes_unified_dossiers_with_pitch(self):
         with tempfile.TemporaryDirectory() as tmp:
             raw_dir, out_dir = self._prepare(tmp)
-            run_match_pipeline(str(raw_dir), str(out_dir), 'Makassar', False)
+            run_match_pipeline(str(raw_dir), str(out_dir), 'Makassar', False, db_path=Path(tmp) / 'test.sqlite')
             files = list(out_dir.glob('unified_dossiers_Makassar_*.json'))
             self.assertEqual(len(files), 1)
             entities = json.loads(files[0].read_text(encoding='utf-8'))
@@ -205,7 +205,7 @@ class TestMatchPipeline(unittest.TestCase):
     def test_match_writes_valid_lead_score_and_tier(self):
         with tempfile.TemporaryDirectory() as tmp:
             raw_dir, out_dir = self._prepare(tmp)
-            run_match_pipeline(str(raw_dir), str(out_dir), 'Makassar', False)
+            run_match_pipeline(str(raw_dir), str(out_dir), 'Makassar', False, db_path=Path(tmp) / 'test.sqlite')
             entities = json.loads(next(out_dir.glob('unified_dossiers_*.json')).read_text(encoding='utf-8'))
             from scrapers.lead_scoring import assign_tier
             for ent in entities:
@@ -217,7 +217,7 @@ class TestMatchPipeline(unittest.TestCase):
     def test_match_export_csv_lead_score_format(self):
         with tempfile.TemporaryDirectory() as tmp:
             raw_dir, out_dir = self._prepare(tmp)
-            run_match_pipeline(str(raw_dir), str(out_dir), 'Makassar', False)
+            run_match_pipeline(str(raw_dir), str(out_dir), 'Makassar', False, db_path=Path(tmp) / 'test.sqlite')
             json_path = next(out_dir.glob('unified_dossiers_*.json'))
             out_csv = Path(tmp) / 'hasil.csv'
             run_export_pipeline(str(json_path), str(out_csv), False)

@@ -169,6 +169,8 @@ def load_raw_records(raw_dir: Path, limit: int) -> list:
             continue
         if isinstance(data, list):
             records.extend(x for x in data if isinstance(x, dict))
+        elif isinstance(data, dict) and ('platform' in data or 'business_name' in data):
+            records.append(data)
         if len(records) >= limit:
             break
     return records[:limit]
