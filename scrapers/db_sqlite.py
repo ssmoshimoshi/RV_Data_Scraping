@@ -373,3 +373,76 @@ def update_outreach_log(entity_id: str, status: str, notes: str):
             contacted_at = excluded.contacted_at
         """, (entity_id, status, notes, datetime.now().isoformat()))
         conn.commit()
+
+
+def seed_sample_leads_to_sqlite(db_path: Optional[Path] = None) -> int:
+    """Mengisi database SQLite lokal dengan prospek terverifikasi dari SAMPLE_LEADS."""
+    from scrapers.content_inspector import save_inspected_posts_to_sqlite
+    from scrapers.dashboard_server import enrich_lead_card
+    from scrapers.outreach_generator import _resolve_sector
+    from scrapers.route_cluster import assign_sales_cluster
+    from scrapers.sample_leads import SAMPLE_LEADS
+
+    init_db(db_path)
+    db = db_path or DB_PATH
+    saved_count = 0
+
+    for lead in SAMPLE_LEADS:
+        enriched = enrich_lead_card(lead)
+        sector = _resolve_sector(lead.get("category", "fnb"))
+        cluster = assign_sales_cluster(lead.get("address_full", ""), lead.get("city", ""))
+
+        entity_data = {
+            "entity_id": lead["id"],
+            "business_name": lead["business_name"],
+            "target_sector": sector,
+            "primary_service_pillar": enriched.get("primary_service_pillar") or "packaging",
+            "category_raw": lead.get("category"),
+            "whatsapp_number": lead.get("whatsapp_number"),
+            "phone_raw": lead.get("phone_number"),
+            "is_wa_valid": 1 if lead.get("whatsapp_number") else 0,
+            "is_commercial": 1,
+            "locations": {
+                "place_id": lead.get("google_maps_place_id"),
+                "address_full": lead.get("address_full"),
+                "district_area": lead.get("city"),
+                "city": lead.get("city", "Makassar"),
+                "sales_cluster": cluster,
+                "latitude": lead.get("latitude"),
+                "longitude": lead.get("longitude"),
+            },
+            "digital_footprints": {
+                "website_url": lead.get("external_website_url"),
+                "gmaps_rating": lead.get("rating"),
+                "gmaps_reviews_count": lead.get("reviews_count", 0),
+                "instagram_handle": (lead.get("channels") or {}).get("instagram"),
+                "tiktok_handle": (lead.get("channels") or {}).get("tiktok"),
+                "latest_post_date": lead.get("latest_post_date"),
+                "has_meta_ads": 1 if lead.get("is_ad_active") else 0,
+            },
+            "commercial_intelligence": {
+                "lead_score": enriched.get("lead_score", 0),
+                "priority_tier": enriched.get("priority_tier", "Tier B"),
+                "score_legitimacy": enriched.get("score_legitimacy", 0),
+                "score_velocity": enriched.get("score_velocity", 0),
+                "score_turnover": enriched.get("score_turnover", 0),
+                "score_budget": enriched.get("score_budget", 0),
+                "detected_service_needs": enriched.get("detected_service_needs", []),
+                "service_pain_points": enriched.get("packaging_pain_points", []),
+                "est_order_value_idr": (enriched.get("estimated_commercials") or {}).get("est_monthly_value_min_idr", 0),
+                "recommended_products": ", ".join(enriched.get("recommended_products", [])),
+            },
+            "outreach_logs": {
+                "outreach_status": lead.get("status", "ready_to_pitch"),
+                "whatsapp_pitch": enriched.get("pitch_text", ""),
+            },
+        }
+
+        if upsert_lead(entity_data, db):
+            saved_count += 1
+            if lead.get("top_posts"):
+                plat = lead.get("platform") or "instagram"
+                save_inspected_posts_to_sqlite(lead["id"], plat, lead["top_posts"], db_path=db)
+
+    return saved_count
+

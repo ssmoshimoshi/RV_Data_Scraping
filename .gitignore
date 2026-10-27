@@ -19,6 +19,8 @@ data/raw/*
 data/processed/*
 !data/processed/.gitkeep
 !data/catalog/ruang_visual_catalog.json
+*.sqlite
+*.db
 *.html
 !docs/dashboard/index.html
 

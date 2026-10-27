@@ -66,6 +66,7 @@
         <div class="header-actions">
           <button class="btn-refresh" id="btn-export-csv" title="Unduh CSV Ringkas 13 Kolom untuk Sales">Unduh CSV Dossier (13 Kolom)</button>
           <button class="btn-refresh" id="btn-export-csv-full" title="Unduh CSV Lengkap 32 Kolom Intelijen Pasar">Unduh CSV Full (32 Kolom)</button>
+          <button class="btn-refresh" id="btn-sync-hermes" onclick="syncToHermesSheet()" title="Sinkronkan Prospek Terverifikasi ke Google Sheets Hermes">Sinkron ke Google Sheets</button>
           <button class="btn-primary-action" onclick="fetchLeads()">Perbarui Data</button>
         </div>
       </header>
@@ -240,34 +241,151 @@
               <label for="inspect-handle">Username Akun atau Link Profil</label>
               <input type="text" id="inspect-handle" placeholder="Contoh: @titiktemumks atau https://instagram.com/titiktemumks">
             </div>
+            <div class="toolbar-group" style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+              <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; cursor: pointer; margin-bottom: 0;">
+                <input type="checkbox" id="inspect-force-refresh">
+                <span>Bypass Cache (Ambil Data Baru)</span>
+              </label>
+            </div>
             <div class="toolbar-group" style="align-self: flex-end;">
-              <button class="btn-primary" onclick="runStandaloneInspection()">Inspeksi 5 Konten</button>
+              <button class="btn-primary" id="btn-run-inspect" onclick="runStandaloneInspection()">Inspeksi 5 Konten</button>
             </div>
           </div>
         </div>
 
-        <!-- Inspector Result Area -->
-        <div id="inspector-results" style="display: none; margin-top: 24px;">
-          <div class="inspector-metrics-row">
-            <div class="ins-metric-card">
-              <div class="ins-label">Target Akun</div>
-              <div class="ins-value" id="ins-result-handle">-</div>
+        <!-- State 1: Default / Pre-Inspection Guide & Quick Presets -->
+        <div id="inspector-default-state" style="margin-top: 24px;">
+          <div class="inspector-presets-card">
+            <div class="presets-header">
+              <h3 class="subsection-heading">Pilihan Cepat Calon Customer Makassar</h3>
+              <p class="subsection-sub">Pilih salah satu prospek di bawah ini untuk memeriksa performa traksi konten sosial dan mendeteksi sinyal kebutuhan kemasan secara instan.</p>
             </div>
+            <div class="presets-badge-grid" id="inspector-presets-grid">
+              <div class="preset-loading-text">Memuat daftar prospek terdaftar...</div>
+            </div>
+          </div>
+
+          <div class="inspector-guide-row" style="margin-top: 20px;">
+            <div class="guide-card">
+              <div class="guide-badge">STANDAR TRAKSI</div>
+              <h4 class="guide-title">Tolok Ukur Engagement Rate (ER)</h4>
+              <p class="guide-desc">ER dihitung dari rasio interaksi (Likes + Komentar) terhadap jangkauan Views (atau Followers).</p>
+              <ul class="guide-list">
+                <li><strong style="color: #059669;">Viral / High Traction (&gt; 4.0%)</strong>: Respons pasar tinggi, momentum ekspansi produk.</li>
+                <li><strong style="color: #0284C7;">Healthy Engagement (1.5% - 4.0%)</strong>: Konsisten dan stabil, basis pelanggan aktif.</li>
+                <li><strong style="color: #D97706;">Low Traction (&lt; 1.5%)</strong>: Perlu penyegaran desain kemasan atau rebranding.</li>
+              </ul>
+            </div>
+
+            <div class="guide-card">
+              <div class="guide-badge">AKSELERASI PENJUALAN</div>
+              <h4 class="guide-title">Tingkat Commercial Velocity</h4>
+              <p class="guide-desc">Menilai intensitas bisnis meluncurkan menu, produk, atau promo dalam 30 hari terakhir.</p>
+              <ul class="guide-list">
+                <li><strong>Tinggi</strong>: Unggah aktif &lt;= 7 hari lalu dengan views tinggi atau terdeteksi postingan promo kemasan.</li>
+                <li><strong>Moderat</strong>: Unggah aktif dalam rentang 8 - 18 hari lalu.</li>
+                <li><strong>Rendah / Tidak Terdeteksi</strong>: Vakum lebih dari 20 hari, perputaran stok lambat.</li>
+              </ul>
+            </div>
+
+            <div class="guide-card">
+              <div class="guide-badge">INTELLIGENCE SCANNER</div>
+              <h4 class="guide-title">Deteksi Sinyal Kemasan</h4>
+              <p class="guide-desc">Mesin otomatis memindai kata kunci kemasan komersial RUANG VISUAL pada teks caption.</p>
+              <ul class="guide-list">
+                <li><strong>F&amp;B Minuman</strong>: Cold cup, hot cup, cup sleeve kraft, sealer, botol 250ml/1L.</li>
+                <li><strong>F&amp;B Makanan</strong>: Lunch box, paper box, dus catering, segel toples, paper bag.</li>
+                <li><strong>Retail / Skincare</strong>: Shopping bag exclusive, hangtag foil, box hampers, stiker vinyl.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- State 2: Loading State -->
+        <div id="inspector-loading-state" style="display: none; margin-top: 24px;">
+          <div class="inspector-loading-card">
+            <div class="loading-spinner-cmyk"></div>
+            <h3 class="loading-title">Sedang Menginspeksi Konten Sosial Target...</h3>
+            <p class="loading-sub">Menghubungkan sistem ke platform dan memindai data 5 postingan terpopuler.</p>
+            <div class="loading-steps-track">
+              <div class="loading-step-item active" id="step-inspect-1">1. Resolusi Handle &amp; Profil Akun</div>
+              <div class="loading-step-item" id="step-inspect-2">2. Penarikan 5 Unggahan &amp; Metrik Traksi</div>
+              <div class="loading-step-item" id="step-inspect-3">3. Analisis NLP Kata Kunci Kemasan</div>
+              <div class="loading-step-item" id="step-inspect-4">4. Perumusan Draf Penawaran WhatsApp</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- State 3: Inspector Result Area -->
+        <div id="inspector-results" style="display: none; margin-top: 24px;">
+          <!-- Target Profile Header -->
+          <div class="ins-profile-card" id="ins-profile-box">
+            <div class="ins-profile-avatar" id="ins-avatar-circle">RV</div>
+            <div class="ins-profile-info">
+              <div class="ins-profile-header-line">
+                <h3 class="ins-profile-name" id="ins-profile-name">-</h3>
+                <span class="ins-handle-pill" id="ins-profile-handle">@-</span>
+                <span class="ins-status-badge" id="ins-platform-badge">Instagram</span>
+                <span class="ins-status-badge" id="ins-velocity-badge">Velocity: -</span>
+              </div>
+              <div class="ins-profile-bio" id="ins-profile-bio">-</div>
+              <div class="ins-profile-stats">
+                <span>Followers: <strong id="ins-stat-followers">0</strong></span>
+                <span>Postingan Akun: <strong id="ins-stat-posts">0</strong></span>
+                <span id="ins-link-container"></span>
+              </div>
+            </div>
+            <div class="ins-profile-actions">
+              <button class="btn-secondary" onclick="resetInspectorToDefault()">Ganti Akun</button>
+            </div>
+          </div>
+
+          <!-- 4 KPI Metrics Row -->
+          <div class="inspector-metrics-row" style="margin-top: 16px;">
             <div class="ins-metric-card">
               <div class="ins-label">Total Views (5 Konten)</div>
               <div class="ins-value" id="ins-result-views">0</div>
+              <div class="ins-subtext" id="ins-sub-views">0 Likes &bull; 0 Komentar</div>
             </div>
             <div class="ins-metric-card">
               <div class="ins-label">Rata-rata Engagement Rate</div>
               <div class="ins-value" id="ins-result-eng">0%</div>
+              <div class="ins-subtext" id="ins-sub-benchmark">Status: Belum Terukur</div>
+            </div>
+            <div class="ins-metric-card">
+              <div class="ins-label">Kecepatan Komersial</div>
+              <div class="ins-value" id="ins-result-velocity">Tidak Terdeteksi</div>
+              <div class="ins-subtext">Pilar 2 Skoring Dossier</div>
             </div>
             <div class="ins-metric-card">
               <div class="ins-label">Sinyal Kebutuhan Kemasan</div>
               <div class="ins-value" id="ins-result-signals">0 Konten</div>
+              <div class="ins-subtext" id="ins-sub-signals">Terdeteksi pada teks caption</div>
             </div>
           </div>
 
-          <h3 class="subsection-heading" style="margin-top: 24px; margin-bottom: 12px;">Daftar 5 Konten Teratas</h3>
+          <!-- Sales Outreach Pitch Hook Recommendation Card -->
+          <div class="inspector-pitch-card" id="ins-pitch-card" style="margin-top: 20px;">
+            <div class="pitch-card-header">
+              <div>
+                <span class="ins-pitch-badge">REKOMENDASI OUTREACH PENJUALAN</span>
+                <h4 class="ins-pitch-title" id="ins-pitch-angle">Follow-up Traksi Unggahan Terpopuler</h4>
+              </div>
+              <button class="btn-secondary btn-sm" onclick="copyPitchText()">Salin Teks</button>
+            </div>
+            <div class="ins-pitch-body" id="ins-pitch-text">Memuat rekomendasi penawaran...</div>
+            <div class="ins-pitch-actions">
+              <a href="#" target="_blank" id="ins-pitch-wa-btn" class="btn-primary" style="text-decoration: none; display: inline-flex; align-items: center; gap: 8px;">
+                <span>Kirim Penawaran WhatsApp</span>
+              </a>
+              <button class="btn-secondary" id="btn-link-to-dossier" onclick="linkCurrentInspectionToDossier()">
+                Tautkan Hasil ke Dossier Calon Customer
+              </button>
+            </div>
+          </div>
+
+          <!-- 5 Posts Grid -->
+          <h3 class="subsection-heading" style="margin-top: 24px; margin-bottom: 12px;">Daftar 5 Konten Teratas yang Dianalisis</h3>
           <div class="posts-grid" id="inspector-posts-grid"></div>
         </div>
       </section>

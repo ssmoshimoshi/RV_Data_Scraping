@@ -199,3 +199,7 @@ def generate_whatsapp_click_url(phone: str, pitch: str) -> str:
     if not digits:
         return ''
     return f"https://wa.me/{digits}?text={urllib.parse.quote(pitch)}"
+
+
+# Alias penamaan resmi untuk menghindari ambiguitas impor dengan scrapers.lead_scoring
+generate_outreach_pitch = generate_whatsapp_pitch

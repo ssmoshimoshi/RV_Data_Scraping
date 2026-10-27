@@ -254,6 +254,14 @@ class TestLinkChannelEndpoint(unittest.TestCase):
         self.httpd.shutdown()
         self.httpd.server_close()
 
+    def _get(self, path):
+        conn = http.client.HTTPConnection("127.0.0.1", self.port, timeout=10)
+        conn.request("GET", path)
+        res = conn.getresponse()
+        data = res.read()
+        conn.close()
+        return res, data
+
     def _post(self, path, payload):
         body = json.dumps(payload).encode("utf-8")
         conn = http.client.HTTPConnection("127.0.0.1", self.port, timeout=10)
@@ -277,12 +285,11 @@ class TestLinkChannelEndpoint(unittest.TestCase):
             data = json.loads(body)
             self.assertEqual(data["status"], "success")
             self.assertTrue(data["persisted"])
-            self.assertEqual(len(data["inspection"]["posts"]), 0)
-            self.assertEqual(data["inspection"]["status"], "Belum diinspeksi")
+            self.assertIn("posts", data["inspection"])
             self.assertEqual(data["lead"]["channels"]["instagram"], "kopikanalbaru")
             saved = json.loads(fixture.read_text(encoding="utf-8"))
             self.assertEqual(saved[0]["channels"]["instagram"], "kopikanalbaru")
-            self.assertEqual(len(saved[0]["top_posts"]), 0)
+            self.assertEqual(len(saved[0]["top_posts"]), len(data["inspection"]["posts"]))
 
     def test_link_channel_on_sample_lead_still_works(self):
         res, body = self._post("/api/leads/link-channel", {
@@ -306,26 +313,80 @@ class TestLinkChannelEndpoint(unittest.TestCase):
         self.assertEqual(res.status, 404)
         self.assertIn("error", json.loads(body))
 
-    def test_inspect_account_content_factual_empty(self):
-        result = inspect_account_content("instagram", "kopititiktemu", "Kopi Titik Temu")
-        self.assertEqual(result["status"], "Belum diinspeksi")
+    def test_inspect_account_content_empty_handle(self):
+        result = inspect_account_content("instagram", "")
+        self.assertEqual(result["status"], "error")
         self.assertEqual(result["posts"], [])
-        self.assertEqual(result["total_analyzed_posts"], 0)
         self.assertEqual(result["total_views"], 0)
         self.assertEqual(result["avg_engagement_rate"], 0.0)
         self.assertEqual(result["commercial_velocity"], "Tidak Terdeteksi")
 
-    def test_inspect_content_endpoint_returns_factual_status(self):
+    def test_inspect_content_endpoint_returns_rich_data(self):
         res, body = self._post("/api/inspect-content", {
             "platform": "instagram",
             "handle": "kopititiktemu",
-            "business_name": "Kopi Titik Temu"
+            "business_name": "Kopi Titik Temu",
+            "dry_run": True
         })
         self.assertEqual(res.status, 200)
         data = json.loads(body)
-        self.assertEqual(data["status"], "Belum diinspeksi")
-        self.assertEqual(data["posts"], [])
-        self.assertEqual(data["total_analyzed_posts"], 0)
+        self.assertEqual(data["status"], "success")
+        self.assertEqual(len(data["posts"]), 5)
+        self.assertGreater(data["total_views"], 0)
+        self.assertIn("outreach_hook", data)
+        self.assertIn("pitch_text", data["outreach_hook"])
+
+    def test_inspector_quick_targets_endpoint(self):
+        res, body = self._get("/api/inspector/quick-targets")
+        self.assertEqual(res.status, 200)
+        targets = json.loads(body)
+        self.assertIsInstance(targets, list)
+        self.assertGreater(len(targets), 0)
+        first = targets[0]
+        self.assertIn("handle", first)
+        self.assertIn("platform", first)
+        self.assertIn("business_name", first)
+
+    def test_inspector_link_lead_endpoint_success(self):
+        sample_posts = [
+            {
+                "id": "post_live_1",
+                "caption": "Kemasan kopi botol literan baru",
+                "views": 15000,
+                "likes": 800,
+                "comments": 60,
+                "engagement_rate": 5.73,
+                "tags": ["Minuman / Beverage Pack"]
+            }
+        ]
+        res, body = self._post("/api/inspector/link-lead", {
+            "lead_id": "lead-001",
+            "platform": "instagram",
+            "handle": "titiktemumks",
+            "posts": sample_posts
+        })
+        self.assertEqual(res.status, 200)
+        data = json.loads(body)
+        self.assertEqual(data["status"], "success")
+        self.assertEqual(data["lead"]["channels"]["instagram"], "titiktemumks")
+        self.assertEqual(data["lead"]["top_posts"][0]["id"], "post_live_1")
+
+    def test_inspector_link_lead_missing_id_400(self):
+        res, body = self._post("/api/inspector/link-lead", {
+            "platform": "instagram",
+            "handle": "test"
+        })
+        self.assertEqual(res.status, 400)
+        self.assertIn("error", json.loads(body))
+
+    def test_inspector_link_lead_not_found_404(self):
+        res, body = self._post("/api/inspector/link-lead", {
+            "lead_id": "nonexistent_lead_999",
+            "platform": "instagram",
+            "handle": "test"
+        })
+        self.assertEqual(res.status, 404)
+        self.assertIn("error", json.loads(body))
 
 
 class TestPersistStatusToDossier(unittest.TestCase):
@@ -470,6 +531,18 @@ class TestUpdateStatusEndpoint(unittest.TestCase):
         self.assertEqual(res.status, 404)
         data = json.loads(body)
         self.assertIn("error", data)
+
+
+    def test_sync_hermes_endpoint_dry_run(self):
+        res, body = self._post("/api/sync-hermes", {
+            "sheet_name": "Radar Prospek",
+            "dry_run": True,
+            "clear_first": False
+        })
+        self.assertEqual(res.status, 200)
+        data = json.loads(body)
+        self.assertEqual(data.get("status"), "dry_run")
+        self.assertTrue(data.get("rows_count", 0) > 0)
 
 
 if __name__ == "__main__":

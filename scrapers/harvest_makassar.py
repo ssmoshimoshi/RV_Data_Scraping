@@ -116,10 +116,6 @@ def _run_harvest_queries(queries: list[str], limit: int) -> list[dict]:
     return all_places
 
 
-def _run_apify_query(query: str, limit: int) -> list[dict]:
-    return _run_harvest_queries([query], limit)
-
-
 def harvest(sector: str = 'all', limit_per_query: int = 10, dry_run: bool = False) -> list[dict]:
     raw_dir = PROJECT_ROOT / 'data' / 'raw'
     raw_dir.mkdir(parents=True, exist_ok=True)

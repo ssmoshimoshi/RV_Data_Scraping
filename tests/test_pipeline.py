@@ -207,12 +207,11 @@ class TestMatchPipeline(unittest.TestCase):
             raw_dir, out_dir = self._prepare(tmp)
             run_match_pipeline(str(raw_dir), str(out_dir), 'Makassar', False)
             entities = json.loads(next(out_dir.glob('unified_dossiers_*.json')).read_text(encoding='utf-8'))
+            from scrapers.lead_scoring import assign_tier
             for ent in entities:
                 self.assertIsInstance(ent['lead_score'], int)
                 self.assertTrue(0 <= ent['lead_score'] <= 100)
-                expected = ('Tier A' if ent['lead_score'] >= 80 else
-                            'Tier B' if ent['lead_score'] >= 60 else
-                            'Tier C' if ent['lead_score'] >= 40 else 'Tier D')
+                expected = assign_tier(ent['lead_score'], ent)
                 self.assertEqual(ent['priority_tier'], expected)
 
     def test_match_export_csv_lead_score_format(self):
@@ -281,6 +280,21 @@ class TestExportPipeline(unittest.TestCase):
             with out_csv.open(encoding='utf-8-sig') as f:
                 rows = list(csv.DictReader(f))
             self.assertEqual(len(rows), 2)
+
+
+class TestHermesAndInspectPipeline(unittest.TestCase):
+    def test_sync_hermes_pipeline_dry_run(self):
+        from pipeline import run_sync_hermes_pipeline
+        res = run_sync_hermes_pipeline(sheet_name="Radar Prospek", dry_run=True)
+        self.assertEqual(res.get("status"), "dry_run")
+        self.assertTrue(res.get("rows_count", 0) > 0)
+
+    def test_inspect_pipeline_dry_run(self):
+        from pipeline import run_inspect_pipeline
+        res = run_inspect_pipeline(platform="instagram", handle="@titiktemumks", dry_run=True)
+        self.assertEqual(res.get("status"), "success")
+        self.assertIn("posts", res)
+        self.assertEqual(len(res["posts"]), 5)
 
 
 if __name__ == '__main__':

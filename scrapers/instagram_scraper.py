@@ -6,7 +6,6 @@ if str(PROJECT_ROOT) not in sys.path:
 
 import argparse
 import json
-import os
 import re
 from datetime import datetime
 from typing import Optional

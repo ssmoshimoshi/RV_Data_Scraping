@@ -701,6 +701,365 @@ select:focus, input[type="text"]:focus {
   color: var(--text-key);
 }
 
+.ins-subtext {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+/* Inspector Presets Card */
+.inspector-presets-card {
+  background: var(--bg-paper);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.presets-header {
+  margin-bottom: 14px;
+}
+
+.subsection-sub {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.presets-badge-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.preset-badge-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #F8FAFC;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+}
+
+.preset-badge-item:hover {
+  background: #FFFFFF;
+  border-color: #00A3E0;
+  box-shadow: 0 2px 8px rgba(0, 163, 224, 0.12);
+  transform: translateY(-1px);
+}
+
+.preset-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-key);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.preset-handle {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: monospace;
+}
+
+.preset-tag {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.preset-tag.instagram {
+  background: #FDF2F8;
+  color: #DB2777;
+  border: 1px solid #FBCFE8;
+}
+
+.preset-tag.tiktok {
+  background: #F0FDF4;
+  color: #16A34A;
+  border: 1px solid #BBF7D0;
+}
+
+/* Inspector Guide Cards */
+.inspector-guide-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.guide-card {
+  background: var(--bg-paper);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 18px;
+}
+
+.guide-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: #00A3E0;
+  background: #E0F2FE;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-bottom: 8px;
+}
+
+.guide-title {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text-key);
+  margin-bottom: 6px;
+}
+
+.guide-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin-bottom: 10px;
+}
+
+.guide-list {
+  font-size: 12px;
+  color: var(--text-key);
+  line-height: 1.6;
+  padding-left: 16px;
+  margin: 0;
+}
+
+/* Loading State Card */
+.inspector-loading-card {
+  background: var(--bg-paper);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 36px 24px;
+  text-align: center;
+}
+
+.loading-spinner-cmyk {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #E2E8F0;
+  border-top-color: #00A3E0;
+  border-right-color: #E6007E;
+  border-radius: 50%;
+  animation: spinCmyk 0.8s linear infinite;
+  margin: 0 auto 16px;
+}
+
+@keyframes spinCmyk {
+  to { transform: rotate(360deg); }
+}
+
+.loading-title {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text-key);
+  margin-bottom: 4px;
+}
+
+.loading-sub {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 20px;
+}
+
+.loading-steps-track {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.loading-step-item {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: 6px 12px;
+  background: #F8FAFC;
+  border: 1px solid var(--border-subtle);
+  border-radius: 20px;
+  transition: all 0.2s ease;
+}
+
+.loading-step-item.active {
+  color: #00A3E0;
+  background: #E0F2FE;
+  border-color: #BAE6FD;
+  font-weight: 700;
+}
+
+/* Profile Card in Results */
+.ins-profile-card {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  background: var(--bg-paper);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.ins-profile-avatar {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #00A3E0, #E6007E);
+  color: #FFFFFF;
+  font-size: 20px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ins-profile-info {
+  flex: 1;
+}
+
+.ins-profile-header-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.ins-profile-name {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text-key);
+  margin: 0;
+}
+
+.ins-handle-pill {
+  font-size: 12px;
+  font-family: monospace;
+  background: #F1F5F9;
+  color: var(--text-key);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.ins-status-badge {
+  font-size: 11px;
+  font-weight: 700;
+  background: #F8FAFC;
+  border: 1px solid var(--border-subtle);
+  padding: 2px 8px;
+  border-radius: 4px;
+  color: var(--text-muted);
+}
+
+.ins-profile-bio {
+  font-size: 13px;
+  color: var(--text-key);
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+
+.ins-profile-stats {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.ins-profile-stats strong {
+  color: var(--text-key);
+}
+
+/* Sales Outreach Pitch Card */
+.inspector-pitch-card {
+  background: #F8FAFC;
+  border: 1px solid #CBD5E1;
+  border-left: 4px solid #00A3E0;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.pitch-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.ins-pitch-badge {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: #00A3E0;
+  text-transform: uppercase;
+}
+
+.ins-pitch-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-key);
+  margin-top: 2px;
+}
+
+.ins-pitch-body {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-key);
+  background: #FFFFFF;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 14px;
+  margin-bottom: 14px;
+  white-space: pre-line;
+}
+
+.ins-pitch-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.keyword-highlight {
+  background: #FEF08A;
+  color: #854D0E;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+.post-packaging-tag {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  background: #ECFDF5;
+  color: #065F46;
+  border: 1px solid #A7F3D0;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-top: 4px;
+}
+
+.post-prod-pill {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  background: #EFF6FF;
+  color: #1D4ED8;
+  border: 1px solid #BFDBFE;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-top: 4px;
+  margin-right: 4px;
+}
+
 /* Posts Grid (Inspector & Dossier) */
 .posts-grid {
   display: grid;

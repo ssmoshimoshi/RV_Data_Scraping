@@ -6,27 +6,23 @@ if str(PROJECT_ROOT) not in sys.path:
 
 import argparse
 import json
-from datetime import datetime
-from scrapers.gmaps_scraper import search_places, scrape_negative_reviews
-from scrapers.instagram_scraper import run_follower_spider, enrich_profile, validate_recency
+from datetime import datetime, timedelta
+from scrapers.gmaps_scraper import search_places
+from scrapers.instagram_scraper import enrich_profile, validate_recency
 from scrapers.meta_ads_scraper import search_meta_ads
 from scrapers.tiktok_scraper import scrape_tiktok_search, transform_to_lead_format as transform_tiktok_leads
 from scrapers.threads_scraper import scrape_threads_profile
 from scrapers.food_delivery_scraper import scrape_gofood, scrape_grabfood, scrape_shopeefood
-from scrapers.normalizer import normalize_whatsapp, normalize_address
+from scrapers.normalizer import validate_whatsapp_number
 from scrapers.lead_scoring import qualify_lead, calculate_score, classify_category, infer_product_needs, generate_whatsapp_pitch, calculate_4_pillars_score
 from scrapers.entity_matcher import load_raw_records, match_entities
-from scrapers.outreach_generator import generate_whatsapp_pitch as generate_outreach_pitch, _resolve_sector
+from scrapers.outreach_generator import generate_outreach_pitch, _resolve_sector
 from scrapers.route_cluster import assign_sales_cluster
 from scrapers.exporter import export_dossiers_to_csv, find_latest_dossier
-from scrapers.database import insert_lead, get_supabase_client, batch_upsert_dossiers
+from scrapers.database import insert_lead, batch_upsert_dossiers
 from scrapers.harvest_makassar import harvest
 from scrapers.sync_catalog import sync_catalog
 from scrapers.db_sqlite import init_db, upsert_lead as upsert_lead_sqlite
-from scrapers.normalizer import validate_whatsapp_number
-import os
-from pathlib import Path
-from datetime import datetime, timedelta
 
 
 def ensure_catalog_synced(max_age_days: int = 7):
@@ -449,9 +445,15 @@ def run_match_pipeline(raw_dir: str, output_dir: str, city: str, dry_run: bool, 
             reclassified = classify_category(ent.get('business_name', ''), f"{bio} {raw_cat}", [])
             if reclassified != 'general_commercial' or not ent.get('category'):
                 ent['category'] = reclassified
-        score = calculate_score(ent)
+        pillars = calculate_4_pillars_score(ent)
+        score = pillars['score_total']
+        ent['score_legitimacy'] = pillars['score_legitimacy']
+        ent['score_velocity'] = pillars['score_velocity']
+        ent['score_turnover'] = pillars['score_turnover']
+        ent['score_budget'] = pillars['score_budget']
         ent['lead_score'] = score
-        ent['priority_tier'] = 'Tier A' if score >= 80 else 'Tier B' if score >= 60 else 'Tier C' if score >= 40 else 'Tier D'
+        ent['priority_tier'] = pillars['tier']
+        ent['reason_summary'] = pillars['reason_summary']
         ent['whatsapp_pitch'] = generate_outreach_pitch(ent)
         from scrapers.outreach_generator import recommended_products as get_rec_products
         ent['recommended_products'] = get_rec_products(ent)
@@ -507,6 +509,56 @@ def run_export_pipeline(input_path: str, output_path: str, dry_run: bool, includ
 def run_harvest_pipeline(sector: str, limit_per_query: int, dry_run: bool):
     print(f"Menjalankan panen prospek Makassar (Sektor: {sector}, Limit/query: {limit_per_query}, Dry-run: {dry_run})")
     harvest(sector=sector, limit_per_query=limit_per_query, dry_run=dry_run)
+
+
+def run_sync_hermes_pipeline(sheet_name: str = "Radar Prospek", clear_first: bool = False, dry_run: bool = False, limit: int = 0) -> dict:
+    if sheet_name == "Matriks Kompetitor":
+        from scrapers.competitor_matrix import sync_competitor_matrix_to_hermes, MAKASSAR_PRINTING_COMPETITORS
+        comps = MAKASSAR_PRINTING_COMPETITORS[:limit] if limit > 0 else MAKASSAR_PRINTING_COMPETITORS
+        print(f"Menjalankan sinkronisasi ke Google Sheets 'Matriks Kompetitor' (Total: {len(comps)}, Dry-run: {dry_run})...")
+        res = sync_competitor_matrix_to_hermes(competitors=comps, clear_first=clear_first, dry_run=dry_run)
+        print(f"Status: {res.get('status')} | Jumlah baris: {res.get('rows_count')}")
+        if res.get("webhook_response"):
+            print(f"Respons Webhook: {res.get('webhook_response')}")
+        return res
+
+    from scrapers.sync_hermes import sync_leads_to_hermes
+    from scrapers.dashboard_server import get_all_leads
+
+    leads = get_all_leads()
+    if limit > 0:
+        leads = leads[:limit]
+    print(f"Menjalankan sinkronisasi ke Google Sheets '{sheet_name}' (Total: {len(leads)}, Dry-run: {dry_run})...")
+    res = sync_leads_to_hermes(leads=leads, sheet_name=sheet_name, clear_first=clear_first, dry_run=dry_run)
+    print(f"Status: {res.get('status')} | Jumlah baris: {res.get('rows_count')}")
+    if res.get("webhook_response"):
+        print(f"Respons Webhook: {res.get('webhook_response')}")
+    return res
+
+
+def run_inspect_pipeline(platform: str, handle: str, biz_name: str = "", sector: str = "fnb", force_refresh: bool = False, dry_run: bool = False) -> dict:
+    from scrapers.content_inspector import fetch_social_top_posts
+
+    print(f"Menjalankan inspeksi {platform.upper()} untuk '{handle}' (Sektor: {sector}, Dry-run: {dry_run})...")
+    res = fetch_social_top_posts(
+        platform=platform,
+        handle_or_url=handle,
+        business_name=biz_name,
+        force_refresh=force_refresh,
+        dry_run=dry_run
+    )
+    print(f"Target: {res.get('handle')} | Status: {res.get('status')}")
+    total_views = res.get("total_views") or 0
+    avg_er = res.get("avg_engagement_rate") or 0.0
+    velocity = res.get("commercial_velocity") or "Tidak Terdeteksi"
+    packaging_posts = res.get("packaging_intent_posts") or 0
+    total_posts = len(res.get("posts") or [])
+    print(f"Views: {total_views:,} | Avg ER: {avg_er:.2f}% | Velocity: {velocity}")
+    print(f"Sinyal Kemasan: {packaging_posts}/{total_posts} konten")
+    hook = res.get("outreach_hook") or {}
+    if hook.get("pitch_text"):
+        print(f"\nDraf WhatsApp Pitch:\n{hook.get('pitch_text')}")
+    return res
 
 
 def main():
@@ -579,7 +631,7 @@ def main():
     subparsers.add_parser("test", help="Jalankan seluruh rangkaian unit test")
 
     # Subcommand: sync-db
-    sync_parser = subparsers.add_parser("sync-db", help="Sinkronkan berkas dossier JSON ke database Supabase")
+    sync_parser = subparsers.add_parser("sync-db", help="Sinkronkan berkas dossier JSON ke database SQLite lokal")
     sync_parser.add_argument("--input", type=str, default=None, help="Path berkas JSON dossier (default: berkas terbaru di data/processed)")
     sync_parser.add_argument("--dry-run", action="store_true", help="Simulasi sinkronisasi tanpa menulis ke database")
 
@@ -588,6 +640,22 @@ def main():
     harvest_parser.add_argument("--sector", choices=["fnb_hospitality", "retail_apparel", "education", "corporate_legal", "event_community", "beauty_skincare", "all"], default="all", help="Sektor bisnis target")
     harvest_parser.add_argument("--limit-per-query", type=int, default=5, help="Batas maksimal tempat per query")
     harvest_parser.add_argument("--dry-run", action="store_true", help="Simulasi tanpa pemanggilan berbayar")
+
+    # Subcommand: sync-hermes
+    hermes_parser = subparsers.add_parser("sync-hermes", help="Sinkronkan prospek terverifikasi ke Google Sheets Hermes")
+    hermes_parser.add_argument("--sheet", type=str, default="Radar Prospek", help="Nama worksheet target di Google Sheets")
+    hermes_parser.add_argument("--clear-first", action="store_true", help="Kosongkan data lama sebelum mengunggah")
+    hermes_parser.add_argument("--limit", type=int, default=0, help="Batasi jumlah baris")
+    hermes_parser.add_argument("--dry-run", action="store_true", help="Uji coba tanpa menulis ke Google Sheets")
+
+    # Subcommand: inspect
+    inspect_parser = subparsers.add_parser("inspect", help="Inspeksi mendalam traksi dan konten media sosial target")
+    inspect_parser.add_argument("--platform", choices=["instagram", "tiktok"], default="instagram", help="Platform sosial target")
+    inspect_parser.add_argument("--handle", type=str, required=True, help="Username atau URL akun target")
+    inspect_parser.add_argument("--biz-name", type=str, default="", help="Nama bisnis target (opsional)")
+    inspect_parser.add_argument("--sector", type=str, default="fnb", help="Sektor industri (fnb, bakery, fashion, skincare, general)")
+    inspect_parser.add_argument("--force-refresh", action="store_true", help="Abaikan cache lokal SQLite")
+    inspect_parser.add_argument("--dry-run", action="store_true", help="Gunakan data deterministik uji")
 
     args = parser.parse_args()
 
@@ -619,14 +687,35 @@ def main():
     elif args.command == "sync-db":
         json_path = Path(args.input) if args.input else find_latest_dossier(PROJECT_ROOT / 'data' / 'processed')
         if not json_path or not json_path.exists():
-            print("Tidak ada berkas dossier yang ditemukan untuk disinkronkan.")
+            print("Tidak ada berkas dossier yang ditemukan. Menyinkronkan SAMPLE_LEADS ke SQLite lokal...")
+            from scrapers.db_sqlite import seed_sample_leads_to_sqlite
+            c = seed_sample_leads_to_sqlite()
+            print(f"Berhasil menyinkronkan {c} prospek ke SQLite lokal.")
         else:
             dossiers = json.loads(Path(json_path).read_text(encoding='utf-8'))
-            count, msg = batch_upsert_dossiers(dossiers, dry_run=args.dry_run)
-            print(f"Input: {json_path} | Baris: {count}")
-            print(msg)
+            if args.dry_run:
+                print(f"Mode dry-run: {len(dossiers)} dossier akan disinkronkan ke SQLite lokal.")
+            else:
+                saved_sqlite = sync_entities_to_sqlite(dossiers, "Makassar")
+                print(f"Input: {json_path} | Berhasil tersimpan ke SQLite (data/leads.sqlite): {saved_sqlite}")
     elif args.command == "harvest":
         run_harvest_pipeline(args.sector, args.limit_per_query, args.dry_run)
+    elif args.command == "sync-hermes":
+        run_sync_hermes_pipeline(
+            sheet_name=args.sheet,
+            clear_first=args.clear_first,
+            dry_run=args.dry_run,
+            limit=args.limit
+        )
+    elif args.command == "inspect":
+        run_inspect_pipeline(
+            platform=args.platform,
+            handle=args.handle,
+            biz_name=args.biz_name,
+            sector=args.sector,
+            force_refresh=args.force_refresh,
+            dry_run=args.dry_run
+        )
 
 
 if __name__ == "__main__":

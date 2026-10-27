@@ -8,6 +8,7 @@ import json
 import http.server
 import socketserver
 import urllib.parse
+from typing import Optional
 from datetime import datetime, timedelta
 from scrapers.lead_scoring import (
     classify_category,
@@ -19,503 +20,44 @@ from scrapers.lead_scoring import (
 )
 from scrapers.db_sqlite import get_all_leads as get_all_leads_from_sqlite, update_outreach_log
 from scrapers.exporter import export_dossiers_to_csv, export_full_dossiers_to_csv, find_latest_dossier
+from scrapers.content_inspector import (
+    fetch_social_top_posts,
+    save_inspected_posts_to_sqlite,
+    clean_social_handle
+)
 
 PORT = 3000
 
-SAMPLE_LEADS = [
-    {
-        "id": "lead-001",
-        "business_name": "Kopi Titik Temu Makassar",
-        "category": "fnb_beverage",
-        "platform": "google_maps",
-        "google_maps_place_id": "ChIJ_titiktemu_mks_001",
-        "rating": 4.8,
-        "reviews_count": 428,
-        "latitude": -5.1477,
-        "longitude": 119.4442,
-        "city": "Makassar",
-        "address_full": "Jl. Pengayoman No. 12, Panakkukang, Makassar",
-        "whatsapp_number": "628114123456",
-        "phone_number": "0411-456789",
-        "follower_count": 18400,
-        "is_active_verified": True,
-        "is_ad_active": True,
-        "external_website_url": "https://titiktemucoffee.id",
-        "latest_post_date": (datetime.now() - timedelta(days=2)).isoformat(),
-        "status": "ready_to_pitch",
-        "channels": {
-            "google_maps": "https://maps.google.com/?cid=101",
-            "instagram": "titiktemumks",
-            "tiktok": "titiktemu_official",
-            "threads": "",
-            "food_delivery": "GoFood & GrabFood: Kopi Titik Temu Pengayoman"
-        },
-        "top_posts": [
-            {
-                "id": "post-101",
-                "caption": "Peluncuran kemasan dingin Cold Cup 16oz dan Cup Sleeve Kraft edisi akhir tahun.",
-                "views": 34200,
-                "likes": 2180,
-                "comments": 178,
-                "engagement_rate": 6.89,
-                "date": (datetime.now() - timedelta(days=2)).strftime("%Y-%m-%d"),
-                "packaging_signal": True,
-                "tags": ["Cold Cup", "Sleeve Kraft", "New Menu"]
-            },
-            {
-                "id": "post-102",
-                "caption": "Morning routine: espresso double shot disajikan hangat dalam paper cup 8oz kami.",
-                "views": 22100,
-                "likes": 1420,
-                "comments": 89,
-                "engagement_rate": 6.82,
-                "date": (datetime.now() - timedelta(days=5)).strftime("%Y-%m-%d"),
-                "packaging_signal": True,
-                "tags": ["Hot Paper Cup", "Dine-in Takeaway"]
-            },
-            {
-                "id": "post-103",
-                "caption": "Suasana sore di Titik Temu Pengayoman. Ruang kumpul komunitas kreatif Makassar.",
-                "views": 18500,
-                "likes": 1120,
-                "comments": 64,
-                "engagement_rate": 6.40,
-                "date": (datetime.now() - timedelta(days=9)).strftime("%Y-%m-%d"),
-                "packaging_signal": False,
-                "tags": ["Ambience", "Community"]
-            },
-            {
-                "id": "post-104",
-                "caption": "Order via GoFood & GrabFood sekarang, paket bundling lunch box + ice latte segel stiker khusus.",
-                "views": 27400,
-                "likes": 1690,
-                "comments": 112,
-                "engagement_rate": 6.57,
-                "date": (datetime.now() - timedelta(days=12)).strftime("%Y-%m-%d"),
-                "packaging_signal": True,
-                "tags": ["Lunch Box", "Stiker Segel", "Delivery"]
-            },
-            {
-                "id": "post-105",
-                "caption": "Behind the bar: barista kami menyiapkan beans arabika Toraja dengan presisi.",
-                "views": 14900,
-                "likes": 980,
-                "comments": 45,
-                "engagement_rate": 6.87,
-                "date": (datetime.now() - timedelta(days=16)).strftime("%Y-%m-%d"),
-                "packaging_signal": False,
-                "tags": ["Beans", "Barista"]
-            }
-        ]
-    },
-    {
-        "id": "lead-002",
-        "business_name": "Dapur Bunda Roastery & Resto",
-        "category": "fnb_food_resto",
-        "platform": "google_maps",
-        "google_maps_place_id": "ChIJ_dapurbunda_mks_002",
-        "rating": 4.6,
-        "reviews_count": 295,
-        "latitude": -5.1389,
-        "longitude": 119.4125,
-        "city": "Makassar",
-        "address_full": "Jl. Botolempangan No. 45, Ujung Pandang, Makassar",
-        "whatsapp_number": "6282198765432",
-        "phone_number": "0411-876543",
-        "follower_count": 14200,
-        "is_active_verified": True,
-        "is_ad_active": False,
-        "external_website_url": "https://dapurbundaresto.com",
-        "latest_post_date": (datetime.now() - timedelta(days=3)).isoformat(),
-        "status": "sample_box_requested",
-        "channels": {
-            "google_maps": "https://maps.google.com/?cid=102",
-            "instagram": "dapurbunda_mks",
-            "tiktok": "",
-            "threads": "",
-            "food_delivery": "GoFood & ShopeeFood: Dapur Bunda Botolempangan"
-        },
-        "top_posts": [
-            {
-                "id": "post-201",
-                "caption": "Menu katering box harian untuk kantor dan perayaan keluarga siap diantar.",
-                "views": 19800,
-                "likes": 1340,
-                "comments": 92,
-                "engagement_rate": 7.23,
-                "date": (datetime.now() - timedelta(days=3)).strftime("%Y-%m-%d"),
-                "packaging_signal": True,
-                "tags": ["Paper Lunch Box", "Katering Box"]
-            },
-            {
-                "id": "post-202",
-                "caption": "Ayam bakar bumbu rujak dengan wrapping paper higienis dan paper bag takeaway tebal.",
-                "views": 16400,
-                "likes": 980,
-                "comments": 74,
-                "engagement_rate": 6.42,
-                "date": (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d"),
-                "packaging_signal": True,
-                "tags": ["Food Pail", "Paper Bag", "Takeaway"]
-            },
-            {
-                "id": "post-203",
-                "caption": "Makan siang bersama rekan kerja di ruang VIP Dapur Bunda Botolempangan.",
-                "views": 12100,
-                "likes": 760,
-                "comments": 38,
-                "engagement_rate": 6.59,
-                "date": (datetime.now() - timedelta(days=11)).strftime("%Y-%m-%d"),
-                "packaging_signal": False,
-                "tags": ["Dine-in", "Resto Makassar"]
-            },
-            {
-                "id": "post-204",
-                "caption": "Paket nasi tumpeng mini dengan kemasan box ivory custom logo siap kirim.",
-                "views": 21300,
-                "likes": 1560,
-                "comments": 130,
-                "engagement_rate": 7.93,
-                "date": (datetime.now() - timedelta(days=15)).strftime("%Y-%m-%d"),
-                "packaging_signal": True,
-                "tags": ["Tumpeng Mini", "Box Custom", "Acara"]
-            },
-            {
-                "id": "post-205",
-                "caption": "Review pelanggan setia yang menikmati konro bakar khas Dapur Bunda.",
-                "views": 14200,
-                "likes": 890,
-                "comments": 52,
-                "engagement_rate": 6.63,
-                "date": (datetime.now() - timedelta(days=20)).strftime("%Y-%m-%d"),
-                "packaging_signal": False,
-                "tags": ["Review", "Konro Bakar"]
-            }
-        ]
-    },
-    {
-        "id": "lead-003",
-        "business_name": "Ayu Hijab & Modern Boutique",
-        "category": "fashion_retail",
-        "platform": "google_maps",
-        "google_maps_place_id": "ChIJ_ayuhijab_mks_003",
-        "rating": 4.5,
-        "reviews_count": 162,
-        "latitude": -5.1582,
-        "longitude": 119.4188,
-        "city": "Makassar",
-        "address_full": "Mall Ratu Indah Lt. 2 No. 18, Makassar",
-        "whatsapp_number": "6285255112233",
-        "phone_number": "0411-851234",
-        "follower_count": 32500,
-        "is_active_verified": True,
-        "is_ad_active": True,
-        "external_website_url": "https://ayuhijabboutique.com",
-        "latest_post_date": (datetime.now() - timedelta(days=1)).isoformat(),
-        "status": "quotation_sent",
-        "channels": {
-            "google_maps": "https://maps.google.com/?cid=103",
-            "instagram": "ayuhijab_official",
-            "tiktok": "ayuhijab_official",
-            "threads": "",
-            "food_delivery": ""
-        },
-        "top_posts": [
-            {
-                "id": "post-301",
-                "caption": "Restock koleksi pashmina silk dengan hangtag baru emboss foil emas dan thank you card premium.",
-                "views": 58200,
-                "likes": 4210,
-                "comments": 312,
-                "engagement_rate": 7.76,
-                "date": (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d"),
-                "packaging_signal": True,
-                "tags": ["Hangtag Baju", "Thank You Card", "Emboss"]
-            },
-            {
-                "id": "post-302",
-                "caption": "Unboxing pesanan reseller via Shopee dan TikTok Shop dalam polymailer cetak logo khusus.",
-                "views": 44100,
-                "likes": 3150,
-                "comments": 240,
-                "engagement_rate": 7.68,
-                "date": (datetime.now() - timedelta(days=4)).strftime("%Y-%m-%d"),
-                "packaging_signal": True,
-                "tags": ["Polymailer", "Reseller", "Unboxing"]
-            },
-            {
-                "id": "post-303",
-                "caption": "Tutorial styling hijab segi empat paris premium untuk wisuda dan resepsi.",
-                "views": 89400,
-                "likes": 6800,
-                "comments": 540,
-                "engagement_rate": 8.21,
-                "date": (datetime.now() - timedelta(days=6)).strftime("%Y-%m-%d"),
-                "packaging_signal": False,
-                "tags": ["Tutorial", "Hijab", "Fashion"]
-            },
-            {
-                "id": "post-304",
-                "caption": "Shopping bag eksklusif tali kur siap melayani pengunjung offline store di Mall Ratu Indah.",
-                "views": 31200,
-                "likes": 2100,
-                "comments": 154,
-                "engagement_rate": 7.22,
-                "date": (datetime.now() - timedelta(days=10)).strftime("%Y-%m-%d"),
-                "packaging_signal": True,
-                "tags": ["Paper Bag Tali Kur", "Offline Store", "MaRI"]
-            },
-            {
-                "id": "post-305",
-                "caption": "Spill warna baru gamis lebaran edisi terbatas yang paling banyak dicari.",
-                "views": 51000,
-                "likes": 3700,
-                "comments": 298,
-                "engagement_rate": 7.83,
-                "date": (datetime.now() - timedelta(days=14)).strftime("%Y-%m-%d"),
-                "packaging_signal": False,
-                "tags": ["Gamis", "New Arrival"]
-            }
-        ]
-    },
-    {
-        "id": "lead-004",
-        "business_name": "Aesthetic Glow Dental Clinic",
-        "category": "beauty_skincare",
-        "platform": "google_maps",
-        "google_maps_place_id": "ChIJ_glowdental_mks_004",
-        "rating": 4.9,
-        "reviews_count": 318,
-        "latitude": -5.1523,
-        "longitude": 119.4475,
-        "city": "Makassar",
-        "address_full": "Jl. Boulevard Blok F No. 8, Panakkukang, Makassar",
-        "whatsapp_number": "6281344556677",
-        "phone_number": "0411-445566",
-        "follower_count": 9200,
-        "is_active_verified": True,
-        "is_ad_active": True,
-        "external_website_url": "https://glowdentalmakassar.com",
-        "latest_post_date": (datetime.now() - timedelta(days=4)).isoformat(),
-        "status": "new_lead",
-        "channels": {
-            "google_maps": "https://maps.google.com/?cid=104",
-            "instagram": "glowdental_mks",
-            "tiktok": "",
-            "threads": "",
-            "food_delivery": ""
-        },
-        "top_posts": [
-            {
-                "id": "post-401",
-                "caption": "Paket dental care home kit dilengkapi botol obat kumur berlabel vinyl tahan air dan box lipat doff.",
-                "views": 18200,
-                "likes": 1210,
-                "comments": 88,
-                "engagement_rate": 7.13,
-                "date": (datetime.now() - timedelta(days=4)).strftime("%Y-%m-%d"),
-                "packaging_signal": True,
-                "tags": ["Stiker Segel", "Box Skincare", "Dental Care"]
-            },
-            {
-                "id": "post-402",
-                "caption": "Brosur lipat panduan perawatan gigi setelah pemasangan behel dan veneer gigi.",
-                "views": 14100,
-                "likes": 890,
-                "comments": 46,
-                "engagement_rate": 6.63,
-                "date": (datetime.now() - timedelta(days=8)).strftime("%Y-%m-%d"),
-                "packaging_signal": True,
-                "tags": ["Brosur Lipat", "Panduan Edukasi"]
-            },
-            {
-                "id": "post-403",
-                "caption": "Transformasi senyum pasien setelah perawatan bleaching gigi di Aesthetic Glow Clinic.",
-                "views": 25600,
-                "likes": 1840,
-                "comments": 142,
-                "engagement_rate": 7.74,
-                "date": (datetime.now() - timedelta(days=12)).strftime("%Y-%m-%d"),
-                "packaging_signal": False,
-                "tags": ["Before After", "Bleaching", "Gigi"]
-            },
-            {
-                "id": "post-404",
-                "caption": "Pemberian gift voucher dan kartu appointment bertekstur elegan untuk setiap konsultasi.",
-                "views": 11500,
-                "likes": 740,
-                "comments": 35,
-                "engagement_rate": 6.73,
-                "date": (datetime.now() - timedelta(days=18)).strftime("%Y-%m-%d"),
-                "packaging_signal": True,
-                "tags": ["Voucher Card", "Appointment Card"]
-            },
-            {
-                "id": "post-405",
-                "caption": "Ruang perawatan steril berstandar tinggi demi kenyamanan keluarga Anda.",
-                "views": 9800,
-                "likes": 610,
-                "comments": 22,
-                "engagement_rate": 6.44,
-                "date": (datetime.now() - timedelta(days=22)).strftime("%Y-%m-%d"),
-                "packaging_signal": False,
-                "tags": ["Klinik Bersih", "Dental"]
-            }
-        ]
-    },
-    {
-        "id": "lead-005",
-        "business_name": "Grand Opening Kopi Kenangan Pettarani",
-        "category": "new_store_opening",
-        "platform": "google_maps",
-        "google_maps_place_id": "ChIJ_kopikenangan_pet_005",
-        "rating": 4.8,
-        "reviews_count": 580,
-        "latitude": -5.1612,
-        "longitude": 119.4354,
-        "city": "Makassar",
-        "address_full": "Jl. A.P. Pettarani No. 88, Makassar",
-        "whatsapp_number": "6281299887766",
-        "phone_number": "0411-889900",
-        "follower_count": 48000,
-        "is_active_verified": True,
-        "is_ad_active": True,
-        "external_website_url": "https://kopikenangan.com",
-        "latest_post_date": (datetime.now() - timedelta(days=1)).isoformat(),
-        "status": "won_deal",
-        "channels": {
-            "google_maps": "https://maps.google.com/?cid=105",
-            "instagram": "kopikenangan.id",
-            "tiktok": "kopikenangan.id",
-            "threads": "kopikenangan.id",
-            "food_delivery": "GoFood, GrabFood, ShopeeFood"
-        },
-        "top_posts": [
-            {
-                "id": "post-501",
-                "caption": "Grand Opening outlet baru Jl. A.P. Pettarani Makassar. Banner promo spanduk kain terpasang.",
-                "views": 62400,
-                "likes": 5120,
-                "comments": 420,
-                "engagement_rate": 8.87,
-                "date": (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d"),
-                "packaging_signal": True,
-                "tags": ["Grand Opening", "Spanduk Kain", "Neon Box"]
-            },
-            {
-                "id": "post-502",
-                "caption": "Bagi-bagi 100 cup Kopi Kenangan Mantan gratis untuk pengunjung pertama drive-thru Pettarani.",
-                "views": 78900,
-                "likes": 6430,
-                "comments": 590,
-                "engagement_rate": 8.89,
-                "date": (datetime.now() - timedelta(days=3)).strftime("%Y-%m-%d"),
-                "packaging_signal": True,
-                "tags": ["Cup Hot", "Cup Cold", "Free Cup"]
-            },
-            {
-                "id": "post-503",
-                "caption": "Neon box LED dan signage akrilik tampak bersinar megah di persimpangan jalan utama Pettarani.",
-                "views": 39500,
-                "likes": 2980,
-                "comments": 190,
-                "engagement_rate": 8.02,
-                "date": (datetime.now() - timedelta(days=6)).strftime("%Y-%m-%d"),
-                "packaging_signal": True,
-                "tags": ["Neon Box LED", "Signage Akrilik", "Outdoor"]
-            },
-            {
-                "id": "post-504",
-                "caption": "Menu toast baru dengan box formed tahan minyak kini sudah tersedia di seluruh outlet Makassar.",
-                "views": 34100,
-                "likes": 2650,
-                "comments": 160,
-                "engagement_rate": 8.24,
-                "date": (datetime.now() - timedelta(days=9)).strftime("%Y-%m-%d"),
-                "packaging_signal": True,
-                "tags": ["Box Formed", "Toast Box"]
-            },
-            {
-                "id": "post-505",
-                "caption": "Terima kasih warga Makassar atas antusiasme luar biasa di hari pembukaan resmi.",
-                "views": 41200,
-                "likes": 3210,
-                "comments": 215,
-                "engagement_rate": 8.31,
-                "date": (datetime.now() - timedelta(days=13)).strftime("%Y-%m-%d"),
-                "packaging_signal": False,
-                "tags": ["Grand Opening", "Makassar"]
-            }
-        ]
-    },
-    {
-        "id": "lead-006",
-        "business_name": "Kantor Notaris & PPAT Ahmad Fauzi SH MKn",
-        "category": "corporate_legal",
-        "platform": "google_maps",
-        "google_maps_place_id": "ChIJ_notaris_ahmad_006",
-        "rating": 4.7,
-        "reviews_count": 92,
-        "latitude": -5.1415,
-        "longitude": 119.4298,
-        "city": "Makassar",
-        "address_full": "Jl. Urip Sumoharjo No. 102, Sinrijala, Makassar",
-        "whatsapp_number": "6281144009988",
-        "phone_number": "0411-420088",
-        "follower_count": 0,
-        "is_active_verified": True,
-        "is_ad_active": False,
-        "external_website_url": "https://notarisahmadfauzi.co.id",
-        "latest_post_date": None,
-        "status": "new_lead",
-        "channels": {
-            "google_maps": "https://maps.google.com/?cid=106",
-            "instagram": "",
-            "tiktok": "",
-            "threads": "",
-            "food_delivery": ""
-        },
-        "top_posts": []
-    }
-]
+from scrapers.sample_leads import SAMPLE_LEADS
 
 
-def inspect_account_content(platform: str, handle_or_url: str, business_name: str = "") -> dict:
-    handle = handle_or_url.strip().lstrip("@")
-    if "/" in handle:
-        handle = handle.rstrip("/").split("/")[-1]
-
-    clean_handle = handle.lower()
-    posts = []
-
-    return {
-        "handle": f"@{clean_handle}",
-        "platform": platform.lower(),
-        "status": "Belum diinspeksi",
-        "inspected_at": datetime.now().isoformat(),
-        "total_analyzed_posts": 0,
-        "total_posts_analyzed": 0,
-        "total_views": 0,
-        "avg_engagement_rate": 0.0,
-        "packaging_intent_posts": 0,
-        "commercial_velocity": "Tidak Terdeteksi",
-        "posts": posts
-    }
+def inspect_account_content(platform: str, handle_or_url: str, business_name: str = "", force_refresh: bool = False, dry_run: bool = False) -> dict:
+    return fetch_social_top_posts(
+        platform=platform,
+        handle_or_url=handle_or_url,
+        business_name=business_name,
+        limit=5,
+        force_refresh=force_refresh,
+        dry_run=dry_run
+    )
 
 
 def enrich_lead_card(lead: dict) -> dict:
     enriched = dict(lead)
     category = enriched.get("category") or classify_category(enriched.get("business_name", ""), "", [])
     enriched["category"] = category
-    enriched["score"] = calculate_score(enriched)
     
     four_pillars = calculate_4_pillars_score(enriched)
-    enriched["score_legitimacy"] = four_pillars["score_legitimacy"]
-    enriched["score_velocity"] = four_pillars["score_velocity"]
-    enriched["score_turnover"] = four_pillars["score_turnover"]
-    enriched["score_budget"] = four_pillars["score_budget"]
-    enriched["pillars_total"] = four_pillars["score_total"]
-    enriched["reason_summary"] = four_pillars["reason_summary"]
+    enriched["score_legitimacy"] = enriched.get("score_legitimacy") if enriched.get("score_legitimacy") is not None else four_pillars["score_legitimacy"]
+    enriched["score_velocity"] = enriched.get("score_velocity") if enriched.get("score_velocity") is not None else four_pillars["score_velocity"]
+    enriched["score_turnover"] = enriched.get("score_turnover") if enriched.get("score_turnover") is not None else four_pillars["score_turnover"]
+    enriched["score_budget"] = enriched.get("score_budget") if enriched.get("score_budget") is not None else four_pillars["score_budget"]
+    pillars_total = enriched.get("lead_score") if enriched.get("lead_score") is not None else four_pillars["score_total"]
+    enriched["pillars_total"] = pillars_total
+    enriched["score"] = pillars_total
+    enriched["lead_score"] = pillars_total
+    enriched["priority_tier"] = enriched.get("priority_tier") or four_pillars["tier"]
+    enriched["reason_summary"] = enriched.get("reason_summary") or four_pillars["reason_summary"]
     
     needs = infer_product_needs(category, enriched.get("business_name", ""), "")
     enriched["recommended_products"] = needs["recommended_products"]
@@ -882,6 +424,76 @@ def get_all_leads():
     return [enrich_lead_card(item) for item in combined]
 
 
+def find_lead_by_id(lead_id: str) -> Optional[dict]:
+    if not lead_id:
+        return None
+    for lead in SAMPLE_LEADS:
+        if lead.get("id") == lead_id or lead.get("entity_id") == lead_id:
+            return lead
+    for lead in load_processed_dossiers():
+        if lead.get("id") == lead_id or lead.get("entity_id") == lead_id:
+            return lead
+    for lead in get_all_leads():
+        if lead.get("id") == lead_id or lead.get("entity_id") == lead_id:
+            return lead
+    return None
+
+
+def get_inspector_quick_targets() -> list:
+    all_leads = get_all_leads()
+    targets = []
+    seen_handles = set()
+
+    for lead in all_leads:
+        channels = lead.get("channels") or {}
+        ig = clean_social_handle(channels.get("instagram") or "")
+        tt = clean_social_handle(channels.get("tiktok") or "")
+        biz_name = lead.get("business_name") or ""
+        cat = lead.get("category") or "general_commercial"
+        lead_id = lead.get("id") or lead.get("entity_id") or ""
+        dist = lead.get("district_area") or "Makassar"
+
+        if ig and ig not in seen_handles:
+            seen_handles.add(ig)
+            targets.append({
+                "lead_id": lead_id,
+                "business_name": biz_name,
+                "platform": "instagram",
+                "handle": f"@{ig}",
+                "category": cat,
+                "followers_count": lead.get("followers_count") or 18500,
+                "district_area": dist
+            })
+
+        if tt and tt not in seen_handles:
+            seen_handles.add(tt)
+            targets.append({
+                "lead_id": lead_id,
+                "business_name": biz_name,
+                "platform": "tiktok",
+                "handle": f"@{tt}",
+                "category": cat,
+                "followers_count": lead.get("followers_count") or 12000,
+                "district_area": dist
+            })
+
+        if len(targets) >= 8:
+            break
+
+    defaults = [
+        {"lead_id": "lead-001", "business_name": "Kopi Titik Temu Pengayoman", "platform": "instagram", "handle": "@titiktemumks", "category": "fnb_beverage", "followers_count": 28400, "district_area": "Panakkukang"},
+        {"lead_id": "lead-002", "business_name": "Roti Boy Panakkukang", "platform": "instagram", "handle": "@rotiboy_mks", "category": "fnb_food_resto", "followers_count": 18200, "district_area": "Panakkukang"},
+        {"lead_id": "lead-003", "business_name": "Butik Hijab Boulevard", "platform": "instagram", "handle": "@hijabboulevard", "category": "fashion_retail", "followers_count": 34100, "district_area": "Panakkukang"},
+        {"lead_id": "lead-004", "business_name": "Kuliner Makassar Viral", "platform": "tiktok", "handle": "@kulinermakassar_viral", "category": "fnb_food_resto", "followers_count": 52000, "district_area": "Rappocini"}
+    ]
+    for d in defaults:
+        h = d["handle"].lstrip("@")
+        if h not in seen_handles and len(targets) < 8:
+            seen_handles.add(h)
+            targets.append(d)
+
+    return targets
+
 
 class DashboardHandler(http.server.SimpleHTTPRequestHandler):
     def send_cors_headers(self):
@@ -903,31 +515,6 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
             data = json.loads(body) if body else {}
         except Exception:
             data = {}
-
-        if parsed.path == "/api/leads/update-notes":
-            try:
-                entity_id = data.get("entity_id")
-                status = data.get("outreach_status")
-                notes = data.get("sales_notes")
-                
-                if not entity_id:
-                    raise ValueError("Missing entity_id")
-                    
-                update_outreach_log(entity_id, status, notes)
-                
-                self.send_response(200)
-                self.send_cors_headers()
-                self.send_header("Content-Type", "application/json")
-                self.end_headers()
-                self.wfile.write(json.dumps({"status": "ok"}, ensure_ascii=False).encode("utf-8"))
-            except Exception as exc:
-                self.send_response(400)
-                self.send_cors_headers()
-                self.send_header("Content-Type", "application/json")
-                self.end_headers()
-                self.wfile.write(json.dumps({"error": str(exc)}, ensure_ascii=False).encode("utf-8"))
-            return
-
         if parsed.path == "/api/leads/link-channel":
             lead_id = data.get("lead_id")
             platform = data.get("platform", "instagram").lower()
@@ -989,15 +576,81 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
 
         if parsed.path == "/api/inspect-content":
             platform = data.get("platform", "instagram")
-            handle = data.get("handle", "")
+            handle = data.get("handle") or data.get("target", "")
             business_name = data.get("business_name", "")
-            result = inspect_account_content(platform, handle, business_name)
+            force_refresh = bool(data.get("force_refresh", False))
+            dry_run = bool(data.get("dry_run", False))
+            result = inspect_account_content(platform, handle, business_name, force_refresh=force_refresh, dry_run=dry_run)
+
+            lead_id = data.get("lead_id")
+            if lead_id and result.get("status") == "success" and result.get("posts"):
+                target_lead = find_lead_by_id(lead_id)
+                if target_lead:
+                    target_lead["top_posts"] = result["posts"]
+                    if "channels" not in target_lead:
+                        target_lead["channels"] = {}
+                    target_lead["channels"][platform.lower()] = clean_social_handle(handle)
+                    target_lead["latest_post_date"] = (datetime.now() - timedelta(days=1)).isoformat()
+                    target_lead["is_active_verified"] = True
+                    save_inspected_posts_to_sqlite(target_lead.get("entity_id") or lead_id, platform, result["posts"])
+                    enrich_lead_card(target_lead)
 
             self.send_response(200)
             self.send_cors_headers()
             self.send_header("Content-Type", "application/json")
             self.end_headers()
             self.wfile.write(json.dumps(result, ensure_ascii=False).encode("utf-8"))
+            return
+
+        if parsed.path == "/api/inspector/link-lead":
+            lead_id = data.get("lead_id")
+            platform = data.get("platform", "instagram").lower()
+            handle = data.get("handle", "")
+            posts = data.get("posts", [])
+
+            if not lead_id:
+                self.send_response(400)
+                self.send_cors_headers()
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "lead_id wajib diisi"}, ensure_ascii=False).encode("utf-8"))
+                return
+
+            target_lead = find_lead_by_id(lead_id)
+            if not target_lead:
+                self.send_response(404)
+                self.send_cors_headers()
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "Lead not found"}, ensure_ascii=False).encode("utf-8"))
+                return
+
+            if "channels" not in target_lead:
+                target_lead["channels"] = {}
+            if handle:
+                target_lead["channels"][platform] = clean_social_handle(handle)
+
+            if posts:
+                target_lead["top_posts"] = posts
+                target_lead["latest_post_date"] = (datetime.now() - timedelta(days=1)).isoformat()
+                target_lead["is_active_verified"] = True
+
+            entity_id = target_lead.get("entity_id") or lead_id
+            saved_count = save_inspected_posts_to_sqlite(entity_id, platform, posts)
+            persist_channel_to_dossier(entity_id, platform, clean_social_handle(handle), posts)
+
+            enriched = enrich_lead_card(target_lead)
+
+            self.send_response(200)
+            self.send_cors_headers()
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                "status": "success",
+                "message": f"Hasil inspeksi berhasil ditautkan ke calon customer {target_lead.get('business_name', '')}.",
+                "saved_posts_count": saved_count,
+                "lead": enriched
+            }, ensure_ascii=False).encode("utf-8"))
             return
 
         if parsed.path == "/api/leads/update-status":
@@ -1080,6 +733,41 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
                 "persisted": persisted,
                 "lead": enriched
             }, ensure_ascii=False).encode("utf-8"))
+            return
+
+        if parsed.path == "/api/sync-hermes":
+            try:
+                sheet_name = data.get("sheet_name", "Radar Prospek")
+                clear_first = bool(data.get("clear_first", False))
+                dry_run = bool(data.get("dry_run", False))
+
+                if sheet_name == "Matriks Kompetitor":
+                    from scrapers.competitor_matrix import sync_competitor_matrix_to_hermes
+                    res = sync_competitor_matrix_to_hermes(
+                        sheet_name=sheet_name,
+                        clear_first=clear_first,
+                        dry_run=dry_run
+                    )
+                else:
+                    from scrapers.sync_hermes import sync_leads_to_hermes
+                    all_leads = get_all_leads()
+                    res = sync_leads_to_hermes(
+                        leads=all_leads,
+                        sheet_name=sheet_name,
+                        clear_first=clear_first,
+                        dry_run=dry_run
+                    )
+                self.send_response(200)
+                self.send_cors_headers()
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps(res, ensure_ascii=False).encode("utf-8"))
+            except Exception as exc:
+                self.send_response(500)
+                self.send_cors_headers()
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"status": "error", "message": str(exc)}, ensure_ascii=False).encode("utf-8"))
             return
 
         self.send_response(404)
@@ -1167,6 +855,16 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(json.dumps({"error": "Lead not found"}, ensure_ascii=False).encode("utf-8"))
             return
+
+        # API Endpoint: Inspector Quick Targets
+        if parsed.path == "/api/inspector/quick-targets":
+            targets = get_inspector_quick_targets()
+            self.send_response(200)
+            self.send_cors_headers()
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps(targets, ensure_ascii=False).encode("utf-8"))
+            return
             
         # Serve Frontend HTML
         if parsed.path in ["/", "/market-scraping", "/market-scraping/"]:
@@ -1207,6 +905,14 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
 
 def start_server():
     socketserver.TCPServer.allow_reuse_address = True
+    try:
+        from scrapers.db_sqlite import seed_sample_leads_to_sqlite
+        seeded = seed_sample_leads_to_sqlite()
+        if seeded > 0:
+            print(f"Database SQLite lokal terverifikasi ({seeded} prospek tersinkron).")
+    except Exception as e:
+        print(f"Peringatan: Gagal seeding database SQLite: {e}")
+
     with socketserver.TCPServer(("", PORT), DashboardHandler) as httpd:
         print(f"RUANG VISUAL Market Intelligence Dashboard aktif di: http://localhost:{PORT}/market-scraping")
         try:

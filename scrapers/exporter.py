@@ -5,11 +5,10 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 import csv
-import json
 from datetime import datetime
 from typing import Optional
 
-from scrapers.lead_scoring import classify_category, is_non_commercial
+from scrapers.lead_scoring import classify_category, is_non_commercial, calculate_4_pillars_score, assign_tier
 from scrapers.outreach_generator import generate_whatsapp_pitch, generate_whatsapp_click_url, recommended_products
 from scrapers.route_cluster import assign_sales_cluster
 
@@ -102,7 +101,6 @@ def build_row(ent: dict) -> dict:
     address = ent.get('address_full') or _first_from_records(
         records, lambda r: r.get('address_full') or r.get('address')) or ''
 
-    from scrapers.lead_scoring import calculate_4_pillars_score, assign_tier
     wa = ent.get('whatsapp_number') or ''
     pitch = generate_whatsapp_pitch(ent)
     wa_link = generate_whatsapp_click_url(wa, pitch) if wa else ''

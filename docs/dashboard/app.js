@@ -200,6 +200,9 @@ function switchView(viewId) {
   if (viewId === 'view-catalog') {
     renderCatalog();
   }
+  if (viewId === 'view-inspector') {
+    loadInspectorPresets();
+  }
 }
 
 function switchDrawerTab(tabId) {
@@ -1053,14 +1056,117 @@ async function submitChannelLink() {
   }
 }
 
-async function runStandaloneInspection() {
+let currentInspectionData = null;
+let currentInspectionLeadId = null;
+
+async function loadInspectorPresets() {
+  const grid = document.getElementById('inspector-presets-grid');
+  if (!grid) return;
+
+  try {
+    const res = await fetch('/api/inspector/quick-targets');
+    if (!res.ok) throw new Error('Gagal memuat daftar target');
+    const targets = await res.json();
+
+    if (!targets || targets.length === 0) {
+      grid.innerHTML = '<div style="font-size: 12px; color: var(--text-muted); padding: 12px;">Belum ada target calon customer yang siap diinspeksi.</div>';
+      return;
+    }
+
+    grid.innerHTML = '';
+    targets.forEach(t => {
+      const item = document.createElement('div');
+      item.className = 'preset-badge-item';
+      item.onclick = () => selectInspectorPreset(t.platform, t.handle, t.lead_id, t.business_name);
+
+      const platClass = t.platform === 'tiktok' ? 'tiktok' : 'instagram';
+      const platLabel = t.platform === 'tiktok' ? 'TikTok' : 'Instagram';
+      const fCount = (t.followers_count || 0).toLocaleString();
+
+      item.innerHTML = `
+        <div style="overflow: hidden; padding-right: 8px;">
+          <div class="preset-name">${escapeHtml(t.business_name)}</div>
+          <div class="preset-handle">${escapeHtml(t.handle)} &bull; ${fCount} Foll</div>
+        </div>
+        <span class="preset-tag ${platClass}">${platLabel}</span>
+      `;
+      grid.appendChild(item);
+    });
+  } catch (err) {
+    console.warn('Gagal memuat presets inspector:', err);
+    grid.innerHTML = '<div style="font-size: 12px; color: var(--text-muted); padding: 12px;">Gunakan kolom pencarian di atas untuk memasukkan handle akun target.</div>';
+  }
+}
+
+function selectInspectorPreset(platform, handle, leadId, bizName) {
+  const platSelect = document.getElementById('inspect-platform');
+  const handleInput = document.getElementById('inspect-handle');
+  if (platSelect) platSelect.value = platform;
+  if (handleInput) handleInput.value = handle;
+  currentInspectionLeadId = leadId;
+  runStandaloneInspection(leadId, bizName);
+}
+
+function resetInspectorToDefault() {
+  const defaultState = document.getElementById('inspector-default-state');
+  const loadingState = document.getElementById('inspector-loading-state');
+  const resultsState = document.getElementById('inspector-results');
+
+  if (defaultState) defaultState.style.display = 'block';
+  if (loadingState) loadingState.style.display = 'none';
+  if (resultsState) resultsState.style.display = 'none';
+
+  const handleInput = document.getElementById('inspect-handle');
+  if (handleInput) handleInput.value = '';
+  currentInspectionData = null;
+  currentInspectionLeadId = null;
+}
+
+function highlightKeywordsInCaption(caption, keywords) {
+  if (!caption) return '';
+  let safe = escapeHtml(caption);
+  if (!keywords || keywords.length === 0) return safe;
+
+  keywords.forEach(kw => {
+    if (!kw || kw.length < 2) return;
+    const re = new RegExp(`\\b(${kw})\\b`, 'gi');
+    safe = safe.replace(re, '<mark class="keyword-highlight">$1</mark>');
+  });
+  return safe;
+}
+
+async function runStandaloneInspection(customLeadId = null, customBizName = "") {
   const platform = document.getElementById('inspect-platform').value;
   const handleInput = document.getElementById('inspect-handle').value.trim();
+  const forceRefresh = document.getElementById('inspect-force-refresh') ? document.getElementById('inspect-force-refresh').checked : false;
 
   if (!handleInput) {
     alert('Harap masukkan username atau URL profil akun.');
     return;
   }
+
+  const defaultState = document.getElementById('inspector-default-state');
+  const loadingState = document.getElementById('inspector-loading-state');
+  const resultsState = document.getElementById('inspector-results');
+
+  if (defaultState) defaultState.style.display = 'none';
+  if (resultsState) resultsState.style.display = 'none';
+  if (loadingState) loadingState.style.display = 'block';
+
+  const steps = [
+    document.getElementById('step-inspect-1'),
+    document.getElementById('step-inspect-2'),
+    document.getElementById('step-inspect-3'),
+    document.getElementById('step-inspect-4')
+  ];
+  steps.forEach(s => s && s.classList.remove('active'));
+  if (steps[0]) steps[0].classList.add('active');
+
+  const stepTimer1 = setTimeout(() => { if (steps[1]) steps[1].classList.add('active'); }, 600);
+  const stepTimer2 = setTimeout(() => { if (steps[2]) steps[2].classList.add('active'); }, 1200);
+  const stepTimer3 = setTimeout(() => { if (steps[3]) steps[3].classList.add('active'); }, 1800);
+
+  const activeLeadId = customLeadId || currentInspectionLeadId;
 
   try {
     const res = await fetch('/api/inspect-content', {
@@ -1068,57 +1174,211 @@ async function runStandaloneInspection() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         platform: platform,
-        handle: handleInput
+        handle: handleInput,
+        business_name: customBizName,
+        force_refresh: forceRefresh,
+        lead_id: activeLeadId
       })
     });
 
+    clearTimeout(stepTimer1);
+    clearTimeout(stepTimer2);
+    clearTimeout(stepTimer3);
+
     if (!res.ok) throw new Error('Gagal melakukan inspeksi konten.');
     const data = await res.json();
+    currentInspectionData = data;
+    currentInspectionLeadId = activeLeadId;
 
-    document.getElementById('ins-result-handle').textContent = `${data.handle} (${data.platform})`;
-    document.getElementById('ins-result-views').textContent = (data.total_views || 0).toLocaleString();
-    document.getElementById('ins-result-eng').textContent = `${data.avg_engagement_rate || 0}%`;
-    document.getElementById('ins-result-signals').textContent = `${data.packaging_intent_posts || 0} Konten`;
+    if (loadingState) loadingState.style.display = 'none';
+    if (resultsState) resultsState.style.display = 'block';
 
-    const grid = document.getElementById('inspector-posts-grid');
-    grid.innerHTML = '';
+    const pInfo = data.profile_info || {};
+    const bName = pInfo.full_name || customBizName || data.handle || '-';
 
-    if (!data.posts || data.posts.length === 0) {
-      grid.innerHTML = `
-        <div style="font-size: 13px; color: var(--text-muted); background: #F8FAFC; padding: 18px; border-radius: 6px; border: 1px solid var(--border-subtle); text-align: center; width: 100%; grid-column: 1 / -1;">
-          Status: <strong>${escapeHtml(data.status || 'Belum diinspeksi')}</strong>. Belum ada konten media yang ditarik untuk akun ini.
-        </div>
-      `;
-    } else {
-      data.posts.forEach((post, i) => {
-        const card = document.createElement('div');
-        card.className = 'post-card';
-        const tags = (post.tags || []).map(t => `<span class="post-tag-badge">${escapeHtml(t)}</span>`).join(' ');
+    const avatarEl = document.getElementById('ins-avatar-circle');
+    if (avatarEl) {
+      avatarEl.textContent = bName.substring(0, 2).toUpperCase();
+    }
+    const nameEl = document.getElementById('ins-profile-name');
+    if (nameEl) nameEl.textContent = bName;
 
-        card.innerHTML = `
-          <div class="post-meta-top">
-            <span>Postingan #${i + 1}</span>
-            <span>${escapeHtml(post.date || '')}</span>
-          </div>
-          <div class="post-caption">${escapeHtml(post.caption || '')}</div>
-          <div class="post-stats-row">
-            <span>Views: ${(post.views || 0).toLocaleString()}</span>
-            <span>Likes: ${(post.likes || 0).toLocaleString()}</span>
-            <span>Komentar: ${(post.comments || 0).toLocaleString()}</span>
-          </div>
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
-            <span style="font-size: 11px; font-weight: 700; color: var(--text-muted);">ER: ${post.engagement_rate || 0}%</span>
-            <div>${tags}</div>
-          </div>
-        `;
-        grid.appendChild(card);
-      });
+    const handleEl = document.getElementById('ins-profile-handle');
+    if (handleEl) handleEl.textContent = data.handle || handleInput;
+
+    const platBadgeEl = document.getElementById('ins-platform-badge');
+    if (platBadgeEl) platBadgeEl.textContent = data.platform === 'tiktok' ? 'Platform: TikTok' : 'Platform: Instagram';
+
+    const velBadgeEl = document.getElementById('ins-velocity-badge');
+    if (velBadgeEl) {
+      velBadgeEl.textContent = `Velocity: ${data.commercial_velocity || 'Tidak Terdeteksi'}`;
+      velBadgeEl.style.color = data.commercial_velocity === 'Tinggi' ? '#059669' : '#111827';
     }
 
-    document.getElementById('inspector-results').style.display = 'block';
+    const bioEl = document.getElementById('ins-profile-bio');
+    if (bioEl) bioEl.textContent = pInfo.biography || 'Tidak ada deskripsi bio yang tertera pada profil publik.';
+
+    const statFollowersEl = document.getElementById('ins-stat-followers');
+    if (statFollowersEl) statFollowersEl.textContent = (pInfo.followers_count || 0).toLocaleString();
+
+    const statPostsEl = document.getElementById('ins-stat-posts');
+    if (statPostsEl) statPostsEl.textContent = (pInfo.posts_count || (data.posts ? data.posts.length : 0)).toLocaleString();
+
+    const linkContainer = document.getElementById('ins-link-container');
+    if (linkContainer) {
+      if (pInfo.external_url) {
+        linkContainer.innerHTML = `<a href="${escapeHtml(pInfo.external_url)}" target="_blank" style="color: #00A3E0; text-decoration: none; font-weight: 600;">Kunjungi Link Bio</a>`;
+      } else {
+        linkContainer.innerHTML = '';
+      }
+    }
+
+    const totalViewsEl = document.getElementById('ins-result-views');
+    if (totalViewsEl) totalViewsEl.textContent = (data.total_views || 0).toLocaleString();
+
+    const subViewsEl = document.getElementById('ins-sub-views');
+    if (subViewsEl) subViewsEl.textContent = `${(data.total_likes || 0).toLocaleString()} Likes • ${(data.total_comments || 0).toLocaleString()} Komentar`;
+
+    const avgEngEl = document.getElementById('ins-result-eng');
+    if (avgEngEl) avgEngEl.textContent = `${data.avg_engagement_rate || 0}%`;
+
+    const subBenchEl = document.getElementById('ins-sub-benchmark');
+    if (subBenchEl) subBenchEl.textContent = `Status: ${data.er_benchmark_status || 'Belum Terukur'}`;
+
+    const velEl = document.getElementById('ins-result-velocity');
+    if (velEl) velEl.textContent = data.commercial_velocity || 'Tidak Terdeteksi';
+
+    const signalsEl = document.getElementById('ins-result-signals');
+    if (signalsEl) signalsEl.textContent = `${data.packaging_intent_posts || 0} dari ${(data.posts || []).length} Konten`;
+
+    const pitch = data.outreach_hook || {};
+    const pitchAngleEl = document.getElementById('ins-pitch-angle');
+    if (pitchAngleEl) pitchAngleEl.textContent = pitch.suggested_angle || 'Penyegaran Kemasan Komersial';
+
+    const pitchTextEl = document.getElementById('ins-pitch-text');
+    if (pitchTextEl) pitchTextEl.textContent = pitch.pitch_text || 'Belum ada draf pesan yang dirumuskan.';
+
+    const waBtn = document.getElementById('ins-pitch-wa-btn');
+    if (waBtn) {
+      if (pitch.wa_link) {
+        waBtn.href = pitch.wa_link;
+        waBtn.style.display = 'inline-flex';
+      } else {
+        waBtn.href = `https://wa.me/?text=${encodeURIComponent(pitch.pitch_text || '')}`;
+        waBtn.style.display = 'inline-flex';
+      }
+    }
+
+    const grid = document.getElementById('inspector-posts-grid');
+    if (grid) {
+      grid.innerHTML = '';
+      if (!data.posts || data.posts.length === 0) {
+        grid.innerHTML = `
+          <div style="font-size: 13px; color: var(--text-muted); background: #F8FAFC; padding: 18px; border-radius: 6px; border: 1px solid var(--border-subtle); text-align: center; width: 100%; grid-column: 1 / -1;">
+            Belum ada data unggahan yang dapat ditarik untuk akun ini. Silakan coba periksa kembali username atau link profil yang Anda masukkan.
+          </div>
+        `;
+      } else {
+        data.posts.forEach((post, i) => {
+          const card = document.createElement('div');
+          card.className = 'post-card';
+
+          const tagsHtml = (post.tags || []).map(t => `<span class="post-tag-badge">${escapeHtml(t)}</span>`).join(' ');
+          const recProds = (post.recommended_products || []).map(p => `<span class="post-prod-pill">${escapeHtml(p)}</span>`).join('');
+          const highlightedCaption = highlightKeywordsInCaption(post.caption || '', post.detected_keywords || []);
+
+          const signalBadge = post.packaging_signal
+            ? `<span class="post-packaging-tag">Sinyal Kemasan Terdeteksi</span>`
+            : `<span style="font-size: 11px; color: var(--text-muted); font-weight: 500;">Non-Kemasan</span>`;
+
+          card.innerHTML = `
+            <div class="post-meta-top">
+              <span style="font-weight: 700; color: #00A3E0;">Postingan #${i + 1}</span>
+              <span>${escapeHtml(post.date || 'Terkini')}</span>
+            </div>
+            <div class="post-caption">${highlightedCaption || '<em style="color: var(--text-muted);">Tidak ada caption teks</em>'}</div>
+            
+            <div class="post-stats-row">
+              <span><strong>${(post.views || 0).toLocaleString()}</strong> Views</span>
+              <span><strong>${(post.likes || 0).toLocaleString()}</strong> Likes</span>
+              <span><strong>${(post.comments || 0).toLocaleString()}</strong> Komen</span>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--border-subtle);">
+              <span style="font-size: 12px; font-weight: 800; color: var(--text-key);">ER: ${post.engagement_rate || 0}%</span>
+              <div>${signalBadge}</div>
+            </div>
+
+            ${recProds ? `<div style="margin-top: 8px;">${recProds}</div>` : ''}
+          `;
+          grid.appendChild(card);
+        });
+      }
+    }
+
   } catch (err) {
+    clearTimeout(stepTimer1);
+    clearTimeout(stepTimer2);
+    clearTimeout(stepTimer3);
     console.error('Error standalone inspection:', err);
-    alert('Terjadi kesalahan saat melakukan inspeksi konten.');
+    if (loadingState) loadingState.style.display = 'none';
+    if (defaultState) defaultState.style.display = 'block';
+    alert('Terjadi kesalahan saat melakukan inspeksi konten: ' + err.message);
+  }
+}
+
+function copyPitchText() {
+  const pitchTextEl = document.getElementById('ins-pitch-text');
+  if (!pitchTextEl) return;
+  const text = pitchTextEl.textContent || '';
+  navigator.clipboard.writeText(text).then(() => {
+    alert('Draf penawaran WhatsApp berhasil disalin ke papan klip.');
+  }).catch(err => {
+    console.error('Gagal menyalin:', err);
+  });
+}
+
+async function linkCurrentInspectionToDossier() {
+  if (!currentInspectionData || !currentInspectionData.posts || currentInspectionData.posts.length === 0) {
+    alert('Tidak ada data konten postingan yang dapat ditautkan.');
+    return;
+  }
+
+  let leadId = currentInspectionLeadId;
+  if (!leadId) {
+    leadId = prompt('Masukkan ID Calon Customer yang ingin ditautkan (contoh: lead-001):', 'lead-001');
+    if (!leadId) return;
+  }
+
+  const platform = document.getElementById('inspect-platform').value || 'instagram';
+  const handle = document.getElementById('inspect-handle').value.trim();
+
+  try {
+    const res = await fetch('/api/inspector/link-lead', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        lead_id: leadId,
+        platform: platform,
+        handle: handle,
+        posts: currentInspectionData.posts,
+        commercial_velocity: currentInspectionData.commercial_velocity
+      })
+    });
+
+    if (!res.ok) {
+      const errData = await res.json();
+      throw new Error(errData.error || 'Gagal menautkan ke calon customer.');
+    }
+
+    const data = await res.json();
+    alert(`Berhasil! ${data.message}`);
+    if (typeof loadLeads === 'function') {
+      loadLeads();
+    }
+  } catch (err) {
+    console.error('Error link to dossier:', err);
+    alert('Terjadi kesalahan: ' + err.message);
   }
 }
 
@@ -1234,5 +1494,36 @@ if (exportCsvFullBtn) {
   });
 }
 
+async function syncToHermesSheet() {
+  const btn = document.getElementById('btn-sync-hermes');
+  const originalText = btn ? btn.textContent : 'Sinkron ke Google Sheets';
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Menyinkronkan...';
+  }
+
+  try {
+    const res = await fetch('/api/sync-hermes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sheet_name: 'Radar Prospek', clear_first: false })
+    });
+    const data = await res.json();
+    if (res.ok && data.status === 'success') {
+      alert(`Berhasil menyinkronkan ${data.rows_count} prospek ke Google Sheets Hermes!`);
+    } else {
+      alert(`Gagal sinkronisasi: ${data.message || 'Galat tidak diketahui'}`);
+    }
+  } catch (err) {
+    alert(`Terjadi kesalahan jaringan: ${err.message}`);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = originalText;
+    }
+  }
+}
+
 // Initial Load
 fetchLeads();
+loadInspectorPresets();

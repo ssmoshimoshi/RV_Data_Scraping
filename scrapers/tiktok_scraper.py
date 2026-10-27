@@ -184,6 +184,7 @@ def transform_to_lead_format(raw_data: list) -> list:
             'is_active': is_active,
             'is_seller_badge': is_seller_badge,
             'has_shop_link': has_shop_link,
+            'has_relevant_hashtags': has_relevant_hashtags,
             'relevant_hashtags': [tag for tag in hashtags if any(kw in tag for kw in ['kuliner', 'hampers', 'kemasan', 'umkm', 'packaging'])],
             'extracted_at': datetime.now().isoformat()
         }

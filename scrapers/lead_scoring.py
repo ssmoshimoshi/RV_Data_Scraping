@@ -4,9 +4,10 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from datetime import datetime, timedelta
+from datetime import datetime
 import re
-from typing import Optional, Tuple, Dict, Any
+from typing import Optional, Tuple
+import urllib.parse
 
 
 def assign_tier(score: int, lead: dict) -> str:
@@ -383,7 +384,6 @@ def generate_whatsapp_pitch(lead: dict) -> Optional[dict]:
         f"untuk mendukung branding usaha Anda. {needs['value_proposition']} "
         "Apakah boleh kami kirimkan penawaran harga?"
     )
-    import urllib.parse
     link = f"https://wa.me/{digits}?text={urllib.parse.quote(pitch)}"
     return {'pitch_text': pitch, 'wa_link': link}
 

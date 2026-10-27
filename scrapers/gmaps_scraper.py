@@ -8,10 +8,8 @@ import argparse
 import json
 import os
 import re
-import time
 import urllib.parse
 from datetime import datetime
-from typing import Optional
 
 from dotenv import load_dotenv
 
@@ -71,17 +69,10 @@ def _process_listing_data(item: dict) -> dict:
 
     return {
         'category': category,
+        'reviews': raw_reviews,
         'packaging_pain_points': pain_points,
         'estimated_commercials': estimate_packaging_volume_and_value(lead_for_est)
     }
-
-
-def _extract_dataset_id(run) -> str:
-    if run is None:
-        return ""
-    if isinstance(run, dict):
-        return run.get("defaultDatasetId") or run.get("default_dataset_id", "")
-    return getattr(run, "default_dataset_id", "") or getattr(run, "defaultDatasetId", "")
 
 
 def _get_browser(playwright):
@@ -107,7 +98,6 @@ def _get_browser(playwright):
 def parse_place_entry(item: dict, default_city: str = "Makassar") -> dict:
     title = (item.get('title') or item.get('name') or '').strip()
     category_name = (item.get('categoryName') or item.get('category_name') or '').strip()
-    category = item.get('category') or classify_category(title, category_name, [])
 
     raw_address = item.get('address') or ''
     address_data = normalize_address(raw_address)
@@ -128,10 +118,11 @@ def parse_place_entry(item: dict, default_city: str = "Makassar") -> dict:
     except (ValueError, TypeError):
         total_score = 0.0
 
-    raw_reviews = item.get('reviews') or []
-    negative_reviews = [r for r in raw_reviews if _is_low_rating(r)]
-    reviews_to_analyze = negative_reviews if negative_reviews else raw_reviews
-    pain_points = extract_packaging_pain_points(reviews_to_analyze)
+    listing_proc = _process_listing_data(item)
+    category = listing_proc['category']
+    raw_reviews = listing_proc['reviews']
+    pain_points = listing_proc['packaging_pain_points']
+    estimated_commercials = listing_proc['estimated_commercials']
 
     location = item.get('location') or {}
     lat = item.get('latitude') if item.get('latitude') is not None else location.get('lat')
@@ -147,13 +138,6 @@ def parse_place_entry(item: dict, default_city: str = "Makassar") -> dict:
             lng = float(lng)
     except (ValueError, TypeError):
         lng = None
-
-    lead_for_est = {
-        'category': category,
-        'reviews_count': reviews_count,
-        'followers_count': item.get('followers_count', 0)
-    }
-    estimated_commercials = estimate_packaging_volume_and_value(lead_for_est)
 
     place_id = item.get('placeId') or item.get('place_id') or ''
     if not place_id and item.get('url'):

@@ -7,10 +7,7 @@ if str(PROJECT_ROOT) not in sys.path:
 import argparse
 import json
 import re
-import time
 from datetime import datetime
-from typing import Optional
-import requests
 from scrapers.normalizer import normalize_whatsapp
 
 

@@ -6,7 +6,6 @@ if str(PROJECT_ROOT) not in sys.path:
 
 import argparse
 import json
-import os
 import re
 from datetime import datetime
 from typing import Optional, List, Dict
@@ -45,14 +44,6 @@ def extract_external_links(text: str) -> List[str]:
     url_pattern = r'https?://[^\s<>"{}|\\^`\[\]]+'
     links = re.findall(url_pattern, text)
     return [link.rstrip('.,;:()') for link in links]
-
-
-def _extract_dataset_id(run) -> str:
-    if run is None:
-        return ""
-    if isinstance(run, dict):
-        return run.get("defaultDatasetId") or run.get("default_dataset_id", "")
-    return getattr(run, "default_dataset_id", "") or getattr(run, "defaultDatasetId", "")
 
 
 def search_meta_ads(query: str, limit: int = 50, dry_run: bool = False, country: str = 'ID') -> List[Dict]:

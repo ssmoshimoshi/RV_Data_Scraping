@@ -137,8 +137,9 @@ class TestSearchMetaAdsCollectorMock(unittest.TestCase):
 
         mock_collector = MagicMock()
         mock_collector.collect.return_value = [mock_ad]
-
-        with patch('meta_ads_collector.MetaAdsCollector', return_value=mock_collector):
+        mock_module = MagicMock()
+        mock_module.MetaAdsCollector.return_value = mock_collector
+        with patch.dict('sys.modules', {'meta_ads_collector': mock_module}):
             results = search_meta_ads('kopi', limit=5, dry_run=False)
 
         self.assertEqual(len(results), 1)

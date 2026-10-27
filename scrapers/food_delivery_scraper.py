@@ -7,8 +7,7 @@ if str(PROJECT_ROOT) not in sys.path:
 import argparse
 import json
 from datetime import datetime
-from typing import Optional
-from scrapers.normalizer import normalize_whatsapp, normalize_address
+from scrapers.normalizer import normalize_whatsapp
 from scrapers.pain_points import extract_packaging_pain_points
 from scrapers.lead_scoring import estimate_packaging_volume_and_value, classify_category
 
@@ -20,11 +19,15 @@ def _process_merchant_data(item: dict) -> dict:
     raw_reviews = item.get('reviews', [])
     pain_points = extract_packaging_pain_points(raw_reviews)
     
-    name = item.get('name') or item.get('title') or item.get('restaurantName', '')
+    name = item.get('name') or item.get('title') or item.get('restaurantName', '') or item.get('merchant_name', '')
     raw_cat = item.get('category') or item.get('categoryName', '')
     category = item.get('classified_category') or classify_category(name, raw_cat, [])
     
     reviews_count = item.get('reviews_count') or item.get('reviewsCount') or item.get('totalReviews', 0)
+    try:
+        reviews_count = int(reviews_count)
+    except (ValueError, TypeError):
+        reviews_count = 0
     lead_for_est = {
         'category': category,
         'reviews_count': reviews_count,
@@ -68,18 +71,12 @@ def scrape_gofood(city: str, limit: int, dry_run: bool) -> list[dict]:
             'followers_count': 500 + i * 50
         }
         
-        # Tambahkan data hasil proses
-        lead_for_est = {
-            'category': 'Food & Beverage',
-            'reviews_count': merchant['reviews_count'],
-            'followers_count': merchant['followers_count']
-        }
-        estimated_commercials = estimate_packaging_volume_and_value(lead_for_est)
-        
+        proc = _process_merchant_data(merchant)
         merchant.update({
-            'classified_category': 'food_service',
-            'packaging_pain_points': extract_packaging_pain_points([]),
-            **estimated_commercials
+            'classified_category': proc['classified_category'],
+            'packaging_pain_points': proc['packaging_pain_points'],
+            'estimated_commercials': proc['estimated_commercials'],
+            **proc['estimated_commercials']
         })
         
         merchants.append(merchant)
@@ -116,18 +113,12 @@ def scrape_grabfood(city: str, limit: int, dry_run: bool) -> list[dict]:
             'followers_count': 600 + i * 60
         }
         
-        # Tambahkan data hasil proses
-        lead_for_est = {
-            'category': 'Food & Beverage',
-            'reviews_count': merchant['reviews_count'],
-            'followers_count': merchant['followers_count']
-        }
-        estimated_commercials = estimate_packaging_volume_and_value(lead_for_est)
-        
+        proc = _process_merchant_data(merchant)
         merchant.update({
-            'classified_category': 'food_service',
-            'packaging_pain_points': extract_packaging_pain_points([]),
-            **estimated_commercials
+            'classified_category': proc['classified_category'],
+            'packaging_pain_points': proc['packaging_pain_points'],
+            'estimated_commercials': proc['estimated_commercials'],
+            **proc['estimated_commercials']
         })
         
         merchants.append(merchant)
@@ -164,18 +155,12 @@ def scrape_shopeefood(city: str, limit: int, dry_run: bool) -> list[dict]:
             'followers_count': 400 + i * 40
         }
         
-        # Tambahkan data hasil proses
-        lead_for_est = {
-            'category': 'Food & Beverage',
-            'reviews_count': merchant['reviews_count'],
-            'followers_count': merchant['followers_count']
-        }
-        estimated_commercials = estimate_packaging_volume_and_value(lead_for_est)
-        
+        proc = _process_merchant_data(merchant)
         merchant.update({
-            'classified_category': 'food_service',
-            'packaging_pain_points': extract_packaging_pain_points([]),
-            **estimated_commercials
+            'classified_category': proc['classified_category'],
+            'packaging_pain_points': proc['packaging_pain_points'],
+            'estimated_commercials': proc['estimated_commercials'],
+            **proc['estimated_commercials']
         })
         
         merchants.append(merchant)
