@@ -181,12 +181,16 @@ async function fetchLeads() {
 function switchView(viewId) {
   document.querySelectorAll('.view-panel').forEach(panel => panel.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
+  document.querySelectorAll('.mobile-nav-item').forEach(btn => btn.classList.remove('active'));
 
   const activePanel = document.getElementById(viewId);
   if (activePanel) activePanel.classList.add('active');
 
   const activeBtn = document.querySelector(`.nav-item[data-view="${viewId}"]`);
   if (activeBtn) activeBtn.classList.add('active');
+
+  const activeMobileBtn = document.querySelector(`.mobile-nav-item[data-view="${viewId}"]`);
+  if (activeMobileBtn) activeMobileBtn.classList.add('active');
 
   const titles = {
     'view-dossier': 'Database Calon Customer (Anchor GMaps Makassar)',
@@ -1524,6 +1528,95 @@ async function syncToHermesSheet() {
     }
   }
 }
+
+// Device Status Polling
+async function checkDeviceStatus() {
+  try {
+    const res = await fetch('/api/device/status');
+    const data = await res.json();
+    
+    const indicator = document.getElementById('device-status-indicator');
+    if (!indicator) return;
+    
+    if (data.connected) {
+      indicator.classList.remove('disconnected');
+      indicator.classList.add('connected');
+      indicator.querySelector('.status-text').textContent = `Android: ${data.device_model} Terhubung`;
+      indicator.title = `Serial: ${data.serial || 'N/A'}`;
+    } else {
+      indicator.classList.remove('connected');
+      indicator.classList.add('disconnected');
+      indicator.querySelector('.status-text').textContent = 'Android: Tidak Terhubung';
+      indicator.title = 'Perangkat tidak terdeteksi. Pastikan USB debugging aktif.';
+    }
+  } catch (err) {
+    const indicator = document.getElementById('device-status-indicator');
+    if (indicator) {
+      indicator.classList.remove('connected');
+      indicator.querySelector('.status-text').textContent = 'Android: Error';
+    }
+  }
+}
+
+// Drop Lead Function
+async function dropLead(leadId) {
+  const reasons = [
+    'Bukan Target Cetak',
+    'Nomor Tidak Aktif',
+    'Tutup Permanen',
+    'Sudah Memiliki Vendor Tetap',
+    'Lainnya'
+  ];
+  
+  const reasonSelect = prompt('Alasan pembatalan prospek:\n\n' + 
+    reasons.map((r, i) => `${i + 1}. ${r}`).join('\n') + 
+    '\n\nMasukkan nomor pilihan (1-5):');
+  
+  if (!reasonSelect) return;
+  
+  const index = parseInt(reasonSelect) - 1;
+  if (index < 0 || index >= reasons.length) {
+    alert('Pilihan tidak valid');
+    return;
+  }
+  
+  let reason = reasons[index];
+  if (reason === 'Lainnya') {
+    reason = prompt('Masukkan alasan pembatalan:');
+    if (!reason) return;
+  }
+  
+  if (!confirm(`Yakin membatalkan prospek ini?\nAlasan: ${reason}`)) {
+    return;
+  }
+  
+  try {
+    const res = await fetch('/api/leads/update-status', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        lead_id: leadId,
+        status: 'dropped',
+        reason: reason
+      })
+    });
+    
+    const data = await res.json();
+    if (res.ok && data.status === 'success') {
+      alert('Prospek berhasil dibatalkan');
+      closeDrawer();
+      fetchLeads();
+    } else {
+      alert(`Gagal membatalkan prospek: ${data.message || 'Error'}`);
+    }
+  } catch (err) {
+    alert(`Terjadi kesalahan: ${err.message}`);
+  }
+}
+
+// Initialize Device Status Polling
+checkDeviceStatus();
+setInterval(checkDeviceStatus, 30000);
 
 // Initial Load
 fetchLeads();

@@ -58,21 +58,41 @@
 
       <!-- Top Header -->
       <header class="top-header">
+        <div class="mobile-brand-bar">
+          <img src="LOGO.svg" alt="Ruang Visual" class="mobile-logo-img">
+          <div class="mobile-brand-divider"></div>
+          <span class="mobile-brand-dept">INTELIJEN PASAR</span>
+        </div>
         <div class="header-breadcrumbs">
           <span class="crumb-root">Platform Intelijen Pasar</span>
           <span class="crumb-separator">/</span>
           <span class="crumb-current" id="current-view-title">Database Calon Customer</span>
+        </div>
+        <div class="header-status-badges">
+          <div class="device-status-badge" id="device-status-indicator" title="Status Perangkat Android Fisik">
+            <span class="status-dot"></span>
+            <span class="status-text">Android: Memeriksa...</span>
+          </div>
         </div>
         <div class="header-actions">
           <button class="btn-refresh" id="btn-export-csv" title="Unduh CSV Ringkas 13 Kolom untuk Sales">Unduh CSV Dossier (13 Kolom)</button>
           <button class="btn-refresh" id="btn-export-csv-full" title="Unduh CSV Lengkap 32 Kolom Intelijen Pasar">Unduh CSV Full (32 Kolom)</button>
           <button class="btn-refresh" id="btn-sync-hermes" onclick="syncToHermesSheet()" title="Sinkronkan Prospek Terverifikasi ke Google Sheets Hermes">Sinkron ke Google Sheets</button>
           <button class="btn-primary-action" onclick="fetchLeads()">Perbarui Data</button>
+          <button class="btn-mobile-refresh" onclick="fetchLeads()" title="Perbarui Data">
+            <svg class="mobile-refresh-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            <span>Perbarui</span>
+          </button>
         </div>
       </header>
 
       <!-- View 1: Database Calon Customer (Dossier) -->
       <section id="view-dossier" class="view-panel active">
+        
+        <div class="view-hero-header">
+          <h1 class="view-hero-title">Database Calon Customer</h1>
+          <p class="view-hero-desc">Prioritas prospek usaha &amp; kebutuhan cetak berdasarkan pantauan pasar Makassar.</p>
+        </div>
         
         <!-- Metrics Bar -->
         <div class="metrics-grid">
@@ -723,7 +743,43 @@
       </div>
 
     </div>
+
+    <!-- Drawer Actions Footer -->
+    <div class="drawer-actions">
+      <button class="btn-secondary" onclick="closeDrawer()">Tutup</button>
+      <button class="btn-danger" id="btn-drop-lead" onclick="dropLead(selectedLead?.id || selectedLead?.entity_id)" style="background: var(--cmyk-magenta); color: #ffffff; border: none;">Batalkan Prospek</button>
+    </div>
+
   </aside>
+
+  <!-- Mobile Bottom Navigation Bar (Sesuai Rujukan ruang-visual-app) -->
+  <nav class="mobile-bottom-nav" id="mobile-bottom-nav">
+    <button class="mobile-nav-item active" data-view="view-dossier" onclick="switchView('view-dossier')">
+      <svg class="mobile-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+      </svg>
+      <span>Overview</span>
+    </button>
+    <button class="mobile-nav-item" data-view="view-inspector" onclick="switchView('view-inspector')">
+      <svg class="mobile-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+      </svg>
+      <span>Inspector</span>
+    </button>
+    <button class="mobile-nav-item" data-view="view-pillars" onclick="switchView('view-pillars')">
+      <svg class="mobile-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 7V4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3M4 7h16M4 7v13a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7M9 12h6M9 16h4"/>
+      </svg>
+      <span>Matriks 4D</span>
+    </button>
+    <button class="mobile-nav-item" data-view="view-catalog" onclick="switchView('view-catalog')">
+      <svg class="mobile-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+        <polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>
+      </svg>
+      <span>Katalog</span>
+    </button>
+  </nav>
 
   <script src="app.js"></script>
 </body>

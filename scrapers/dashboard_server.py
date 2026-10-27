@@ -7,6 +7,7 @@ if str(PROJECT_ROOT) not in sys.path:
 import json
 import http.server
 import socketserver
+import sqlite3
 import urllib.parse
 from typing import Optional
 from datetime import datetime, timedelta
@@ -29,6 +30,104 @@ from scrapers.content_inspector import (
 PORT = 3000
 
 from scrapers.sample_leads import SAMPLE_LEADS
+
+
+def get_leads_table_data() -> list:
+    db_path = PROJECT_ROOT / 'data' / 'leads.sqlite'
+    if not db_path.exists():
+        return []
+    
+    try:
+        conn = sqlite3.connect(str(db_path))
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='leads'")
+        if not cursor.fetchone():
+            conn.close()
+            return []
+        
+        cursor.execute("""
+            SELECT * FROM leads 
+            WHERE status != 'dropped' OR status IS NULL
+            ORDER BY created_at DESC
+        """)
+        
+        rows = cursor.fetchall()
+        conn.close()
+        
+        leads = []
+        for row in rows:
+            lead = dict(row)
+            lead['id'] = lead.get('lead_id', f"lead-{len(leads)}")
+            lead['entity_id'] = lead.get('lead_id', '')
+            leads.append(lead)
+        
+        return leads
+    except Exception as e:
+        print(f"Error reading leads table: {e}")
+        return []
+
+
+def check_android_device_status() -> dict:
+    try:
+        from scrapers.android_scraper import get_android_device, ensure_device_ready
+        
+        device = get_android_device()
+        if device and ensure_device_ready(device):
+            serial = device.serial if hasattr(device, 'serial') else 'unknown'
+            return {
+                'connected': True,
+                'device_model': 'Xiaomi Redmi Note 14 5G',
+                'serial': serial
+            }
+        else:
+            return {
+                'connected': False,
+                'device_model': 'Xiaomi Redmi Note 14 5G',
+                'serial': None
+            }
+    except Exception as e:
+        return {
+            'connected': False,
+            'device_model': 'Xiaomi Redmi Note 14 5G',
+            'serial': None,
+            'error': str(e)
+        }
+
+
+def update_lead_status_in_db(lead_id: str, status: str, reason: str = '') -> bool:
+    db_path = PROJECT_ROOT / 'data' / 'leads.sqlite'
+    if not db_path.exists():
+        return False
+    
+    try:
+        conn = sqlite3.connect(str(db_path))
+        cursor = conn.cursor()
+        
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='leads'")
+        if not cursor.fetchone():
+            conn.close()
+            return False
+        
+        notes_text = f"Status changed to {status}"
+        if reason:
+            notes_text += f". Reason: {reason}"
+        
+        cursor.execute("""
+            UPDATE leads 
+            SET status = ?, notes = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE lead_id = ?
+        """, (status, notes_text, lead_id))
+        
+        success = cursor.rowcount > 0
+        conn.commit()
+        conn.close()
+        
+        return success
+    except Exception as e:
+        print(f"Error updating lead status: {e}")
+        return False
 
 
 def inspect_account_content(platform: str, handle_or_url: str, business_name: str = "", force_refresh: bool = False, dry_run: bool = False) -> dict:
@@ -269,6 +368,10 @@ VALID_OUTREACH_STATUSES = (
     "Tertarik",
     "Closing",
     "Tidak Relevan",
+    "dropped",
+    "new",
+    "contacted",
+    "converted",
 )
 
 
@@ -466,24 +569,61 @@ def adapt_sqlite_lead_for_dashboard(item: dict) -> dict:
 
 
 def get_all_leads():
-    # 1. SQLite (Utama)
-    leads_sqlite = get_all_leads_from_sqlite()
-    if leads_sqlite:
-        return [enrich_lead_card(adapt_sqlite_lead_for_dashboard(item)) for item in leads_sqlite]
-
-    # 2. Fallback (Dossier & Raw)
-    processed = load_processed_dossiers()
-    scraped = load_raw_scraped_leads()
-    seen = {p["business_name"].lower() for p in processed if p.get("business_name")}
-    combined = list(processed)
-    combined += [s for s in scraped if s["business_name"].lower() not in seen]
+    combined = []
+    seen_ids = set()
     
-    seen = {c["business_name"].lower() for c in combined if c.get("business_name")}
-    for sample in SAMPLE_LEADS:
-        if sample.get("business_name", "").lower() not in seen:
-            combined.append(sample)
+    # 1. Tabel leads (Prioritas Tertinggi - dari lead_engine.py)
+    leads_from_table = get_leads_table_data()
+    for item in leads_from_table:
+        lead_id = item.get('lead_id') or item.get('id')
+        if lead_id and lead_id not in seen_ids:
+            seen_ids.add(lead_id)
+            enriched = enrich_lead_card({
+                'id': lead_id,
+                'entity_id': lead_id,
+                'business_name': item.get('business_name', ''),
+                'category': item.get('category', ''),
+                'whatsapp_number': item.get('whatsapp', ''),
+                'phone_raw': item.get('phone', ''),
+                'website_url': item.get('website', ''),
+                'address_full': item.get('address', ''),
+                'rating': item.get('rating', 0.0),
+                'reviews_count': item.get('reviews_count', 0),
+                'status': item.get('status', 'new'),
+                'instagram_handle': item.get('instagram_handle', ''),
+                'score': item.get('score', 0),
+                'channels': {
+                    'instagram': item.get('instagram_handle', ''),
+                    'website': item.get('website', '')
+                }
+            })
+            combined.append(enriched)
+    
+    # 2. SQLite entities (dari db_sqlite.py)
+    leads_sqlite = get_all_leads_from_sqlite()
+    for item in leads_sqlite:
+        entity_id = item.get('entity_id')
+        if entity_id and entity_id not in seen_ids:
+            seen_ids.add(entity_id)
+            combined.append(enrich_lead_card(adapt_sqlite_lead_for_dashboard(item)))
+    
+    # 3. Fallback: Processed Dossiers & Raw Scraped
+    if not combined:
+        processed = load_processed_dossiers()
+        scraped = load_raw_scraped_leads()
+        seen_names = {p["business_name"].lower() for p in processed if p.get("business_name")}
+        combined = list(processed)
+        combined += [s for s in scraped if s["business_name"].lower() not in seen_names]
+        
+        seen_names = {c["business_name"].lower() for c in combined if c.get("business_name")}
+        for sample in SAMPLE_LEADS:
+            if sample.get("business_name", "").lower() not in seen_names:
+                combined.append(sample)
+        
+        combined = [enrich_lead_card(item) for item in combined]
+    
+    return combined
 
-    return [enrich_lead_card(item) for item in combined]
 
 
 def find_lead_by_id(lead_id: str) -> Optional[dict]:
@@ -745,6 +885,9 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
             lead_id = data.get("lead_id")
             status = data.get("status") or data.get("outreach_status")
             notes = data.get("notes") if data.get("notes") is not None else data.get("outreach_notes", "")
+            reason = data.get("reason", "")
+            if reason and not notes:
+                notes = f"Alasan: {reason}"
 
             if not lead_id or not status:
                 self.send_response(400)
@@ -785,6 +928,19 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
                         break
 
             if not target_lead:
+                # Coba update langsung ke tabel leads SQLite jika ada
+                if update_lead_status_in_db(lead_id, status, reason or notes):
+                    self.send_response(200)
+                    self.send_cors_headers()
+                    self.send_header("Content-Type", "application/json")
+                    self.end_headers()
+                    self.wfile.write(json.dumps({
+                        "status": "success",
+                        "message": f"Lead {lead_id} status updated to {status}",
+                        "persisted": True
+                    }, ensure_ascii=False).encode("utf-8"))
+                    return
+
                 self.send_response(404)
                 self.send_cors_headers()
                 self.send_header("Content-Type", "application/json")
@@ -803,6 +959,12 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
             try:
                 update_outreach_log(entity_id_target, status, notes)
                 persisted = True
+            except Exception:
+                pass
+
+            try:
+                if update_lead_status_in_db(lead_id, status, reason or notes):
+                    persisted = True
             except Exception:
                 pass
 
@@ -858,6 +1020,46 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
                 self.wfile.write(json.dumps({"status": "error", "message": str(exc)}, ensure_ascii=False).encode("utf-8"))
             return
 
+        if parsed.path == "/api/android/scrape":
+            username = data.get("username", "")
+            dry_run = data.get("dry_run", False)
+            
+            if not username:
+                self.send_response(400)
+                self.send_cors_headers()
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    "status": "error",
+                    "message": "username is required"
+                }, ensure_ascii=False).encode("utf-8"))
+                return
+            
+            try:
+                from scrapers.android_scraper import get_android_device, extract_instagram_profile
+                
+                device = get_android_device()
+                profile = extract_instagram_profile(device, username)
+                
+                self.send_response(200)
+                self.send_cors_headers()
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    "status": "success",
+                    "profile": profile
+                }, ensure_ascii=False).encode("utf-8"))
+            except Exception as exc:
+                self.send_response(500)
+                self.send_cors_headers()
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    "status": "error",
+                    "message": str(exc)
+                }, ensure_ascii=False).encode("utf-8"))
+            return
+
         self.send_response(404)
         self.send_cors_headers()
         self.end_headers()
@@ -867,6 +1069,16 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
 
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
+
+        # API Endpoint: Status Perangkat Android
+        if parsed.path == "/api/device/status":
+            status = check_android_device_status()
+            self.send_response(200)
+            self.send_cors_headers()
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps(status, ensure_ascii=False).encode("utf-8"))
+            return
 
         # API Endpoint: Unduh CSV dossier terpadu
         if parsed.path == "/api/export/csv":

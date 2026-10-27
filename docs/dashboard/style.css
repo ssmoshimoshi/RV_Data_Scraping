@@ -240,6 +240,52 @@ body {
   letter-spacing: 0.5px;
 }
 
+.header-status-badges {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.device-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--bg-surface-container);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.device-status-badge .status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+.device-status-badge.connected .status-dot {
+  background: #10b981;
+  animation: none;
+}
+
+.device-status-badge.disconnected .status-dot {
+  background: #ef4444;
+  animation: none;
+}
+
+@keyframes pulse-dot {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
 .header-actions {
   display: flex;
   gap: 10px;
@@ -2272,6 +2318,497 @@ select:focus, input[type="text"]:focus {
   font-weight: 700;
   color: #059669;
   margin-left: 6px;
+}
+
+/* Mobile Components (Hidden on Desktop) */
+.mobile-brand-bar {
+  display: none;
+}
+
+.btn-mobile-refresh {
+  display: none;
+}
+
+.mobile-bottom-nav {
+  display: none;
+}
+
+.view-hero-header {
+  margin-bottom: 20px;
+}
+
+.view-hero-title {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text-key);
+  line-height: 1.2;
+  margin-bottom: 4px;
+  letter-spacing: -0.02em;
+}
+
+.view-hero-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* ========================================
+   MOBILE RESPONSIVE BREAKPOINTS (MATCHING RUANG-VISUAL-APP)
+   ======================================== */
+
+@media (max-width: 768px) {
+  /* 1. Hide Desktop Sidebar Completely on Mobile */
+  .sidebar {
+    display: none !important;
+  }
+
+  .app-layout {
+    flex-direction: column !important;
+    min-height: 100vh;
+  }
+
+  /* 2. Top Header (Identical to Ruang Visual Topbar in Photo 2) */
+  .top-header {
+    height: 56px !important;
+    min-height: 56px !important;
+    padding: 0 16px !important;
+    background: #ffffff !important;
+    border-bottom: 1px solid var(--border-subtle) !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 100 !important;
+  }
+
+  .header-breadcrumbs {
+    display: none !important;
+  }
+
+  .mobile-brand-bar {
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+  }
+
+  .mobile-logo-img {
+    height: 24px !important;
+    width: auto !important;
+    object-fit: contain !important;
+  }
+
+  .mobile-brand-divider {
+    width: 1px !important;
+    height: 16px !important;
+    background: var(--border-strong) !important;
+  }
+
+  .mobile-brand-dept {
+    font-size: 11px !important;
+    font-weight: 800 !important;
+    color: var(--text-secondary) !important;
+    letter-spacing: 0.5px !important;
+    text-transform: uppercase !important;
+  }
+
+  .header-status-badges {
+    display: none !important;
+  }
+
+  /* Hide Desktop Export / Sync Buttons on Mobile Header */
+  .header-actions {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+  }
+
+  .header-actions #btn-export-csv,
+  .header-actions #btn-export-csv-full,
+  .header-actions #btn-sync-hermes,
+  .header-actions .btn-primary-action {
+    display: none !important;
+  }
+
+  /* Clean Outline Refresh Button Matching Photo 2 Logout Button */
+  .btn-mobile-refresh {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    padding: 6px 12px !important;
+    border-radius: 8px !important;
+    border: 1px solid var(--border-strong) !important;
+    background: #ffffff !important;
+    color: var(--text-key) !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    font-family: inherit !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+  }
+
+  .btn-mobile-refresh:active {
+    background: var(--bg-surface-container) !important;
+    transform: scale(0.97) !important;
+  }
+
+  .mobile-refresh-icon {
+    width: 14px !important;
+    height: 14px !important;
+    color: var(--text-secondary) !important;
+  }
+
+  /* 3. Main Workspace Area */
+  .main-workspace {
+    width: 100% !important;
+    padding: 16px 16px 100px 16px !important;
+    overflow-x: hidden !important;
+  }
+
+  .view-panel {
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
+
+  .view-hero-header {
+    margin-bottom: 14px !important;
+  }
+
+  .view-hero-title {
+    font-size: 22px !important;
+    font-weight: 800 !important;
+    color: var(--text-key) !important;
+    line-height: 1.25 !important;
+    margin-bottom: 4px !important;
+    letter-spacing: -0.01em !important;
+  }
+
+  .view-hero-desc {
+    font-size: 13px !important;
+    color: var(--text-muted) !important;
+    line-height: 1.4 !important;
+  }
+
+  /* 4. Metrics Grid (2x2 Grid, Clean and Legible) */
+  .metrics-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px !important;
+    margin-bottom: 16px !important;
+  }
+
+  .metric-card {
+    min-width: 0 !important;
+    padding: 12px 14px !important;
+    border-radius: 12px !important;
+    background: #ffffff !important;
+    border: 1px solid var(--border-subtle) !important;
+  }
+
+  .metric-label {
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    color: var(--text-muted) !important;
+    line-height: 1.3 !important;
+  }
+
+  .metric-value {
+    font-size: 24px !important;
+    font-weight: 800 !important;
+    margin: 4px 0 !important;
+    color: var(--text-key) !important;
+  }
+
+  .metric-caption {
+    font-size: 10px !important;
+    color: var(--text-muted) !important;
+    line-height: 1.3 !important;
+  }
+
+  /* 5. Pipeline Strip */
+  .pipeline-strip {
+    padding: 12px 14px !important;
+    border-radius: 12px !important;
+    margin-bottom: 14px !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 8px !important;
+  }
+
+  .pipeline-strip-title {
+    font-size: 12px !important;
+    font-weight: 700 !important;
+  }
+
+  .pipeline-pills {
+    display: flex !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    width: 100% !important;
+    gap: 6px !important;
+    padding-bottom: 4px !important;
+  }
+
+  .pipeline-pill {
+    flex-shrink: 0 !important;
+    padding: 5px 10px !important;
+    font-size: 11px !important;
+    white-space: nowrap !important;
+  }
+
+  /* 6. Table Toolbar (Stacked Filters) */
+  .toolbar-card,
+  .table-toolbar {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+    padding: 14px !important;
+    border-radius: 14px !important;
+    background: #ffffff !important;
+    border: 1px solid var(--border-subtle) !important;
+    margin-bottom: 14px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .toolbar-group {
+    width: 100% !important;
+    min-width: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 4px !important;
+  }
+
+  .search-flex {
+    width: 100% !important;
+    min-width: 0 !important;
+    order: -1 !important; /* Kotak pencarian tampil di bagian teratas filter */
+  }
+
+  .toolbar-group label,
+  .search-flex label {
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    color: var(--text-key) !important;
+    margin-bottom: 2px !important;
+    display: block !important;
+  }
+
+  .toolbar-group select,
+  .search-flex input {
+    width: 100% !important;
+    height: 42px !important;
+    font-size: 13px !important;
+    border-radius: 8px !important;
+    border: 1px solid var(--border-strong) !important;
+    background: #ffffff !important;
+    padding: 8px 12px !important;
+    box-sizing: border-box !important;
+  }
+
+  /* 7. Leads Table Card Transformation (Thumb-friendly mobile cards) */
+  .table-container {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+  }
+
+  .leads-table {
+    display: block !important;
+    width: 100% !important;
+    border: none !important;
+  }
+
+  .leads-table thead {
+    display: none !important;
+  }
+
+  .leads-table tbody {
+    display: block !important;
+    width: 100% !important;
+  }
+
+  .leads-table tr {
+    display: block !important;
+    width: 100% !important;
+    background: #ffffff !important;
+    border: 1px solid var(--border-subtle) !important;
+    border-radius: 14px !important;
+    padding: 14px 16px !important;
+    margin-bottom: 12px !important;
+    box-shadow: 0 1px 3px rgba(35, 31, 32, 0.04) !important;
+    transition: transform 0.15s ease, box-shadow 0.15s ease !important;
+  }
+
+  .leads-table tr:active {
+    transform: scale(0.99) !important;
+  }
+
+  .leads-table td {
+    display: block !important;
+    width: 100% !important;
+    padding: 4px 0 !important;
+    border: none !important;
+    text-align: left !important;
+  }
+
+  .leads-table td:last-child {
+    margin-top: 10px !important;
+    padding-top: 10px !important;
+    border-top: 1px solid var(--border-subtle) !important;
+  }
+
+  .leads-table td:last-child .btn-dossier,
+  .leads-table td:last-child .btn-view-detail {
+    width: 100% !important;
+    min-height: 44px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 8px !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    background: var(--cmyk-key) !important;
+    color: #ffffff !important;
+    border: none !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+    cursor: pointer !important;
+  }
+
+  .table-footer-bar {
+    flex-direction: column !important;
+    gap: 12px !important;
+    align-items: center !important;
+    padding: 12px 0 !important;
+    background: transparent !important;
+    border: none !important;
+  }
+
+  .pagination-controls {
+    width: 100% !important;
+    justify-content: center !important;
+    gap: 12px !important;
+  }
+
+  /* 8. Full-screen / Bottom-sheet Drawer on Mobile */
+  .detail-drawer {
+    width: 100% !important;
+    max-width: 100vw !important;
+    height: 100vh !important;
+    right: 0 !important;
+    left: 0 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    z-index: 1001 !important;
+    transform: translateY(100%) !important;
+    transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  }
+
+  .detail-drawer.open {
+    transform: translateY(0) !important;
+  }
+
+  .drawer-header {
+    padding: 14px 16px !important;
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 10 !important;
+    background: #ffffff !important;
+    border-bottom: 1px solid var(--border-subtle) !important;
+  }
+
+  .drawer-body {
+    padding: 16px !important;
+    padding-bottom: 90px !important;
+  }
+
+  .drawer-actions {
+    position: sticky !important;
+    bottom: 0 !important;
+    background: #ffffff !important;
+    padding: 12px 16px !important;
+    border-top: 1px solid var(--border-subtle) !important;
+    display: flex !important;
+    gap: 10px !important;
+    z-index: 20 !important;
+  }
+
+  .drawer-actions button,
+  .drawer-actions .btn-secondary,
+  .drawer-actions .btn-danger {
+    min-height: 46px !important;
+    flex: 1 !important;
+    border-radius: 8px !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
+  }
+
+  /* 9. Floating Bottom Navigation Bar (100% Identik dengan Rujukan Foto 2) */
+  .mobile-bottom-nav {
+    display: flex !important;
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    background: #ffffff !important;
+    border-top: 1px solid #e2e8f0 !important;
+    border-radius: 20px 20px 0 0 !important;
+    padding: 8px 12px max(10px, env(safe-area-inset-bottom)) 12px !important;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.06) !important;
+    z-index: 999 !important;
+    justify-content: space-around !important;
+    align-items: center !important;
+  }
+
+  .mobile-nav-item {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 4px !important;
+    padding: 8px 12px !important;
+    border-radius: 12px !important;
+    color: #64748b !important;
+    background: transparent !important;
+    border: none !important;
+    cursor: pointer !important;
+    font-family: inherit !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    min-width: 64px !important;
+    -webkit-tap-highlight-color: transparent !important;
+  }
+
+  .mobile-nav-item:active {
+    transform: scale(0.96) !important;
+  }
+
+  .mobile-nav-item.active {
+    background: #18181b !important; /* Arang gelap elegan pill matching rujukan foto 2 */
+    color: #ffffff !important;
+    box-shadow: 0 4px 12px rgba(24, 24, 27, 0.15) !important;
+  }
+
+  .mobile-nav-item.active .mobile-nav-icon {
+    color: #00aeef !important; /* Aksen Cyan Cerah matching rujukan foto 2 */
+    stroke: #00aeef !important;
+  }
+
+  .mobile-nav-item.active span {
+    color: #ffffff !important;
+    font-weight: 700 !important;
+  }
+
+  .mobile-nav-item .mobile-nav-icon {
+    width: 20px !important;
+    height: 20px !important;
+    stroke: currentColor !important;
+    stroke-width: 2 !important;
+  }
 }
 
 
