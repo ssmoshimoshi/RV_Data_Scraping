@@ -7,6 +7,7 @@ if str(PROJECT_ROOT) not in sys.path:
 import argparse
 import json
 from datetime import datetime, timedelta
+from typing import Optional, List, Dict, Any
 from scrapers.gmaps_scraper import search_places
 from scrapers.instagram_scraper import enrich_profile, validate_recency
 from scrapers.meta_ads_scraper import search_meta_ads
@@ -591,6 +592,38 @@ def run_inspect_pipeline(platform: str, handle: str, biz_name: str = "", sector:
     return res
 
 
+def run_android_pipeline(
+    username: Optional[str] = None,
+    usernames: Optional[str] = None,
+    file_path: Optional[str] = None,
+    limit: int = 10,
+    dry_run: bool = False,
+    device: Optional[str] = None
+):
+    from scrapers.android_scraper import run_batch_scrape
+    target_list = []
+    if username:
+        target_list.append(username)
+    elif usernames:
+        target_list.extend([u.strip() for u in usernames.split(",") if u.strip()])
+    elif file_path:
+        f_p = Path(file_path)
+        if f_p.exists():
+            with open(f_p, "r", encoding="utf-8") as f:
+                target_list.extend([line.strip() for line in f if line.strip()])
+        else:
+            print(f"Berkas {file_path} tidak ditemukan.")
+            return
+    else:
+        target_list = ["kopiteori"]
+
+    if limit:
+        target_list = target_list[:limit]
+
+    print(f"Menjalankan pipeline perayapan Android ({len(target_list)} akun, Dry-run: {dry_run})")
+    return run_batch_scrape(target_list, device_serial=device, dry_run=dry_run)
+
+
 def main():
     parser = argparse.ArgumentParser(description="RUANG VISUAL Market Intelligence Pipeline")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -687,6 +720,15 @@ def main():
     inspect_parser.add_argument("--force-refresh", action="store_true", help="Abaikan cache lokal SQLite")
     inspect_parser.add_argument("--dry-run", action="store_true", help="Gunakan data deterministik uji")
 
+    # Subcommand: android
+    android_parser = subparsers.add_parser("android", help="Perayapan data profil dan kontak Instagram via perangkat fisik Android")
+    android_parser.add_argument("--username", type=str, help="Username Instagram target tunggal")
+    android_parser.add_argument("--usernames", type=str, help="Daftar username pisahkan koma")
+    android_parser.add_argument("--file", type=str, help="Berkas daftar username target")
+    android_parser.add_argument("--device", type=str, default=None, help="Nomor seri perangkat ADB (opsional)")
+    android_parser.add_argument("--limit", type=int, default=10, help="Batas maksimal profil yang dirayap")
+    android_parser.add_argument("--dry-run", action="store_true", help="Simulasi ekstraksi tanpa menulis ke database")
+
     args = parser.parse_args()
 
     if args.command == "gmaps":
@@ -745,6 +787,15 @@ def main():
             sector=args.sector,
             force_refresh=args.force_refresh,
             dry_run=args.dry_run
+        )
+    elif args.command == "android":
+        run_android_pipeline(
+            username=args.username,
+            usernames=args.usernames,
+            file_path=args.file,
+            limit=args.limit,
+            dry_run=args.dry_run,
+            device=args.device
         )
 
 
