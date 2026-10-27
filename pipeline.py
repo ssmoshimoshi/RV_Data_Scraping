@@ -6,6 +6,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 import argparse
 import json
+import os
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Any
 from scrapers.gmaps_scraper import search_places
@@ -738,6 +739,7 @@ def main():
     # Subcommand: telegram
     telegram_parser = subparsers.add_parser("telegram", help="Jalankan bot controller Telegram untuk perayapan via grup")
     telegram_parser.add_argument("--once", action="store_true", help="Jalankan sekali periksa pesan dan keluar")
+    telegram_parser.add_argument("--notify", type=str, nargs="?", const="summary", help="Kirim notifikasi atau ringkasan ke grup Telegram")
 
     args = parser.parse_args()
 
@@ -808,8 +810,23 @@ def main():
             device=args.device
         )
     elif args.command == "telegram":
-        from scrapers.telegram_bridge import start_telegram_bridge
-        start_telegram_bridge(run_once=args.once)
+        from scrapers.telegram_bridge import start_telegram_bridge, send_telegram_message, get_db_summary, TARGET_CHAT_ID
+        if args.notify:
+            summary = get_db_summary()
+            report = (
+                "RUANG VISUAL CLOUD RUNNER (GITHUB ACTIONS)\n"
+                "====================================\n"
+                f"{summary}"
+            ) if args.notify == "summary" else args.notify
+            target_chat = os.getenv("TELEGRAM_CHAT_ID") or TARGET_CHAT_ID or "-5140963245"
+            print(f"Mengirim laporan ke grup Telegram ({target_chat})...")
+            ok = send_telegram_message(target_chat, report)
+            if ok:
+                print("Laporan Telegram berhasil terkirim.")
+            else:
+                print("Laporan Telegram gagal terkirim.")
+        else:
+            start_telegram_bridge(run_once=args.once)
 
 
 if __name__ == "__main__":

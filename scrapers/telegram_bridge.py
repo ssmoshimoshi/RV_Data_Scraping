@@ -20,30 +20,21 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # DNS Resolver Patch untuk api.telegram.org guna mencegah latency DNS sistem macOS
-_TELEGRAM_IPS = ["149.154.166.110", "149.154.167.220"]
-_orig_getaddrinfo = socket.getaddrinfo
+if sys.platform == "darwin":
+    _TELEGRAM_IPS = ["149.154.166.110", "149.154.167.220"]
+    _orig_getaddrinfo = socket.getaddrinfo
 
+    def _patched_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
+        if host == "api.telegram.org":
+            return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", (_TELEGRAM_IPS[0], port))]
+        return _orig_getaddrinfo(host, port, family, type, proto, flags)
 
-def _patched_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
-    if host == "api.telegram.org":
-        return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", (_TELEGRAM_IPS[0], port))]
-    return _orig_getaddrinfo(host, port, family, type, proto, flags)
+    socket.getaddrinfo = _patched_getaddrinfo
 
-
-socket.getaddrinfo = _patched_getaddrinfo
-
-# Pastikan path platform-tools Android selalu aktif
+# Pastikan path platform-tools Android selalu aktif jika folder ada
 ANDROID_TOOLS = "/Users/muhammadfanani/Library/Android/sdk/platform-tools"
-if ANDROID_TOOLS not in os.environ.get("PATH", ""):
+if os.path.exists(ANDROID_TOOLS) and ANDROID_TOOLS not in os.environ.get("PATH", ""):
     os.environ["PATH"] = f"{ANDROID_TOOLS}:{os.environ.get('PATH', '')}"
-
-from scrapers.android_scraper import (
-    ensure_device_ready,
-    extract_instagram_profile,
-    get_android_device,
-    persist_profile_to_db,
-    save_raw_output,
-)
 from scrapers.lead_engine import (
     calculate_lead_score,
     save_lead_to_db,
@@ -103,11 +94,13 @@ def send_telegram_message(
     reply_to_message_id: Optional[int] = None,
     reply_markup: Optional[Dict[str, Any]] = None
 ) -> bool:
-    if not BOT_TOKEN:
-        logger.error("TELEGRAM_BOT_TOKEN belum dikonfigurasi di file .env")
+    token = os.getenv("TELEGRAM_BOT_TOKEN") or BOT_TOKEN
+    target_chat = (chat_id or "").strip() or os.getenv("TELEGRAM_CHAT_ID", "").strip() or TARGET_CHAT_ID or "-5140963245"
+    if not token:
+        logger.error("TELEGRAM_BOT_TOKEN belum dikonfigurasi di file .env atau secrets.")
         return False
 
-    payload: Dict[str, Any] = {"chat_id": chat_id, "text": text}
+    payload: Dict[str, Any] = {"chat_id": target_chat, "text": text}
     if reply_to_message_id:
         payload["reply_to_message_id"] = reply_to_message_id
     if reply_markup:
@@ -115,10 +108,19 @@ def send_telegram_message(
 
     try:
         data = urllib.parse.urlencode(payload).encode("utf-8")
-        req = urllib.request.Request(f"{API_BASE}/sendMessage", data=data)
-        with urllib.request.urlopen(req, timeout=10) as resp:
+        req = urllib.request.Request(f"https://api.telegram.org/bot{token}/sendMessage", data=data)
+        with urllib.request.urlopen(req, timeout=15) as resp:
             res = json.loads(resp.read().decode("utf-8"))
-            return bool(res.get("ok"))
+            if res.get("ok"):
+                logger.info(f"Pesan Telegram berhasil dikirim ke chat {target_chat}.")
+                return True
+            else:
+                logger.error(f"Telegram API menolak pesan: {res}")
+                return False
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode("utf-8", errors="replace") if hasattr(e, "read") else str(e)
+        logger.error(f"Gagal mengirim pesan ke Telegram (HTTP {e.code}): {error_body}")
+        return False
     except Exception as e:
         logger.error(f"Gagal mengirim pesan ke Telegram: {e}")
         return False
@@ -364,6 +366,13 @@ def execute_scrape_batch(chat_id: str, target_users: List[str], reply_to_message
     )
 
     try:
+        from scrapers.android_scraper import (
+            ensure_device_ready,
+            extract_instagram_profile,
+            get_android_device,
+            persist_profile_to_db,
+            save_raw_output,
+        )
         d = get_android_device()
         if not ensure_device_ready(d):
             send_telegram_message(

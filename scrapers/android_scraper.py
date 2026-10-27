@@ -15,7 +15,10 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 import xml.etree.ElementTree as ET
 
-import uiautomator2 as u2
+try:
+    import uiautomator2 as u2
+except ImportError:
+    u2 = None
 
 # Pastikan path Android platform-tools selalu tersedia di environment
 ANDROID_TOOLS = "/Users/muhammadfanani/Library/Android/sdk/platform-tools"
@@ -53,7 +56,9 @@ def parse_count_metric(val_str: Optional[str]) -> int:
         return 0
 
 
-def get_android_device(serial: Optional[str] = None) -> u2.Device:
+def get_android_device(serial: Optional[str] = None) -> Any:
+    if u2 is None:
+        raise RuntimeError("Library uiautomator2 belum terinstal pada lingkungan ini.")
     target_serial = serial or DEFAULT_DEVICE_SERIAL
     logger.info(f"Menghubungkan ke perangkat: {target_serial}")
     try:
@@ -63,7 +68,9 @@ def get_android_device(serial: Optional[str] = None) -> u2.Device:
         return u2.connect()
 
 
-def ensure_device_ready(d: u2.Device) -> bool:
+def ensure_device_ready(d: Any) -> bool:
+    if u2 is None or d is None:
+        return False
     try:
         if not d.info.get("screenOn", True):
             logger.info("Layar perangkat mati. Menyalakan layar...")

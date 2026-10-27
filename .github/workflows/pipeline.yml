@@ -43,6 +43,8 @@ jobs:
     name: Run Intelligence Pipeline
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout Repository
@@ -63,11 +65,9 @@ jobs:
         run: |
           python -m playwright install --with-deps chromium
 
-      - name: Run Pipeline and Send Telegram Report
+      - name: Run Pipeline
         env:
           GOOGLE_SHEET_WEBHOOK_URL: ${{ secrets.GOOGLE_SHEET_WEBHOOK_URL }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN || secrets.TELEGRAM_BOT__TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           APIFY_API_TOKEN: ${{ secrets.APIFY_API_TOKEN }}
         run: |
           MODE="${{ github.event.client_payload.mode || github.event.inputs.mode || 'gmaps' }}"
@@ -95,22 +95,32 @@ jobs:
             python pipeline.py export
           fi
 
-          # Kirim ringkasan hasil perayapan ke grup Telegram
-          python -c "
-          import os
-          from scrapers.telegram_bridge import send_telegram_message, get_db_summary, TARGET_CHAT_ID
-          chat_id = os.getenv('TELEGRAM_CHAT_ID', TARGET_CHAT_ID)
-          summary = get_db_summary()
-          report = 'RUANG VISUAL CLOUD RUNNER (GITHUB ACTIONS)\n' + summary
-          send_telegram_message(chat_id, report)
-          " || echo "Gagal kirim notifikasi Telegram, pipeline tetap lanjut."
+      - name: Send Telegram Summary Report
+        if: always()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN || secrets.TELEGRAM_BOT__TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          echo "Mengirim ringkasan laporan ke Telegram..."
+          python pipeline.py telegram --notify "summary" || echo "Gagal mengirim notifikasi Telegram"
+
+      - name: Upload Scraped Intelligence Artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ruang-visual-market-data
+          path: |
+            data/processed/
+            data/raw/
+            data/leads.sqlite
+          retention-days: 14
 
       - name: Commit and Push Processed Data
         if: success()
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/leads.sqlite data/processed/ 2>/dev/null || true
+          git add -f data/leads.sqlite data/processed/ 2>/dev/null || true
           if git diff --staged --quiet; then
             echo "Tidak ada perubahan data baru untuk di-commit."
           else
