@@ -391,7 +391,8 @@ def adapt_sqlite_lead_for_dashboard(item: dict) -> dict:
                 conn.row_factory = sqlite3.Row
                 cur = conn.cursor()
                 cur.execute("""
-                    SELECT post_id, platform, caption, posted_at, engagement_rate, service_trigger_signal
+                    SELECT post_id, platform, caption, posted_at, engagement_rate, service_trigger_signal,
+                           COALESCE(views, 0) as views, COALESCE(likes, 0) as likes, COALESCE(comments, 0) as comments, post_url
                     FROM channel_posts
                     WHERE entity_id = ?
                     ORDER BY posted_at DESC
@@ -404,12 +405,13 @@ def adapt_sqlite_lead_for_dashboard(item: dict) -> dict:
                         "platform": row["platform"],
                         "caption": row["caption"] or "",
                         "date": row["posted_at"] or "",
-                        "views": 25000,
-                        "likes": int((row["engagement_rate"] or 0) * 150),
-                        "comments": int((row["engagement_rate"] or 0) * 12),
+                        "views": int(row["views"] or 0),
+                        "likes": int(row["likes"] or 0),
+                        "comments": int(row["comments"] or 0),
                         "engagement_rate": row["engagement_rate"] or 0.0,
                         "packaging_signal": bool(tag_list),
-                        "tags": tag_list
+                        "tags": tag_list,
+                        "url": row["post_url"] or ""
                     })
         except Exception:
             pass

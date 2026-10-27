@@ -81,6 +81,10 @@ CREATE TABLE IF NOT EXISTS channel_posts (
     posted_at TEXT,
     engagement_rate REAL DEFAULT 0.0,
     service_trigger_signal TEXT,
+    views INTEGER DEFAULT 0,
+    likes INTEGER DEFAULT 0,
+    comments INTEGER DEFAULT 0,
+    post_url TEXT,
     FOREIGN KEY (entity_id) REFERENCES entities(entity_id) ON DELETE CASCADE
 );
 
@@ -121,6 +125,16 @@ def init_db(db_path: Optional[Path] = None) -> bool:
                 cursor.execute(f"ALTER TABLE digital_footprints ADD COLUMN {col_name} TEXT")
             except sqlite3.OperationalError:
                 pass
+        # Migrasi kolom tambahan tabel channel_posts jika belum ada
+        for col_name in ['views', 'likes', 'comments']:
+            try:
+                cursor.execute(f"ALTER TABLE channel_posts ADD COLUMN {col_name} INTEGER DEFAULT 0")
+            except sqlite3.OperationalError:
+                pass
+        try:
+            cursor.execute("ALTER TABLE channel_posts ADD COLUMN post_url TEXT")
+        except sqlite3.OperationalError:
+            pass
         conn.commit()
         conn.close()
         return True

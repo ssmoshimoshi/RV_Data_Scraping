@@ -1003,10 +1003,10 @@ function renderDrawerPosts(posts) {
       </div>
       <div class="dpi-caption">${escapeHtml(post.caption || '')}</div>
       <div class="dpi-stats">
-        <span>Views: ${(post.views || 0).toLocaleString()}</span>
+        ${post.views > 0 ? `<span>Views: ${(post.views || 0).toLocaleString()}</span>` : ''}
         <span>Likes: ${(post.likes || 0).toLocaleString()}</span>
         <span>Komentar: ${(post.comments || 0).toLocaleString()}</span>
-        <span>ER: ${post.engagement_rate || 0}%</span>
+        ${post.url ? `<span><a href="${escapeHtml(post.url)}" target="_blank" rel="noopener noreferrer" style="color: #0284C7; text-decoration: underline; font-weight: 600;">Lihat di Instagram</a></span>` : ''}
       </div>
     `;
     container.appendChild(item);

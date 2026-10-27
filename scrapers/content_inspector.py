@@ -1,3 +1,4 @@
+import os
 import sys
 from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -12,6 +13,9 @@ import subprocess
 import urllib.parse
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Any
+
+from dotenv import load_dotenv
+load_dotenv()
 
 from scrapers.normalizer import normalize_whatsapp
 from scrapers.lead_scoring import classify_category, infer_product_needs
@@ -328,7 +332,8 @@ def load_cached_posts(handle: str, platform: str, db_path: Optional[Path] = None
 
         # Ambil postingan dari channel_posts
         cur.execute("""
-            SELECT post_id, platform, caption, posted_at, engagement_rate, service_trigger_signal
+            SELECT post_id, platform, caption, posted_at, engagement_rate, service_trigger_signal,
+                   COALESCE(views, 0) as views, COALESCE(likes, 0) as likes, COALESCE(comments, 0) as comments, post_url
             FROM channel_posts
             WHERE entity_id = ? AND LOWER(platform) = ?
             ORDER BY posted_at DESC
@@ -359,9 +364,10 @@ def load_cached_posts(handle: str, platform: str, db_path: Optional[Path] = None
                 "id": r["post_id"],
                 "caption": caption,
                 "date": r["posted_at"] or "",
-                "views": 0,
-                "likes": 0,
-                "comments": 0,
+                "views": int(r["views"] or 0),
+                "likes": int(r["likes"] or 0),
+                "comments": int(r["comments"] or 0),
+                "url": r["post_url"] or "",
                 "engagement_rate": float(r["engagement_rate"] or 0.0),
                 "packaging_signal": signals["has_signal"],
                 "tags": signals["matched_tags"],
@@ -416,16 +422,27 @@ def save_inspected_posts_to_sqlite(
             posted_at = post.get("date") or post.get("posted_at") or datetime.now().strftime("%Y-%m-%d")
             er = float(post.get("engagement_rate") or 0.0)
             trigger_signal = ", ".join(post.get("tags") or [])
+            views = int(post.get("views") or 0)
+            likes = int(post.get("likes") or 0)
+            comments = int(post.get("comments") or 0)
+            post_url = post.get("url") or ""
 
             cur.execute("""
-                INSERT INTO channel_posts (post_id, entity_id, platform, caption, posted_at, engagement_rate, service_trigger_signal)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO channel_posts (
+                    post_id, entity_id, platform, caption, posted_at, engagement_rate,
+                    service_trigger_signal, views, likes, comments, post_url
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(post_id) DO UPDATE SET
                     caption = excluded.caption,
                     posted_at = excluded.posted_at,
                     engagement_rate = excluded.engagement_rate,
-                    service_trigger_signal = excluded.service_trigger_signal
-            """, (post_id, entity_id, platform.lower(), caption, posted_at, er, trigger_signal))
+                    service_trigger_signal = excluded.service_trigger_signal,
+                    views = excluded.views,
+                    likes = excluded.likes,
+                    comments = excluded.comments,
+                    post_url = excluded.post_url
+            """, (post_id, entity_id, platform.lower(), caption, posted_at, er, trigger_signal, views, likes, comments, post_url))
             saved_count += 1
 
         conn.commit()
@@ -434,6 +451,76 @@ def save_inspected_posts_to_sqlite(
     except Exception as e:
         print(f"Peringatan: Gagal menyimpan postingan ke SQLite: {e}")
         return saved_count
+
+
+def scrape_instagram_posts_apify(username: str, limit: int = 5) -> Dict[str, Any]:
+    clean_h = clean_social_handle(username)
+    api_token = os.getenv("APIFY_API_TOKEN")
+    if not api_token or not clean_h:
+        return {"profile_info": {}, "posts": []}
+
+    # Jangan memanggil API eksternal saat unit test otomatis berjalan
+    if "unittest" in sys.modules and not os.getenv("ALLOW_LIVE_APIFY_IN_TESTS"):
+        return {"profile_info": {}, "posts": []}
+
+    profile_info = {
+        "username": clean_h,
+        "full_name": clean_h,
+        "biography": "",
+        "followers_count": 0,
+        "following_count": 0,
+        "posts_count": 0,
+        "is_business_account": True,
+        "external_url": f"https://www.instagram.com/{clean_h}/",
+        "profile_pic_url": ""
+    }
+    posts = []
+
+    try:
+        import requests
+        url = f"https://api.apify.com/v2/acts/apify~instagram-scraper/run-sync-get-dataset-items?token={api_token}"
+        payload = {
+            "directUrls": [f"https://www.instagram.com/{clean_h}/"],
+            "resultsType": "posts",
+            "resultsLimit": limit
+        }
+        res = requests.post(url, json=payload, timeout=60)
+        if res.status_code in [200, 201]:
+            items = res.json()
+            if isinstance(items, list):
+                for i, it in enumerate(items[:limit]):
+                    if not isinstance(it, dict):
+                        continue
+                    ts_raw = it.get("timestamp") or ""
+                    date_str = ts_raw[:10] if ts_raw else datetime.now().strftime("%Y-%m-%d")
+                    views = int(it.get("videoViewCount") or it.get("videoPlayCount") or 0)
+                    likes = int(it.get("likesCount") or 0)
+                    comments = int(it.get("commentsCount") or 0)
+                    shortcode = it.get("shortCode") or ""
+
+                    posts.append({
+                        "id": f"ig_{it.get('id') or shortcode or i+1}",
+                        "shortcode": shortcode,
+                        "url": it.get("url") or f"https://www.instagram.com/p/{shortcode}/",
+                        "caption": it.get("caption") or "",
+                        "views": views,
+                        "likes": likes,
+                        "comments": comments,
+                        "date": date_str,
+                        "thumbnail": it.get("displayUrl") or "",
+                        "is_video": bool(it.get("isVideo"))
+                    })
+                if items and isinstance(items[0], dict):
+                    owner = items[0].get("ownerFullName") or items[0].get("ownerUsername")
+                    if owner:
+                        profile_info["full_name"] = owner
+    except Exception as e:
+        print(f"Info: Apify Instagram Actor dilewati: {e}")
+
+    return {
+        "profile_info": profile_info,
+        "posts": posts
+    }
 
 
 def scrape_instagram_posts_http(username: str, limit: int = 5) -> Dict[str, Any]:
@@ -681,7 +768,9 @@ def fetch_social_top_posts(
         profile_info = {}
 
         if plat == "instagram":
-            online_res = scrape_instagram_posts_http(clean_h, limit)
+            online_res = scrape_instagram_posts_apify(clean_h, limit)
+            if not online_res.get("posts"):
+                online_res = scrape_instagram_posts_http(clean_h, limit)
             profile_info = online_res.get("profile_info", {})
             raw_posts = online_res.get("posts", [])
         elif plat == "tiktok":
@@ -734,6 +823,22 @@ def fetch_social_top_posts(
         category=category,
         whatsapp_number=""
     )
+
+    # Simpan otomatis ke SQLite cache jika berhasil live scrape
+    if source == "live_scrape" and enriched_posts and not dry_run:
+        try:
+            db_file = PROJECT_ROOT / 'data' / 'leads.sqlite'
+            if db_file.exists():
+                conn = sqlite3.connect(str(db_file))
+                cur = conn.cursor()
+                handle_col = "instagram_handle" if plat == "instagram" else "tiktok_handle"
+                cur.execute(f"SELECT entity_id FROM digital_footprints WHERE LOWER({handle_col}) = ? OR LOWER({handle_col}) = ?", (clean_h, f"@{clean_h}"))
+                row = cur.fetchone()
+                conn.close()
+                if row:
+                    save_inspected_posts_to_sqlite(row[0], plat, enriched_posts, db_file)
+        except Exception as e:
+            print(f"Info: Gagal auto-cache postingan riil ke SQLite: {e}")
 
     return {
         "status": "success",
