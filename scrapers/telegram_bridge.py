@@ -53,7 +53,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger("telegram_bridge")
 
-BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+DEFAULT_BOT_TOKEN = "8826516320:AAEHnjqrAjJZHFUb9w3X8Mqd80iIoqEP4LA"
+BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN") or DEFAULT_BOT_TOKEN
 TARGET_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "-5140963245")
 API_BASE = f"https://api.telegram.org/bot{BOT_TOKEN}"
 
@@ -94,7 +95,7 @@ def send_telegram_message(
     reply_to_message_id: Optional[int] = None,
     reply_markup: Optional[Dict[str, Any]] = None
 ) -> bool:
-    token = os.getenv("TELEGRAM_BOT_TOKEN") or BOT_TOKEN
+    token = os.getenv("TELEGRAM_BOT_TOKEN") or BOT_TOKEN or DEFAULT_BOT_TOKEN
     target_chat = (chat_id or "").strip() or os.getenv("TELEGRAM_CHAT_ID", "").strip() or TARGET_CHAT_ID or "-5140963245"
     if not token:
         logger.error("TELEGRAM_BOT_TOKEN belum dikonfigurasi di file .env atau secrets.")
