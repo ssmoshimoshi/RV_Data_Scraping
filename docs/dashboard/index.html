@@ -96,22 +96,22 @@
         
         <!-- Metrics Bar -->
         <div class="metrics-grid">
-          <div class="metric-card cyan">
+          <div class="metric-card cyan" id="metric-card-total" onclick="setMetricFilter('all')" title="Tampilkan semua calon customer">
             <div class="metric-label">Calon Terverifikasi Fisik</div>
             <div class="metric-value" id="metric-total">0</div>
             <div class="metric-caption">Jangkar Google Maps Makassar</div>
           </div>
-          <div class="metric-card magenta">
+          <div class="metric-card magenta" id="metric-card-hot" onclick="setMetricFilter('hot')" title="Saring Potensi Tinggi (Tier A &amp; B)">
             <div class="metric-label">Potensi Tinggi (Tier A &amp; B)</div>
             <div class="metric-value" id="metric-hot">0</div>
             <div class="metric-caption">Prioritas kebutuhan promosi &amp; cetak</div>
           </div>
-          <div class="metric-card yellow">
+          <div class="metric-card yellow" id="metric-card-multichannel" onclick="setMetricFilter('multichannel')" title="Saring Terhubung Multi-Kanal">
             <div class="metric-label">Terhubung Multi-Kanal</div>
             <div class="metric-value" id="metric-multichannel">0</div>
             <div class="metric-caption">Google Maps + Media Sosial</div>
           </div>
-          <div class="metric-card key">
+          <div class="metric-card key" id="metric-card-contact" onclick="setMetricFilter('contact')" title="Saring Kontak Resmi Terdata">
             <div class="metric-label">Kontak Resmi Terdata</div>
             <div class="metric-value" id="metric-contact">0</div>
             <div class="metric-caption">WhatsApp &amp; Telepon Bisnis</div>
@@ -165,18 +165,6 @@
               <option value="corporate_legal">Korporat, Notaris &amp; Legal</option>
               <option value="event_community">Event &amp; Komunitas</option>
               <option value="new_store_opening">Grand Opening (Outlet Baru)</option>
-            </select>
-          </div>
-
-          <div class="toolbar-group">
-            <label for="filter-pillar">5 Pilar Layanan Master</label>
-            <select id="filter-pillar">
-              <option value="all">Semua 5 Pilar</option>
-              <option value="advertising">1. Reklame &amp; Promosi Visual</option>
-              <option value="custom_merch">2. Merchandise &amp; Souvenir</option>
-              <option value="apparel">3. Konveksi &amp; Sablon Tekstil</option>
-              <option value="office_school">4. Institusi, Sekolah &amp; Kantor</option>
-              <option value="label_sticker">5. Labeling Produk &amp; Stiker</option>
             </select>
           </div>
 

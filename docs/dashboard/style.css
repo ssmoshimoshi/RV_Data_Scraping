@@ -352,7 +352,25 @@ body {
   box-shadow: var(--shadow-subtle);
   position: relative;
   overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  user-select: none;
 }
+
+.metric-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.metric-card.active {
+  border-color: var(--cmyk-key);
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.metric-card.cyan.active { border-color: var(--cmyk-cyan); }
+.metric-card.magenta.active { border-color: var(--cmyk-magenta); }
+.metric-card.yellow.active { border-color: var(--cmyk-yellow); }
+.metric-card.key.active { border-color: var(--cmyk-key); }
 
 .metric-card::before {
   content: "";

@@ -3,6 +3,7 @@ let selectedLead = null;
 let currentPage = 1;
 const LEADS_PER_PAGE = 25;
 let currentOutreachFilter = 'all';
+let currentMetricFilter = 'all';
 
 const CATALOG_DATA = [
   {
@@ -248,6 +249,12 @@ function changePage(delta) {
   renderDashboard();
 }
 
+function setMetricFilter(filterType) {
+  currentMetricFilter = (filterType === currentMetricFilter && filterType !== 'all') ? 'all' : filterType;
+  currentPage = 1;
+  renderDashboard();
+}
+
 function getLeadPillarKey(lead) {
   if (lead.primary_service_pillar) {
     const p = String(lead.primary_service_pillar).toLowerCase();
@@ -319,7 +326,6 @@ function renderDashboard() {
   if (elIrr) elIrr.textContent = countIrrelevant;
 
   const catFilter = (document.getElementById('filter-category') || {}).value || 'all';
-  const pillarFilter = (document.getElementById('filter-pillar') || {}).value || 'all';
   const tierFilter = (document.getElementById('filter-tier') || {}).value || 'all';
   const outreachFilter = currentOutreachFilter;
   const searchFilter = (document.getElementById('search-input') || {}).value ? document.getElementById('search-input').value.toLowerCase().trim() : '';
@@ -331,10 +337,15 @@ function renderDashboard() {
       if (sec !== catFilter.toLowerCase()) return false;
     }
 
-    // 5 Pilar Layanan Filter
-    if (pillarFilter !== 'all') {
-      const pKey = getLeadPillarKey(lead);
-      if (pKey !== pillarFilter) return false;
+    // Quick Filter Kartu Metrik KPI
+    if (currentMetricFilter === 'hot') {
+      const t = getLeadTier(lead);
+      if (t !== 'Tier A' && t !== 'Tier B') return false;
+    } else if (currentMetricFilter === 'multichannel') {
+      const ch = lead.channels || {};
+      if (!Boolean(ch.instagram || ch.tiktok || ch.threads || (lead.platforms && lead.platforms.length > 1))) return false;
+    } else if (currentMetricFilter === 'contact') {
+      if (!Boolean(lead.whatsapp_number || lead.phone_number)) return false;
     }
 
     // Tier Filter (Tier A, Tier B, Tier C, Tier D)
@@ -360,6 +371,18 @@ function renderDashboard() {
     }
 
     return true;
+  });
+
+  // Sinkronisasi state aktif kartu metrik KPI
+  const metricCardIds = {
+    all: 'metric-card-total',
+    hot: 'metric-card-hot',
+    multichannel: 'metric-card-multichannel',
+    contact: 'metric-card-contact'
+  };
+  Object.entries(metricCardIds).forEach(([key, id]) => {
+    const card = document.getElementById(id);
+    if (card) card.classList.toggle('active', key === currentMetricFilter);
   });
 
   // Metrics Bar
@@ -1443,14 +1466,6 @@ function escapeHtml(str) {
 const catSelect = document.getElementById('filter-category');
 if (catSelect) {
   catSelect.addEventListener('change', () => {
-    currentPage = 1;
-    renderDashboard();
-  });
-}
-
-const pillarSelect = document.getElementById('filter-pillar');
-if (pillarSelect) {
-  pillarSelect.addEventListener('change', () => {
     currentPage = 1;
     renderDashboard();
   });
