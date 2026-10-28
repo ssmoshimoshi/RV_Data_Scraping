@@ -17,19 +17,9 @@ from typing import Any, Dict, List, Optional
 
 from dotenv import load_dotenv
 
+import threading
+
 load_dotenv()
-
-# DNS Resolver Patch untuk api.telegram.org guna mencegah latency DNS sistem macOS
-if sys.platform == "darwin":
-    _TELEGRAM_IPS = ["149.154.166.110", "149.154.167.220"]
-    _orig_getaddrinfo = socket.getaddrinfo
-
-    def _patched_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
-        if host == "api.telegram.org":
-            return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", (_TELEGRAM_IPS[0], port))]
-        return _orig_getaddrinfo(host, port, family, type, proto, flags)
-
-    socket.getaddrinfo = _patched_getaddrinfo
 
 # Pastikan path platform-tools Android selalu aktif jika folder ada
 ANDROID_TOOLS = "/Users/muhammadfanani/Library/Android/sdk/platform-tools"
@@ -63,9 +53,10 @@ def register_bot_commands() -> bool:
     if not BOT_TOKEN:
         return False
     commands = [
+        {"command": "gmaps", "description": "Rayap Google Maps & kirim ke Sheets (misal: /gmaps cafe Makassar 5)"},
         {"command": "scrape", "description": "Rayap profil Instagram (misal: /scrape kopiteori)"},
         {"command": "batch", "description": "Rayap massal beberapa profil sekaligus"},
-        {"command": "status", "description": "Cek koneksi ponsel Android dan status sistem"},
+        {"command": "status", "description": "Cek koneksi perangkat dan status sistem"},
         {"command": "menu", "description": "Buka panel tombol kontrol interaktif RUANG VISUAL"},
         {"command": "db", "description": "Ringkasan data prospek di database SQLite"},
         {"command": "set_ig", "description": "Tautkan Instagram ke prospek (misal: /set_ig LD-0001 kopiteori)"},
@@ -167,15 +158,12 @@ def get_control_panel_markup() -> Dict[str, Any]:
     return {
         "inline_keyboard": [
             [
-                {"text": "[ Cek Status Perangkat ]", "callback_data": "act_status"},
+                {"text": "[ Rayap GMaps Makassar (Kafe) ]", "callback_data": "act_scrape_gmaps"},
                 {"text": "[ Ringkasan Database ]", "callback_data": "act_db"}
             ],
             [
-                {"text": "[ Uji Rayap @kopiteori ]", "callback_data": "act_scrape_kopiteori"},
-                {"text": "[ Uji Rayap @sofikopi.store ]", "callback_data": "act_scrape_sofikopi"}
-            ],
-            [
-                {"text": "[ Panduan Perintah Lengkap ]", "callback_data": "act_help"}
+                {"text": "[ Cek Status Sistem ]", "callback_data": "act_status"},
+                {"text": "[ Panduan Perintah ]", "callback_data": "act_help"}
             ]
         ]
     }
@@ -184,8 +172,8 @@ def get_control_panel_markup() -> Dict[str, Any]:
 def get_persistent_keyboard_markup() -> Dict[str, Any]:
     return {
         "keyboard": [
-            [{"text": "/status"}, {"text": "/db"}],
-            [{"text": "/menu"}, {"text": "/help"}]
+            [{"text": "/gmaps"}, {"text": "/db"}],
+            [{"text": "/menu"}, {"text": "/status"}]
         ],
         "resize_keyboard": True,
         "is_persistent": True
@@ -460,6 +448,91 @@ def execute_scrape_batch(chat_id: str, target_users: List[str], reply_to_message
         )
 
 
+def run_gmaps_scrape_job(chat_id: str, query: str = "cafe", city: str = "Makassar", limit: int = 5, reply_to_message_id: Optional[int] = None):
+    send_telegram_message(
+        chat_id,
+        f"PERMINTAAN PERAYAPAN GOOGLE MAPS DITERIMA\n"
+        f"====================================\n"
+        f"Kata Kunci   : {query}\n"
+        f"Kota          : {city}\n"
+        f"Target        : {limit} tempat usaha\n\n"
+        f"Sistem sedang menjalankan perayapan headless Chromium dan sinkronisasi ke Google Spreadsheet...",
+        reply_to_message_id=reply_to_message_id
+    )
+
+    try:
+        from pipeline import run_gmaps_pipeline, run_match_pipeline, run_export_pipeline, run_sync_hermes_pipeline
+        from scrapers.dashboard_server import get_all_leads
+
+        # 1. Ekstraksi Google Maps
+        run_gmaps_pipeline(query=query, city=city, limit=limit, dry_run=False, save_db=False)
+
+        # 2. Entity Matching & 4-Pillars Scoring
+        raw_dir = str(PROJECT_ROOT / "data" / "raw")
+        proc_dir = str(PROJECT_ROOT / "data" / "processed")
+        run_match_pipeline(raw_dir=raw_dir, output_dir=proc_dir, city=city, dry_run=False, save_db=False)
+
+        # 3. Export CSV
+        run_export_pipeline(input_path="", output_path="", dry_run=False)
+
+        # 4. Sinkronisasi otomatis ke Google Spreadsheet
+        hermes_res = run_sync_hermes_pipeline(sheet_name="Radar Prospek", clear_first=False, dry_run=False)
+
+        # 5. Kirim kartu detail prospek yang baru didapatkan ke grup Telegram
+        all_leads = get_all_leads()
+        newest_leads = all_leads[:limit]
+
+        for lead in newest_leads:
+            bname = lead.get("business_name", "")
+            wa = lead.get("whatsapp_number") or "-"
+            addr = lead.get("address_full") or "-"
+            rating = lead.get("rating", 0.0)
+            revs = lead.get("reviews_count", 0)
+            score = lead.get("score") or lead.get("lead_score", 0)
+            tier = lead.get("priority_tier", "Tier D")
+            pitch = lead.get("whatsapp_pitch", "")
+            wa_link = lead.get("wa_link") or (f"https://wa.me/{wa}" if wa != "-" else "")
+
+            card_text = (
+                f"PROSPEK BARU GOOGLE MAPS\n"
+                f"====================================\n"
+                f"Nama Bisnis : {bname}\n"
+                f"Kategori    : {lead.get('category', 'fnb_hospitality')}\n"
+                f"WhatsApp    : {wa}\n"
+                f"Alamat      : {addr}\n"
+                f"Rating      : {rating} ({revs} ulasan)\n"
+                f"Skor Potensi: {score}/100 ({tier})\n"
+                f"====================================\n"
+                f"Draft Pitch Penawaran:\n{pitch}\n\n"
+                f"Tautan WhatsApp Langsung:\n{wa_link}\n\n"
+                f"Status: Tersimpan ke SQLite & Google Spreadsheet 'Radar Prospek'"
+            )
+            send_telegram_message(chat_id, card_text)
+            time.sleep(1)
+
+        # 6. Ringkasan penutup
+        rows_synced = hermes_res.get("rows_count", len(newest_leads))
+        summary_msg = (
+            f"PERAYAPAN GOOGLE MAPS SELESAI\n"
+            f"====================================\n"
+            f"Kata Kunci       : {query}\n"
+            f"Kota             : {city}\n"
+            f"Total Prospek    : {len(newest_leads)} bisnis\n"
+            f"Google Sheet     : Berhasil disinkronkan ({rows_synced} baris di 'Radar Prospek')\n"
+            f"Database Lokal   : Tersimpan di data/leads.sqlite\n"
+            f"===================================="
+        )
+        send_telegram_message(chat_id, summary_msg)
+
+    except Exception as e:
+        logger.error(f"Gagal mengeksekusi perayapan Google Maps: {e}", exc_info=True)
+        send_telegram_message(
+            chat_id,
+            f"Gagal mengeksekusi perayapan Google Maps: {e}",
+            reply_to_message_id=reply_to_message_id
+        )
+
+
 def handle_callback_query(cb_query: Dict[str, Any]):
     query_id = cb_query.get("id", "")
     data = cb_query.get("data", "")
@@ -470,7 +543,14 @@ def handle_callback_query(cb_query: Dict[str, Any]):
     logger.info(f"Menangani callback_query: '{data}' dari chat {chat_id}")
     answer_callback_query(query_id, text="Memproses perintah...")
 
-    if data == "act_status":
+    if data == "act_scrape_gmaps":
+        threading.Thread(
+            target=run_gmaps_scrape_job,
+            args=(chat_id, "cafe", "Makassar", 5, message_id),
+            daemon=True
+        ).start()
+
+    elif data == "act_status":
         status_text = get_system_status()
         send_telegram_message(chat_id, status_text, reply_to_message_id=message_id)
 
@@ -478,26 +558,24 @@ def handle_callback_query(cb_query: Dict[str, Any]):
         db_text = get_db_summary()
         send_telegram_message(chat_id, db_text, reply_to_message_id=message_id)
 
-    elif data == "act_scrape_kopiteori":
-        execute_scrape_batch(chat_id, ["kopiteori"], reply_to_message_id=message_id)
-
-    elif data == "act_scrape_sofikopi":
-        execute_scrape_batch(chat_id, ["sofikopi.store"], reply_to_message_id=message_id)
-
     elif data == "act_help":
         help_msg = (
             "PANDUAN PENGGUNAAN BOT RUANG VISUAL\n"
             "====================================\n"
             "Format Perintah Teks:\n"
-            "1. /scrape <username>\n"
+            "1. /gmaps [kata_kunci] [kota] [limit]\n"
+            "   Contoh: /gmaps cafe Makassar 5\n"
+            "   Contoh: /gmaps bakery Makassar 5\n"
+            "   (Data otomatis tersimpan ke SQLite & Google Spreadsheet)\n\n"
+            "2. /scrape <username>\n"
             "   Contoh: /scrape janjijiwa.id\n\n"
-            "2. /batch <akun1, akun2, ...>\n"
+            "3. /batch <akun1, akun2, ...>\n"
             "   Contoh: /batch kopiteori, sofikopi.store\n\n"
-            "3. /status\n"
+            "4. /status\n"
             "   Cek kesiapan fisik ponsel dan koneksi ADB.\n\n"
-            "4. /db\n"
+            "5. /db\n"
             "   Cek ringkasan database dan prospek tersimpan.\n\n"
-            "5. /menu\n"
+            "6. /menu\n"
             "   Buka kembali panel kontrol interaktif berpenampilan RUANG VISUAL."
         )
         send_telegram_message(chat_id, help_msg, reply_to_message_id=message_id)
@@ -515,29 +593,55 @@ def handle_incoming_command(text: str, chat_id: str, message_id: int):
         help_msg = (
             "PANDUAN PERINTAH BOT SCRAPING RUANG VISUAL\n"
             "====================================\n"
-            "1. /scrape <username>\n"
+            "1. /gmaps [kata_kunci] [kota] [limit]\n"
+            "   Merayap tempat Google Maps, kualifikasi prospek, dan otomatis sync ke Google Spreadsheet.\n"
+            "   Contoh: /gmaps cafe Makassar 5\n"
+            "   Contoh: /gmaps\n\n"
+            "2. /scrape <username>\n"
             "   Merayap satu profil Instagram.\n"
             "   Contoh: /scrape kopiteori\n\n"
-            "2. /batch <akun1, akun2, ...>\n"
+            "3. /batch <akun1, akun2, ...>\n"
             "   Merayap beberapa profil secara berurutan.\n"
             "   Contoh: /batch kopiteori, sofikopi.store\n\n"
-            "3. /status\n"
-            "   Melihat status perangkat Android fisik.\n\n"
-            "4. /db\n"
+            "4. /status\n"
+            "   Melihat status sistem dan perangkat fisik.\n\n"
+            "5. /db\n"
             "   Melihat total data prospek di database SQLite.\n\n"
-            "5. /set_ig <LEAD_ID> <username>\n"
+            "6. /set_ig <LEAD_ID> <username>\n"
             "   Menautkan Instagram ke prospek.\n"
             "   Contoh: /set_ig LD-0001 kopiteori\n\n"
-            "6. /edit_lead <LEAD_ID> <field> <nilai>\n"
+            "7. /edit_lead <LEAD_ID> <field> <nilai>\n"
             "   Memperbarui data prospek.\n"
             "   Contoh: /edit_lead LD-0001 phone 082123456789\n\n"
-            "7. /drop_lead <LEAD_ID> <alasan>\n"
+            "8. /drop_lead <LEAD_ID> <alasan>\n"
             "   Membatalkan prospek.\n"
             "   Contoh: /drop_lead LD-0001 bukan target\n\n"
-            "8. /menu\n"
+            "9. /menu\n"
             "   Membuka panel tombol kontrol interaktif."
         )
         send_telegram_message(chat_id, help_msg, reply_to_message_id=message_id)
+        return
+
+    if clean_text.startswith("/gmaps"):
+        parts = clean_text.split()
+        query = "cafe"
+        city = "Makassar"
+        limit = 5
+        if len(parts) >= 2 and parts[1]:
+            query = parts[1]
+        if len(parts) >= 3 and parts[2]:
+            city = parts[2]
+        if len(parts) >= 4 and parts[3]:
+            try:
+                limit = int(parts[3])
+            except ValueError:
+                limit = 5
+
+        threading.Thread(
+            target=run_gmaps_scrape_job,
+            args=(chat_id, query, city, limit, message_id),
+            daemon=True
+        ).start()
         return
 
     if clean_text in ["/status", "/status@RuangVisualBot"]:

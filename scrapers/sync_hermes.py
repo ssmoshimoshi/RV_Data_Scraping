@@ -20,7 +20,8 @@ from scrapers.sample_leads import SAMPLE_LEADS
 load_dotenv(PROJECT_ROOT / ".env")
 load_dotenv(PROJECT_ROOT / "hermes-mcp-server" / ".env")
 
-WEBHOOK_URL = os.getenv("GOOGLE_SHEET_WEBHOOK_URL", "").strip()
+DEFAULT_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwHCyHBZ1qEl8Mz4Fv9ClVtUIu6vDRuSvRZxFe8YmdYRRPgkoEdFTOSGC7nX9ymgvw/exec"
+WEBHOOK_URL = os.getenv("GOOGLE_SHEET_WEBHOOK_URL", "").strip() or DEFAULT_WEBHOOK_URL
 
 CATEGORY_DISPLAY_NAMES = {
     "fnb_beverage": "F&B / Kedai Kopi & Minuman",

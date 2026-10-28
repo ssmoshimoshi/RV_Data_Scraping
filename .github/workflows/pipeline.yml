@@ -95,6 +95,10 @@ jobs:
             python pipeline.py export
           fi
 
+          # Sinkronisasi otomatis ke Google Spreadsheet Radar Prospek
+          echo "Menyinkronkan data prospek ke Google Spreadsheet..."
+          python pipeline.py sync-hermes --sheet "Radar Prospek"
+
       - name: Send Telegram Summary Report
         if: always()
         env:
