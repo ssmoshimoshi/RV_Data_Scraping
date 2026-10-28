@@ -20,8 +20,10 @@ from scrapers.dashboard_server import (
     build_channels_from_records,
     persist_channel_to_dossier,
     persist_status_to_dossier,
+    persist_manual_override_to_dossier,
     inspect_account_content,
     VALID_OUTREACH_STATUSES,
+    VALID_OVERRIDE_TIERS,
 )
 
 SAMPLE_ENTITY = {
@@ -521,6 +523,203 @@ class TestUpdateStatusEndpoint(unittest.TestCase):
         data = json.loads(body)
         self.assertEqual(data.get("status"), "dry_run")
         self.assertTrue(data.get("rows_count", 0) > 0)
+
+    def test_link_channel_skip_inspection_saves_without_scraping(self):
+        res, body = self._post("/api/leads/link-channel", {
+            "lead_id": "lead-004",
+            "platform": "instagram",
+            "handle_or_url": "https://instagram.com/kopisimpan?igsh=abc123&utm_source=share",
+            "skip_inspection": True,
+        })
+        self.assertEqual(res.status, 200)
+        data = json.loads(body)
+        self.assertEqual(data["status"], "success")
+        self.assertEqual(data["inspection"]["status"], "skipped")
+        self.assertEqual(data["lead"]["channels"]["instagram"], "kopisimpan")
+
+
+class TestManualOverrideEnrich(unittest.TestCase):
+
+    def test_enrich_lead_card_applies_manual_override(self):
+        sample = {
+            "business_name": "Kopi Uji Manual",
+            "category": "fnb_beverage",
+            "lead_score": 40,
+            "priority_tier": "Tier D",
+            "is_manual_override": True,
+            "manual_tier": "Tier A",
+            "manual_score": 91,
+            "manual_notes": "Survei lokasi: outlet ramai dan minta sampel cup",
+        }
+        enriched = enrich_lead_card(sample)
+        self.assertTrue(enriched["is_manual_override"])
+        self.assertEqual(enriched["lead_score"], 91)
+        self.assertEqual(enriched["score"], 91)
+        self.assertEqual(enriched["priority_tier"], "Tier A")
+
+    def test_enrich_lead_card_without_override_keeps_auto_score(self):
+        sample = {
+            "business_name": "Kopi Uji Otomatis",
+            "category": "fnb_beverage",
+            "is_manual_override": False,
+            "manual_tier": "",
+            "manual_score": None,
+        }
+        enriched = enrich_lead_card(sample)
+        self.assertNotEqual(enriched["priority_tier"], "")
+        self.assertFalse(enriched["is_manual_override"])
+
+
+class TestPersistManualOverrideToDossier(unittest.TestCase):
+
+    def test_persist_override_updates_dossier_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "unified_dossiers_Makassar_20261025_000000.json"
+            path.write_text(json.dumps([MULTI_CHANNEL_ENTITY], ensure_ascii=False), encoding="utf-8")
+
+            ok = persist_manual_override_to_dossier("ent_0002", "Tier B", 72, "Owner responsif", True, Path(tmp))
+            self.assertTrue(ok)
+
+            saved = json.loads(path.read_text(encoding="utf-8"))
+            self.assertEqual(saved[0]["manual_tier"], "Tier B")
+            self.assertEqual(saved[0]["manual_score"], 72)
+            self.assertEqual(saved[0]["manual_notes"], "Owner responsif")
+            self.assertTrue(saved[0]["is_manual_override"])
+
+    def test_persist_override_unknown_entity_returns_false(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "unified_dossiers_Makassar_20261025_000000.json"
+            path.write_text(json.dumps([MULTI_CHANNEL_ENTITY], ensure_ascii=False), encoding="utf-8")
+            self.assertFalse(persist_manual_override_to_dossier("ent_9999", "Tier A", 90, "", True, Path(tmp)))
+
+    def test_load_processed_dossiers_passes_through_manual_fields(self):
+        ent = dict(MULTI_CHANNEL_ENTITY)
+        ent["is_manual_override"] = True
+        ent["manual_tier"] = "Tier A"
+        ent["manual_score"] = 95
+        ent["manual_notes"] = "Catatan sales"
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "unified_dossiers_Makassar_20261025_000000.json"
+            path.write_text(json.dumps([ent], ensure_ascii=False), encoding="utf-8")
+            lead = load_processed_dossiers(Path(tmp))[0]
+            self.assertTrue(lead["is_manual_override"])
+            self.assertEqual(lead["manual_tier"], "Tier A")
+            self.assertEqual(lead["manual_score"], 95)
+            self.assertEqual(lead["manual_notes"], "Catatan sales")
+
+
+class TestOverrideScoreEndpoint(unittest.TestCase):
+
+    def setUp(self):
+        socketserver.TCPServer.allow_reuse_address = True
+        self.httpd = socketserver.TCPServer(("127.0.0.1", 0), DashboardHandler)
+        self.port = self.httpd.server_address[1]
+        self.thread = threading.Thread(target=self.httpd.serve_forever, daemon=True)
+        self.thread.start()
+
+    def tearDown(self):
+        self.httpd.shutdown()
+        self.httpd.server_close()
+
+    def _post(self, path, payload):
+        body = json.dumps(payload).encode("utf-8")
+        conn = http.client.HTTPConnection("127.0.0.1", self.port, timeout=10)
+        conn.request("POST", path, body=body, headers={"Content-Type": "application/json"})
+        res = conn.getresponse()
+        data = res.read()
+        conn.close()
+        return res, data
+
+    def test_override_sample_lead_success(self):
+        with patch("scrapers.dashboard_server.update_manual_override", return_value=True) as mock_db:
+            res, body = self._post("/api/leads/override-score", {
+                "lead_id": "lead-005",
+                "manual_tier": "Tier A",
+                "manual_score": 91,
+                "manual_notes": "Survei lokasi: outlet ramai dan minta sampel cup",
+            })
+        self.assertEqual(res.status, 200)
+        data = json.loads(body)
+        self.assertEqual(data["status"], "success")
+        self.assertTrue(data["persisted"])
+        self.assertTrue(data["lead"]["is_manual_override"])
+        self.assertEqual(data["lead"]["priority_tier"], "Tier A")
+        self.assertEqual(data["lead"]["lead_score"], 91)
+        mock_db.assert_called_once()
+
+    def test_override_clear_returns_to_auto(self):
+        with patch("scrapers.dashboard_server.update_manual_override", return_value=True):
+            self._post("/api/leads/override-score", {
+                "lead_id": "lead-006",
+                "manual_tier": "Tier B",
+                "manual_score": 70,
+                "manual_notes": "Sementara",
+            })
+            res, body = self._post("/api/leads/override-score", {
+                "lead_id": "lead-006",
+                "manual_tier": "",
+                "manual_score": None,
+                "manual_notes": "",
+            })
+        self.assertEqual(res.status, 200)
+        data = json.loads(body)
+        self.assertFalse(data["lead"]["is_manual_override"])
+        self.assertNotEqual(data["lead"]["priority_tier"], "Tier B")
+
+    def test_override_dossier_lead_persists_to_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = Path(tmp) / "unified_dossiers_Makassar_20261025_000000.json"
+            fixture.write_text(json.dumps([MULTI_CHANNEL_ENTITY], ensure_ascii=False), encoding="utf-8")
+            with patch("scrapers.dashboard_server.find_latest_dossier", return_value=fixture), \
+                 patch("scrapers.dashboard_server.update_manual_override", return_value=True):
+                res, body = self._post("/api/leads/override-score", {
+                    "lead_id": "ent_0002",
+                    "manual_tier": "Tier C",
+                    "manual_score": 55,
+                    "manual_notes": "Kapasitas cetak terbatas",
+                })
+            self.assertEqual(res.status, 200)
+            data = json.loads(body)
+            self.assertTrue(data["persisted"])
+            saved = json.loads(fixture.read_text(encoding="utf-8"))
+            self.assertEqual(saved[0]["manual_tier"], "Tier C")
+            self.assertEqual(saved[0]["manual_score"], 55)
+            self.assertTrue(saved[0]["is_manual_override"])
+
+    def test_override_invalid_tier_returns_400(self):
+        res, body = self._post("/api/leads/override-score", {
+            "lead_id": "lead-005",
+            "manual_tier": "Tier Z",
+        })
+        self.assertEqual(res.status, 400)
+        self.assertIn("error", json.loads(body))
+
+    def test_override_score_out_of_range_returns_400(self):
+        res, body = self._post("/api/leads/override-score", {
+            "lead_id": "lead-005",
+            "manual_score": 150,
+        })
+        self.assertEqual(res.status, 400)
+        self.assertIn("error", json.loads(body))
+
+    def test_override_missing_lead_id_returns_400(self):
+        res, body = self._post("/api/leads/override-score", {
+            "manual_tier": "Tier A",
+        })
+        self.assertEqual(res.status, 400)
+        self.assertIn("error", json.loads(body))
+
+    def test_override_unknown_lead_returns_404(self):
+        with patch("scrapers.dashboard_server.find_latest_dossier", return_value=None):
+            res, body = self._post("/api/leads/override-score", {
+                "lead_id": "lead-tidak-ada-999",
+                "manual_tier": "Tier A",
+            })
+        self.assertEqual(res.status, 404)
+        self.assertIn("error", json.loads(body))
+
+    def test_valid_override_tiers_constant(self):
+        self.assertEqual(VALID_OVERRIDE_TIERS, ("Tier A", "Tier B", "Tier C", "Tier D"))
 
 
 if __name__ == "__main__":

@@ -219,5 +219,47 @@ class TestDBSQLite(unittest.TestCase):
         self.assertEqual(leads_after[0]['contacted_at'], '2026-10-27T10:00:00')
 
 
+class TestManualOverride(unittest.TestCase):
+    def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.db_path = Path(self.temp_dir.name) / 'test_leads.sqlite'
+
+    def tearDown(self):
+        self.temp_dir.cleanup()
+
+    def test_update_manual_override_upserts_and_flows_to_get_all_leads(self):
+        from scrapers.db_sqlite import update_manual_override
+        init_db(self.db_path)
+        upsert_lead({
+            'entity_id': 'test_override_001',
+            'business_name': 'Kopi Override',
+            'target_sector': 'fnb_beverage',
+            'primary_service_pillar': 'label_sticker',
+            'commercial_intelligence': {'lead_score': 40, 'priority_tier': 'Tier D'},
+        }, self.db_path)
+
+        ok = update_manual_override('test_override_001', 'Tier A', 91, 'Survei lokasi ramai', True, self.db_path)
+        self.assertTrue(ok)
+
+        leads = get_all_leads(self.db_path)
+        self.assertEqual(len(leads), 1)
+        self.assertEqual(leads[0]['manual_tier'], 'Tier A')
+        self.assertEqual(leads[0]['manual_score'], 91)
+        self.assertEqual(leads[0]['manual_notes'], 'Survei lokasi ramai')
+        self.assertEqual(leads[0]['is_manual_override'], 1)
+        # Skor otomatis tidak boleh tertimpa di level database
+        self.assertEqual(leads[0]['lead_score'], 40)
+
+    def test_update_manual_override_creates_row_for_new_entity(self):
+        from scrapers.db_sqlite import update_manual_override
+        init_db(self.db_path)
+
+        ok = update_manual_override('ent_baru', 'Tier B', 70, '', True, self.db_path)
+        self.assertTrue(ok)
+
+        ok_clear = update_manual_override('ent_baru', '', None, '', False, self.db_path)
+        self.assertTrue(ok_clear)
+
+
 if __name__ == '__main__':
     unittest.main()

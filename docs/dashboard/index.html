@@ -471,14 +471,15 @@
   </div>
 
   <!-- Detailed Dossier Drawer Modal -->
-  <div class="modal-overlay" id="overlay" onclick="closeDrawer()"></div>
-  <aside class="drawer" id="detail-drawer">
+  <div class="modal-backdrop" id="lead-modal-backdrop" onclick="closeDrawer()">
+    <div class="modal-dialog" id="lead-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="drawer-title" onclick="event.stopPropagation()">
     <div class="drawer-header">
       <div>
         <div class="drawer-meta-badges">
           <span class="drawer-badge-pill" id="drawer-sector-badge">Sektor Usaha</span>
           <span class="drawer-badge-pill pillar" id="drawer-pillar-badge">5 Pilar Layanan</span>
           <span class="drawer-badge-pill tier" id="drawer-tier-badge">Tier -</span>
+          <span class="drawer-badge-pill manual" id="drawer-manual-badge" style="display: none; background: #FEF3C7; color: #92400E; border: 1px solid #FCD34D;">Penetapan Manual</span>
         </div>
         <h2 class="drawer-title" id="drawer-title">Nama Calon Customer</h2>
       </div>
@@ -614,6 +615,37 @@
           </div>
         </div>
 
+        <!-- Section: Penyesuaian Manual Tim Sales (Human Override) -->
+        <div class="drawer-section">
+          <div class="section-mini-label">Penyesuaian Manual Tim Sales (Human Override)</div>
+          <div class="override-card">
+            <div class="override-inputs-grid">
+              <div class="override-field">
+                <label for="override-tier-select">Override Prioritas (Tier)</label>
+                <select id="override-tier-select">
+                  <option value="">Otomatis (Sistem)</option>
+                  <option value="Tier A">Tier A (Prioritas Utama, Skor &gt;= 80)</option>
+                  <option value="Tier B">Tier B (Prioritas Menengah, Skor 65 - 79)</option>
+                  <option value="Tier C">Tier C (Standar, Skor 50 - 64)</option>
+                  <option value="Tier D">Tier D (Riset Lanjutan, Skor &lt; 50)</option>
+                </select>
+              </div>
+              <div class="override-field">
+                <label for="override-score-input">Override Skor (0 - 100)</label>
+                <input type="number" id="override-score-input" min="0" max="100" placeholder="Contoh: 85">
+              </div>
+            </div>
+            <div class="override-field" style="margin-top: 10px;">
+              <label for="override-notes-input">Catatan Alasan Penyesuaian Manual</label>
+              <input type="text" id="override-notes-input" placeholder="Contoh: Survei lapangan, owner minta sampel cup 10.000 pcs...">
+            </div>
+            <div class="override-actions">
+              <button class="btn-secondary" id="btn-reset-override" onclick="resetLeadManualOverride()" style="font-size: 12px; height: 36px;">Reset ke Otomatis</button>
+              <button class="btn-primary" id="btn-save-override" onclick="saveLeadManualOverride()" style="font-size: 12px; height: 36px; background: var(--cmyk-key); color: #ffffff;">Simpan Penyesuaian Manual</button>
+            </div>
+          </div>
+        </div>
+
         <!-- Section: Estimasi Komersial & Omzet Pengadaan -->
         <div class="drawer-section">
           <div class="section-mini-label">Estimasi Nilai Pengadaan &amp; Transaksi (IDR)</div>
@@ -696,15 +728,20 @@
 
           <!-- Form Link Social Account -->
           <div class="link-account-box">
-            <div class="link-box-title">Hubungkan Akun Sosial Baru</div>
+            <div class="link-box-title">Hubungkan Akun Sosial &amp; Food Delivery Baru</div>
             <div class="link-inputs-row">
               <select id="link-platform-select">
                 <option value="instagram">Instagram</option>
                 <option value="tiktok">TikTok</option>
+                <option value="facebook">Facebook</option>
                 <option value="threads">Threads</option>
+                <option value="gofood">GoFood</option>
+                <option value="shopeefood">ShopeeFood</option>
+                <option value="grabfood">GrabFood</option>
               </select>
-              <input type="text" id="link-handle-input" placeholder="Masukkan username atau link...">
-              <button class="btn-secondary" onclick="submitChannelLink()">Tarik 5 Konten</button>
+              <input type="text" id="link-handle-input" placeholder="Masukkan username atau link profil / resto...">
+              <button class="btn-primary" onclick="submitChannelLink(false)" style="background: var(--cmyk-key); color: #ffffff; white-space: nowrap;">Simpan Akun</button>
+              <button class="btn-secondary" onclick="submitChannelLink(true)" style="white-space: nowrap;" title="Simpan akun dan masukkan ke antrean penarikan konten">Antrekan Scraping Konten</button>
             </div>
           </div>
         </div>
@@ -726,7 +763,8 @@
       <button class="btn-danger" id="btn-drop-lead" onclick="dropLead(selectedLead?.id || selectedLead?.entity_id)" style="background: var(--cmyk-magenta); color: #ffffff; border: none;">Batalkan Prospek</button>
     </div>
 
-  </aside>
+    </div>
+  </div>
 
   <!-- Mobile Bottom Navigation Bar (Sesuai Rujukan ruang-visual-app) -->
   <nav class="mobile-bottom-nav" id="mobile-bottom-nav">

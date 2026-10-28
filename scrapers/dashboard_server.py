@@ -20,7 +20,7 @@ from scrapers.lead_scoring import (
     generate_whatsapp_pitch,
     estimate_packaging_volume_and_value,
 )
-from scrapers.db_sqlite import get_all_leads as get_all_leads_from_sqlite, update_outreach_log
+from scrapers.db_sqlite import get_all_leads as get_all_leads_from_sqlite, update_outreach_log, update_manual_override
 from scrapers.exporter import find_latest_dossier
 from scrapers.content_inspector import (
     fetch_social_top_posts,
@@ -203,6 +203,13 @@ def enrich_lead_card(lead: dict) -> dict:
     enriched["score"] = pillars_total
     enriched["lead_score"] = pillars_total
     enriched["priority_tier"] = enriched.get("priority_tier") or four_pillars["tier"]
+
+    # Penetapan manual tim sales menimpa hasil kalkulasi otomatis
+    if enriched.get("is_manual_override"):
+        if enriched.get("manual_score") is not None:
+            enriched["pillars_total"] = enriched["score"] = enriched["lead_score"] = int(enriched["manual_score"])
+        if enriched.get("manual_tier"):
+            enriched["priority_tier"] = enriched["manual_tier"]
     enriched["reason_summary"] = enriched.get("reason_summary") or four_pillars["reason_summary"]
     
     needs = infer_product_needs(category, enriched.get("business_name", ""), "")
@@ -238,8 +245,11 @@ def enrich_lead_card(lead: dict) -> dict:
             "google_maps": enriched.get("platform_profile_url", ""),
             "instagram": "",
             "tiktok": "",
+            "facebook": "",
             "threads": "",
-            "food_delivery": ""
+            "gofood": "",
+            "shopeefood": "",
+            "grabfood": ""
         }
 
     if "top_posts" not in enriched:
@@ -405,6 +415,10 @@ def load_processed_dossiers(processed_dir=PROJECT_ROOT / "data" / "processed") -
             "outreach_status": ent.get("outreach_status") or "Belum Dihubungi",
             "outreach_notes": ent.get("outreach_notes") or "",
             "contacted_at": ent.get("contacted_at"),
+            "manual_tier": ent.get("manual_tier") or "",
+            "manual_score": ent.get("manual_score"),
+            "manual_notes": ent.get("manual_notes") or "",
+            "is_manual_override": bool(ent.get("is_manual_override")),
         })
     return leads
 
@@ -420,6 +434,37 @@ VALID_OUTREACH_STATUSES = (
     "contacted",
     "converted",
 )
+
+VALID_OVERRIDE_TIERS = ("Tier A", "Tier B", "Tier C", "Tier D")
+
+
+def persist_manual_override_to_dossier(entity_id: str, manual_tier: str, manual_score,
+                                       manual_notes: str, is_override: bool,
+                                       processed_dir=None) -> bool:
+    if processed_dir is None:
+        processed_dir = PROJECT_ROOT / "data" / "processed"
+    path = find_latest_dossier(processed_dir)
+    if not path:
+        return False
+    try:
+        entities = json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return False
+    if not isinstance(entities, list):
+        return False
+    for ent in entities:
+        if not isinstance(ent, dict) or ent.get("entity_id") != entity_id:
+            continue
+        ent["manual_tier"] = manual_tier
+        ent["manual_score"] = manual_score
+        ent["manual_notes"] = manual_notes
+        ent["is_manual_override"] = is_override
+        try:
+            path.write_text(json.dumps(entities, indent=2, ensure_ascii=False), encoding="utf-8")
+        except OSError:
+            return False
+        return True
+    return False
 
 
 def persist_status_to_dossier(entity_id: str, status: str, notes: str = "",
@@ -612,6 +657,10 @@ def adapt_sqlite_lead_for_dashboard(item: dict) -> dict:
         "outreach_notes": notes,
         "sales_notes": notes,
         "contacted_at": item.get("contacted_at"),
+        "manual_tier": item.get("manual_tier") or "",
+        "manual_score": item.get("manual_score"),
+        "manual_notes": item.get("manual_notes") or "",
+        "is_manual_override": bool(item.get("is_manual_override")),
     }
 
 
@@ -639,6 +688,10 @@ def get_all_leads():
                 'status': item.get('status', 'new'),
                 'instagram_handle': item.get('instagram_handle', ''),
                 'score': item.get('score', 0),
+                'manual_tier': item.get('manual_tier') or '',
+                'manual_score': item.get('manual_score'),
+                'manual_notes': item.get('manual_notes') or '',
+                'is_manual_override': bool(item.get('is_manual_override')),
                 'channels': {
                     'instagram': item.get('instagram_handle', ''),
                     'website': item.get('website', '')
@@ -803,14 +856,22 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
             if "channels" not in target_lead:
                 target_lead["channels"] = {}
 
-            clean_handle = handle_or_url.replace("https://instagram.com/", "").replace("https://www.tiktok.com/@", "").strip("@/")
+            skip_inspection = bool(data.get("skip_inspection", False))
+            if platform in ["instagram", "tiktok", "threads"]:
+                clean_handle = handle_or_url.replace("https://instagram.com/", "").replace("https://www.instagram.com/", "").replace("https://www.tiktok.com/@", "").replace("https://tiktok.com/@", "").replace("https://threads.net/@", "").replace("https://www.threads.net/@", "").strip("@/")
+                clean_handle = clean_handle.split("?")[0].split("#")[0].rstrip("/")
+            else:
+                clean_handle = handle_or_url.split("?utm_")[0].split("&utm_")[0].strip()
             target_lead["channels"][platform] = clean_handle
-            
-            inspection = inspect_account_content(platform, clean_handle, target_lead.get("business_name", ""))
-            target_lead["top_posts"] = inspection["posts"]
-            if inspection["posts"]:
-                target_lead["latest_post_date"] = (datetime.now() - timedelta(days=1)).isoformat()
-                target_lead["is_active_verified"] = True
+
+            if skip_inspection:
+                inspection = {"status": "skipped", "posts": target_lead.get("top_posts") or []}
+            else:
+                inspection = inspect_account_content(platform, clean_handle, target_lead.get("business_name", ""))
+                target_lead["top_posts"] = inspection["posts"]
+                if inspection["posts"]:
+                    target_lead["latest_post_date"] = (datetime.now() - timedelta(days=1)).isoformat()
+                    target_lead["is_active_verified"] = True
 
             persisted = False
             if from_dossier:
@@ -1028,6 +1089,108 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
             self.wfile.write(json.dumps({
                 "status": "success",
                 "message": "Status penjangkauan berhasil diperbarui.",
+                "persisted": persisted,
+                "lead": enriched
+            }, ensure_ascii=False).encode("utf-8"))
+            return
+
+        if parsed.path == "/api/leads/override-score":
+            lead_id = data.get("lead_id")
+            manual_tier = (data.get("manual_tier") or "").strip()
+            manual_score = data.get("manual_score")
+            manual_notes = (data.get("manual_notes") or "").strip()
+
+            if not lead_id:
+                self.send_response(400)
+                self.send_cors_headers()
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "lead_id wajib diisi"}, ensure_ascii=False).encode("utf-8"))
+                return
+
+            if manual_tier and manual_tier not in VALID_OVERRIDE_TIERS:
+                self.send_response(400)
+                self.send_cors_headers()
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    "error": f"Tier tidak valid. Pilihan valid: {', '.join(VALID_OVERRIDE_TIERS)}"
+                }, ensure_ascii=False).encode("utf-8"))
+                return
+
+            if manual_score is not None:
+                try:
+                    manual_score = int(manual_score)
+                except (TypeError, ValueError):
+                    self.send_response(400)
+                    self.send_cors_headers()
+                    self.send_header("Content-Type", "application/json")
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"error": "manual_score harus berupa angka"}, ensure_ascii=False).encode("utf-8"))
+                    return
+                if not (0 <= manual_score <= 100):
+                    self.send_response(400)
+                    self.send_cors_headers()
+                    self.send_header("Content-Type", "application/json")
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"error": "manual_score harus 0 - 100"}, ensure_ascii=False).encode("utf-8"))
+                    return
+
+            is_override = bool(manual_tier) or manual_score is not None
+            if not is_override:
+                manual_tier, manual_score, manual_notes = "", None, ""
+
+            target_lead = None
+            for lead in SAMPLE_LEADS:
+                if lead["id"] == lead_id:
+                    target_lead = lead
+                    break
+
+            from_dossier = False
+            if not target_lead:
+                for lead in load_processed_dossiers():
+                    if lead.get("id") == lead_id or lead.get("entity_id") == lead_id:
+                        target_lead = lead
+                        from_dossier = True
+                        break
+
+            if not target_lead:
+                for lead in get_all_leads():
+                    if lead.get("id") == lead_id or lead.get("entity_id") == lead_id:
+                        target_lead = lead
+                        break
+
+            if not target_lead:
+                self.send_response(404)
+                self.send_cors_headers()
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "Lead not found"}, ensure_ascii=False).encode("utf-8"))
+                return
+
+            target_lead["manual_tier"] = manual_tier
+            target_lead["manual_score"] = manual_score
+            target_lead["manual_notes"] = manual_notes
+            target_lead["is_manual_override"] = is_override
+
+            persisted = False
+            entity_id_target = target_lead.get("entity_id") or lead_id
+            try:
+                persisted = update_manual_override(entity_id_target, manual_tier, manual_score, manual_notes, is_override)
+            except Exception:
+                pass
+            if from_dossier:
+                persisted = persist_manual_override_to_dossier(entity_id_target, manual_tier, manual_score, manual_notes, is_override) or persisted
+
+            enriched = enrich_lead_card(target_lead)
+
+            self.send_response(200)
+            self.send_cors_headers()
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                "status": "success",
+                "message": "Penyesuaian manual berhasil disimpan.",
                 "persisted": persisted,
                 "lead": enriched
             }, ensure_ascii=False).encode("utf-8"))

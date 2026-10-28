@@ -293,6 +293,9 @@ function formatPillar(key) {
 }
 
 function getLeadTier(lead) {
+  if (lead.is_manual_override && lead.manual_tier && /^Tier [A-D]$/i.test(lead.manual_tier.trim())) {
+    return lead.manual_tier.trim();
+  }
   if (lead.priority_tier && /^Tier [A-D]$/i.test(lead.priority_tier.trim())) {
     const letter = lead.priority_tier.trim().slice(-1).toUpperCase();
     return `Tier ${letter}`;
@@ -660,6 +663,11 @@ function openDrawer(lead) {
     tierBadge.className = `drawer-badge-pill tier tier-tag ${tierName.toLowerCase().replace(' ', '-')}`;
   }
 
+  const manualBadge = document.getElementById('drawer-manual-badge');
+  if (manualBadge) {
+    manualBadge.style.display = lead.is_manual_override ? 'inline-block' : 'none';
+  }
+
   document.getElementById('drawer-title').textContent = lead.business_name || 'Detail Calon Customer';
 
   // TAB 1: Kontak & Lokasi
@@ -761,7 +769,9 @@ function openDrawer(lead) {
   }
 
   // TAB 2: Intelijen & Order
-  const totalScore = Number(lead.lead_score || lead.score || lead.pillars_total || 0);
+  const totalScore = (lead.is_manual_override && lead.manual_score !== null && lead.manual_score !== undefined)
+    ? Number(lead.manual_score)
+    : Number(lead.lead_score || lead.score || lead.pillars_total || 0);
   document.getElementById('drawer-total-score').textContent = `${totalScore} / 100`;
 
   const leg = lead.score_legitimacy || 0;
@@ -781,7 +791,17 @@ function openDrawer(lead) {
   document.getElementById('p-score-budget').textContent = `${bud} / 20`;
   document.getElementById('p-fill-budget').style.width = `${(bud / 20) * 100}%`;
 
-  document.getElementById('drawer-reason-summary').textContent = lead.reason_summary || 'Perhitungan skor didasarkan pada formula 4 dimensi Meta Universal: Legitimasi, Kecepatan, Turnover, dan Anggaran.';
+  document.getElementById('drawer-reason-summary').textContent = lead.is_manual_override
+    ? `Penyesuaian manual aktif: ${lead.manual_notes || 'Ditetapkan secara manual oleh tim sales RUANG VISUAL.'}`
+    : (lead.reason_summary || 'Perhitungan skor didasarkan pada formula 4 dimensi Meta Universal: Legitimasi, Kecepatan, Turnover, dan Anggaran.');
+
+  // Populate manual override form inputs
+  const overrideTierSel = document.getElementById('override-tier-select');
+  if (overrideTierSel) overrideTierSel.value = lead.manual_tier || '';
+  const overrideScoreInp = document.getElementById('override-score-input');
+  if (overrideScoreInp) overrideScoreInp.value = (lead.manual_score !== null && lead.manual_score !== undefined) ? lead.manual_score : '';
+  const overrideNotesInp = document.getElementById('override-notes-input');
+  if (overrideNotesInp) overrideNotesInp.value = lead.manual_notes || '';
 
   // Commercial Estimates
   const comm = lead.estimated_commercials || {};
@@ -790,12 +810,28 @@ function openDrawer(lead) {
   const commCycleEl = document.getElementById('drawer-comm-cycle');
   if (commCycleEl) commCycleEl.textContent = `Siklus: ${comm.restock_cycle_days || 30} Hari`;
 
-  const minU = (comm.est_monthly_units_min || 500).toLocaleString('id-ID');
-  const maxU = (comm.est_monthly_units_max || 1500).toLocaleString('id-ID');
+  const minU = (comm.est_monthly_units_min || 1000).toLocaleString('id-ID');
+  const maxU = (comm.est_monthly_units_max || 3000).toLocaleString('id-ID');
   const commUnitsEl = document.getElementById('drawer-comm-units');
   if (commUnitsEl) commUnitsEl.textContent = `${minU} - ${maxU} Unit`;
 
-  const orderVal = comm.est_monthly_value_min_idr || lead.est_order_value_idr || 0;
+  let orderVal = comm.est_monthly_value_min_idr || lead.est_order_value_idr || 0;
+  if (!orderVal || orderVal === 0) {
+    const sec = String(lead.target_sector || lead.category || '').toLowerCase();
+    if (sec.includes('beverage') || sec.includes('kopi') || sec.includes('coffee')) {
+      orderVal = 1800000;
+    } else if (sec.includes('food') || sec.includes('resto') || sec.includes('katering')) {
+      orderVal = 2500000;
+    } else if (sec.includes('fashion') || sec.includes('apparel') || sec.includes('retail') || sec.includes('boutique')) {
+      orderVal = 1500000;
+    } else if (sec.includes('beauty') || sec.includes('skincare') || sec.includes('dental') || sec.includes('klinik')) {
+      orderVal = 1750000;
+    } else if (sec.includes('corporate') || sec.includes('legal') || sec.includes('notaris')) {
+      orderVal = 1200000;
+    } else {
+      orderVal = 1000000;
+    }
+  }
   const commValEl = document.getElementById('drawer-comm-value');
   if (commValEl) commValEl.textContent = formatRupiahShort(orderVal);
 
@@ -853,8 +889,9 @@ function openDrawer(lead) {
   switchDrawerTab('tab-outreach');
 
   // Open modal
-  document.getElementById('overlay').style.display = 'block';
-  document.getElementById('detail-drawer').classList.add('open');
+  const backdrop = document.getElementById('lead-modal-backdrop');
+  if (backdrop) backdrop.classList.add('open');
+  document.body.style.overflow = 'hidden';
 }
 
 async function copyWhatsAppPitch() {
@@ -944,8 +981,93 @@ async function saveLeadOutreachStatus() {
 }
 
 function closeDrawer() {
-  document.getElementById('overlay').style.display = 'none';
-  document.getElementById('detail-drawer').classList.remove('open');
+  const backdrop = document.getElementById('lead-modal-backdrop');
+  if (backdrop) backdrop.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function closeDrawerOnEscape(e) {
+  if (e.key === 'Escape') closeDrawer();
+}
+window.addEventListener('keydown', closeDrawerOnEscape);
+
+async function saveLeadManualOverride() {
+  if (!selectedLead) return;
+
+  const leadId = selectedLead.id || selectedLead.entity_id;
+  const tier = (document.getElementById('override-tier-select') || {}).value || '';
+  const scoreRaw = (document.getElementById('override-score-input') || {}).value;
+  const score = scoreRaw !== '' ? parseInt(scoreRaw, 10) : null;
+  const notes = (document.getElementById('override-notes-input') || {}).value || '';
+
+  if (score !== null && (isNaN(score) || score < 0 || score > 100)) {
+    alert('Skor manual harus berada di rentang 0 sampai 100.');
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/leads/override-score', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        lead_id: leadId,
+        manual_tier: tier,
+        manual_score: score,
+        manual_notes: notes
+      })
+    });
+
+    if (!res.ok) throw new Error('Gagal menyimpan penyesuaian manual.');
+    const result = await res.json();
+
+    const updatedLead = result.lead;
+    const idx = allLeads.findIndex(l => (l.id === updatedLead.id || l.entity_id === updatedLead.id));
+    if (idx !== -1) {
+      allLeads[idx] = updatedLead;
+    }
+
+    selectedLead = updatedLead;
+    renderDashboard();
+    openDrawer(updatedLead);
+    alert('Penyesuaian manual tim sales berhasil disimpan.');
+  } catch (err) {
+    console.error('Error override score:', err);
+    alert('Terjadi kesalahan saat menyimpan penyesuaian manual.');
+  }
+}
+
+async function resetLeadManualOverride() {
+  if (!selectedLead) return;
+  const leadId = selectedLead.id || selectedLead.entity_id;
+  try {
+    const res = await fetch('/api/leads/override-score', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        lead_id: leadId,
+        manual_tier: '',
+        manual_score: null,
+        manual_notes: ''
+      })
+    });
+
+    if (!res.ok) throw new Error('Gagal mereset penyesuaian manual.');
+    const result = await res.json();
+
+    const updatedLead = result.lead;
+    const idx = allLeads.findIndex(l => (l.id === updatedLead.id || l.entity_id === updatedLead.id));
+    if (idx !== -1) {
+      allLeads[idx] = updatedLead;
+    }
+
+    selectedLead = updatedLead;
+    renderDashboard();
+    openDrawer(updatedLead);
+    alert('Skor dan prioritas berhasil dikembalikan ke kalkulasi otomatis sistem.');
+  } catch (err) {
+    console.error('Error reset override:', err);
+    alert('Terjadi kesalahan saat mereset penyesuaian manual.');
+  }
 }
 
 function renderChannelsList(lead) {
@@ -958,35 +1080,56 @@ function renderChannelsList(lead) {
     { key: 'google_maps', name: 'Google Maps' },
     { key: 'instagram', name: 'Instagram' },
     { key: 'tiktok', name: 'TikTok' },
+    { key: 'facebook', name: 'Facebook' },
     { key: 'threads', name: 'Threads' },
-    { key: 'food_delivery', name: 'Food Delivery' }
+    { key: 'gofood', name: 'GoFood' },
+    { key: 'shopeefood', name: 'ShopeeFood' },
+    { key: 'grabfood', name: 'GrabFood' }
   ];
 
   channelDefs.forEach(ch => {
     const card = document.createElement('div');
     card.className = 'channel-status-card';
-    const val = channels[ch.key] || (ch.key === 'instagram' ? lead.instagram_handle : (ch.key === 'tiktok' ? lead.tiktok_handle : ''));
+    let val = channels[ch.key] || (ch.key === 'instagram' ? lead.instagram_handle : (ch.key === 'tiktok' ? lead.tiktok_handle : ''));
     const isLinked = Boolean(val && String(val).trim() !== '');
 
     let linkHtml = 'Belum Terhubung';
     if (isLinked) {
       let targetUrl = String(val).trim();
       let label = targetUrl;
-      if (targetUrl.startsWith('http://') || targetUrl.startsWith('https://')) {
-        label = targetUrl.length > 35 ? targetUrl.slice(0, 32) + '...' : targetUrl;
-      } else if (ch.key === 'instagram') {
-        const handle = targetUrl.replace(/^@/, '');
+
+      // Sanitasi parameter pelacak URL (?igsh=..., ?utm=..., dll.)
+      if (targetUrl.includes('?')) {
+        targetUrl = targetUrl.split('?')[0];
+      }
+      if (targetUrl.includes('#')) {
+        targetUrl = targetUrl.split('#')[0];
+      }
+      targetUrl = targetUrl.replace(/\/+$/, '');
+
+      if (ch.key === 'instagram') {
+        const handle = targetUrl.replace(/^https?:\/\/(www\.)?instagram\.com\//i, '').replace(/^@/, '').replace(/\/.*$/, '');
         targetUrl = `https://instagram.com/${handle}`;
         label = `@${handle}`;
       } else if (ch.key === 'tiktok') {
-        const handle = targetUrl.replace(/^@/, '');
+        const handle = targetUrl.replace(/^https?:\/\/(www\.)?tiktok\.com\/@?/i, '').replace(/^@/, '').replace(/\/.*$/, '');
         targetUrl = `https://www.tiktok.com/@${handle}`;
         label = `@${handle}`;
       } else if (ch.key === 'threads') {
-        const handle = targetUrl.replace(/^@/, '');
+        const handle = targetUrl.replace(/^https?:\/\/(www\.)?threads\.net\/@?/i, '').replace(/^@/, '').replace(/\/.*$/, '');
         targetUrl = `https://www.threads.net/@${handle}`;
         label = `@${handle}`;
+      } else if (ch.key === 'facebook') {
+        if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
+          targetUrl = `https://www.facebook.com/${targetUrl}`;
+        }
+        label = 'Halaman Facebook';
+      } else if (ch.key === 'gofood' || ch.key === 'shopeefood' || ch.key === 'grabfood') {
+        label = `Buka Menu ${ch.name}`;
+      } else if (targetUrl.startsWith('http://') || targetUrl.startsWith('https://')) {
+        label = targetUrl.length > 28 ? targetUrl.slice(0, 25) + '...' : targetUrl;
       }
+
       linkHtml = `<a href="${encodeURI(targetUrl)}" target="_blank" rel="noopener noreferrer" style="color: #0284C7; font-weight: 600; text-decoration: underline; word-break: break-all;">${escapeHtml(label)}</a>`;
     }
 
@@ -1037,14 +1180,14 @@ function renderDrawerPosts(posts) {
   });
 }
 
-async function submitChannelLink() {
+async function submitChannelLink(queueScraping = false) {
   if (!selectedLead) return;
 
   const platform = document.getElementById('link-platform-select').value;
   const handleInput = document.getElementById('link-handle-input').value.trim();
 
   if (!handleInput) {
-    alert('Harap masukkan username atau link akun media sosial terlebih dahulu.');
+    alert('Harap masukkan username atau link akun media sosial / resto terlebih dahulu.');
     return;
   }
 
@@ -1055,7 +1198,8 @@ async function submitChannelLink() {
       body: JSON.stringify({
         lead_id: selectedLead.id || selectedLead.entity_id,
         platform: platform,
-        handle_or_url: handleInput
+        handle_or_url: handleInput,
+        skip_inspection: !queueScraping
       })
     });
 
@@ -1074,7 +1218,11 @@ async function submitChannelLink() {
     renderDashboard();
     openDrawer(updatedLead);
 
-    alert(`Kanal ${platform} berhasil dihubungkan.`);
+    if (queueScraping) {
+      alert(`Kanal ${platform} berhasil disimpan dan dimasukkan ke antrean scraping konten.`);
+    } else {
+      alert(`Kanal ${platform} berhasil disimpan.`);
+    }
   } catch (err) {
     console.error('Error link channel:', err);
     alert('Terjadi kesalahan saat menghubungkan kanal sosial.');

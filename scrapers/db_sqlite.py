@@ -135,6 +135,17 @@ def init_db(db_path: Optional[Path] = None) -> bool:
             cursor.execute("ALTER TABLE channel_posts ADD COLUMN post_url TEXT")
         except sqlite3.OperationalError:
             pass
+        # Migrasi kolom penyesuaian manual tim sales pada commercial_intelligence
+        for col_name, col_def in [
+            ('manual_tier', 'TEXT'),
+            ('manual_score', 'INTEGER'),
+            ('manual_notes', 'TEXT'),
+            ('is_manual_override', 'INTEGER DEFAULT 0'),
+        ]:
+            try:
+                cursor.execute(f"ALTER TABLE commercial_intelligence ADD COLUMN {col_name} {col_def}")
+            except sqlite3.OperationalError:
+                pass
         conn.commit()
         conn.close()
         return True
@@ -360,6 +371,7 @@ def get_all_leads(db_path: Optional[Path] = None) -> List[Dict[str, Any]]:
                 ci.lead_score, ci.priority_tier, ci.score_legitimacy, ci.score_velocity,
                 ci.score_turnover, ci.score_budget, ci.detected_service_needs,
                 ci.service_pain_points, ci.est_order_value_idr, ci.recommended_products,
+                ci.manual_tier, ci.manual_score, ci.manual_notes, ci.is_manual_override,
                 ol.outreach_status, ol.whatsapp_pitch, ol.sales_notes, ol.contacted_at,
                 ol.last_followup_at, ol.sales_rep_name
             FROM entities e
@@ -403,6 +415,32 @@ def update_outreach_log(entity_id: str, status: str, notes: str):
             contacted_at = excluded.contacted_at
         """, (entity_id, status, notes, datetime.now().isoformat()))
         conn.commit()
+
+
+def update_manual_override(entity_id: str, manual_tier: str, manual_score: Optional[int],
+                           manual_notes: str, is_override: bool,
+                           db_path: Optional[Path] = None) -> bool:
+    db = db_path or DB_PATH
+    init_db(db)
+    try:
+        with sqlite3.connect(str(db)) as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO commercial_intelligence (
+                    entity_id, manual_tier, manual_score, manual_notes, is_manual_override
+                ) VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(entity_id) DO UPDATE SET
+                    manual_tier = excluded.manual_tier,
+                    manual_score = excluded.manual_score,
+                    manual_notes = excluded.manual_notes,
+                    is_manual_override = excluded.is_manual_override
+            """, (entity_id, manual_tier or None, manual_score, manual_notes or None,
+                  1 if is_override else 0))
+            conn.commit()
+        return True
+    except Exception as e:
+        print(f"Error updating manual override: {e}")
+        return False
 
 
 def seed_sample_leads_to_sqlite(db_path: Optional[Path] = None) -> int:
