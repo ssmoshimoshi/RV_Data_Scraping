@@ -1219,9 +1219,13 @@ async function submitChannelLink(queueScraping = false) {
     openDrawer(updatedLead);
 
     if (queueScraping) {
-      alert(`Kanal ${platform} berhasil disimpan dan dimasukkan ke antrean scraping konten.`);
+      if (result.queue_item) {
+        alert(`Kanal ${platform} (@${result.queue_item.handle}) berhasil disimpan ke database dan dimasukkan ke antrean scraping Android.`);
+      } else {
+        alert(`Kanal ${platform} berhasil disimpan dan dimasukkan ke antrean scraping.`);
+      }
     } else {
-      alert(`Kanal ${platform} berhasil disimpan.`);
+      alert(`Kanal ${platform} berhasil disimpan ke database.`);
     }
   } catch (err) {
     console.error('Error link channel:', err);

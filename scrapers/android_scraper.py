@@ -287,15 +287,30 @@ def save_raw_output(data: Dict[str, Any], username: str) -> Path:
     return file_path
 
 
-def persist_profile_to_db(data: Dict[str, Any]) -> bool:
+def persist_profile_to_db(data: Dict[str, Any], entity_id: Optional[str] = None) -> bool:
     username = data.get("username", "")
     if not username:
         return False
 
-    entity_id = f"ent_ig_{username}"
+    target_id = entity_id or f"ent_ig_{username}"
+    existing_business_name = None
+    if entity_id:
+        try:
+            conn = sqlite3.connect(str(DB_PATH))
+            cur = conn.cursor()
+            cur.execute("SELECT business_name FROM entities WHERE entity_id = ?", (entity_id,))
+            row = cur.fetchone()
+            if row and row[0]:
+                existing_business_name = row[0]
+            conn.close()
+        except Exception:
+            pass
+
+    resolved_name = existing_business_name or data.get("full_name") or username
+
     entity_payload = {
-        "entity_id": entity_id,
-        "business_name": data.get("full_name") or username,
+        "entity_id": target_id,
+        "business_name": resolved_name,
         "target_sector": data.get("business_category") or "General Business",
         "primary_service_pillar": "Komersial & Bisnis",
         "category_raw": data.get("business_category"),

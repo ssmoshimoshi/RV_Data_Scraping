@@ -8,6 +8,7 @@ import json
 import http.server
 import socketserver
 import sqlite3
+import threading
 import time
 import urllib.parse
 from typing import Optional, Dict, Any, List
@@ -30,7 +31,7 @@ from scrapers.content_inspector import (
 
 PORT = 3000
 
-from scrapers.sample_leads import SAMPLE_LEADS
+SAMPLE_LEADS = []
 
 
 def get_leads_table_data() -> list:
@@ -554,12 +555,20 @@ def adapt_sqlite_lead_for_dashboard(item: dict) -> dict:
 
     food_del = item.get("food_delivery_url") or ""
     threads_h = item.get("threads_handle") or ""
+    fb = item.get("facebook_handle") or ""
+    gofood = item.get("gofood_url") or (food_del if "gofood" in food_del.lower() else "")
+    shopeefood = item.get("shopeefood_url") or (food_del if "shopee" in food_del.lower() else "")
+    grabfood = item.get("grabfood_url") or (food_del if "grab" in food_del.lower() else "")
 
     channels = {
         "google_maps": gmaps_url,
         "instagram": ig,
         "tiktok": tt,
+        "facebook": fb,
         "threads": threads_h,
+        "gofood": gofood,
+        "shopeefood": shopeefood,
+        "grabfood": grabfood,
         "food_delivery": food_del,
     }
 
@@ -570,10 +579,16 @@ def adapt_sqlite_lead_for_dashboard(item: dict) -> dict:
         active_platforms.append("instagram")
     if tt:
         active_platforms.append("tiktok")
+    if fb:
+        active_platforms.append("facebook")
     if threads_h:
         active_platforms.append("threads")
-    if food_del:
-        active_platforms.append("food_delivery")
+    if gofood:
+        active_platforms.append("gofood")
+    if shopeefood:
+        active_platforms.append("shopeefood")
+    if grabfood:
+        active_platforms.append("grabfood")
     if not active_platforms:
         active_platforms = ["google_maps"]
 
@@ -730,13 +745,15 @@ def get_all_leads():
 def find_lead_by_id(lead_id: str) -> Optional[dict]:
     if not lead_id:
         return None
-    for lead in SAMPLE_LEADS:
-        if lead.get("id") == lead_id or lead.get("entity_id") == lead_id:
-            return lead
+    for item in get_all_leads():
+        if item.get("entity_id") == lead_id or item.get("id") == lead_id or item.get("place_id") == lead_id:
+            if "channels" in item and "business_name" in item:
+                return item
+            return adapt_sqlite_lead_for_dashboard(item)
     for lead in load_processed_dossiers():
         if lead.get("id") == lead_id or lead.get("entity_id") == lead_id:
             return lead
-    for lead in get_all_leads():
+    for lead in SAMPLE_LEADS:
         if lead.get("id") == lead_id or lead.get("entity_id") == lead_id:
             return lead
     return None
@@ -824,13 +841,12 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
             handle_or_url = data.get("handle_or_url", "").strip()
 
             target_lead = None
-            for lead in SAMPLE_LEADS:
-                if lead["id"] == lead_id:
-                    target_lead = lead
+            from_dossier = False
+            for lead in get_all_leads():
+                if lead.get("id") == lead_id or lead.get("entity_id") == lead_id:
+                    target_lead = adapt_sqlite_lead_for_dashboard(lead) if "channels" not in lead else lead
                     break
 
-            from_dossier = False
-            from_sqlite = False
             if not target_lead:
                 for lead in load_processed_dossiers():
                     if lead.get("id") == lead_id or lead.get("entity_id") == lead_id:
@@ -839,10 +855,9 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
                         break
 
             if not target_lead:
-                for lead in get_all_leads():
+                for lead in SAMPLE_LEADS:
                     if lead.get("id") == lead_id or lead.get("entity_id") == lead_id:
                         target_lead = lead
-                        from_sqlite = True
                         break
 
             if not target_lead:
@@ -864,38 +879,98 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
                 clean_handle = handle_or_url.split("?utm_")[0].split("&utm_")[0].strip()
             target_lead["channels"][platform] = clean_handle
 
-            if skip_inspection:
-                inspection = {"status": "skipped", "posts": target_lead.get("top_posts") or []}
-            else:
-                inspection = inspect_account_content(platform, clean_handle, target_lead.get("business_name", ""))
-                target_lead["top_posts"] = inspection["posts"]
-                if inspection["posts"]:
-                    target_lead["latest_post_date"] = (datetime.now() - timedelta(days=1)).isoformat()
-                    target_lead["is_active_verified"] = True
+            eid = target_lead.get("entity_id") or lead_id
+            b_name = target_lead.get("business_name") or ""
+            inspection = {"status": "skipped", "posts": target_lead.get("top_posts") or []}
 
+            # 1. Update ke SQLite (digital_footprints) & Dossier secara persisten
+            is_sample = str(eid).startswith("lead-")
             persisted = False
-            if from_dossier:
-                persisted = persist_channel_to_dossier(
-                    target_lead.get("entity_id") or lead_id, platform, clean_handle, inspection["posts"])
-            elif from_sqlite:
-                try:
-                    from scrapers.db_sqlite import DB_PATH
-                    import sqlite3
-                    with sqlite3.connect(DB_PATH) as conn:
-                        cur = conn.cursor()
-                        if platform == "instagram":
-                            cur.execute("UPDATE digital_footprints SET instagram_handle = ? WHERE entity_id = ?", (clean_handle, lead_id))
-                        elif platform == "tiktok":
-                            cur.execute("UPDATE digital_footprints SET tiktok_handle = ? WHERE entity_id = ?", (clean_handle, lead_id))
-                        elif platform in ("food_delivery", "gofood", "grabfood"):
-                            cur.execute("UPDATE digital_footprints SET food_delivery_url = ? WHERE entity_id = ?", (clean_handle, lead_id))
-                        elif platform == "threads":
-                            cur.execute("UPDATE digital_footprints SET threads_handle = ? WHERE entity_id = ?", (clean_handle, lead_id))
-                        conn.commit()
-                    save_inspected_posts_to_sqlite(lead_id, platform, inspection["posts"])
-                except Exception:
-                    pass
+            if not is_sample:
+                if from_dossier:
+                    # Update ke Dossier JSON
+                    dossier_saved = persist_channel_to_dossier(eid, platform, clean_handle, inspection.get("posts", []))
+                    if dossier_saved:
+                        persisted = True
+                else:
+                    col_map = {
+                        "instagram": "instagram_handle",
+                        "tiktok": "tiktok_handle",
+                        "facebook": "facebook_handle",
+                        "threads": "threads_handle",
+                        "gofood": "gofood_url",
+                        "shopeefood": "shopeefood_url",
+                        "grabfood": "grabfood_url",
+                        "food_delivery": "food_delivery_url",
+                        "fooddelivery": "food_delivery_url"
+                    }
+                    col = col_map.get(platform)
+                    if col:
+                        try:
+                            from scrapers.db_sqlite import DB_PATH
+                            import sqlite3
+                            with sqlite3.connect(DB_PATH) as conn:
+                                cur = conn.cursor()
+                                cur.execute(f"""
+                                    INSERT INTO digital_footprints (entity_id, {col})
+                                    VALUES (?, ?)
+                                    ON CONFLICT(entity_id) DO UPDATE SET {col} = excluded.{col}
+                                """, (eid, clean_handle))
+                                conn.commit()
+                                persisted = True
+                        except Exception as sql_err:
+                            logger.error(f"Gagal simpan ke SQLite digital_footprints: {sql_err}")
 
+            # 3. Penanganan Antrean Scraping Konten Ponsel Android
+            queue_item = None
+            if not skip_inspection:
+                from scrapers.phone_queue import add_to_queue, update_item_status
+                queue_item = add_to_queue(eid, b_name, platform, clean_handle)
+
+                # Jika platform adalah Instagram dan Android terhubung, picu eksekusi background
+                if platform == "instagram":
+                    dev_status = check_android_device_status()
+                    if dev_status.get("connected"):
+                        def _run_android_background(q_id, uname, ent_id_target, biz_name):
+                            try:
+                                update_item_status(q_id, "processing")
+                                from scrapers.android_scraper import get_android_device, extract_instagram_profile, persist_profile_to_db, save_raw_output
+                                d = get_android_device()
+                                profile = extract_instagram_profile(d, uname)
+                                if profile.get("status") in ("not_found", "timeout"):
+                                    update_item_status(q_id, "failed", f"Status: {profile.get('status')}")
+                                else:
+                                    save_raw_output(profile, uname)
+                                    persist_profile_to_db(profile, entity_id=ent_id_target)
+                                    update_item_status(q_id, "completed")
+                                    # Kirim info ke Telegram jika ada bridge
+                                    try:
+                                        from scrapers.telegram_bridge import send_telegram_message, TARGET_CHAT_ID
+                                        send_telegram_message(
+                                            TARGET_CHAT_ID,
+                                            f"[HASIL PERAYAPAN ANDROID]\n"
+                                            f"Entitas: {biz_name} ({ent_id_target})\n"
+                                            f"Akun: @{uname}\n"
+                                            f"Nama: {profile.get('full_name') or uname}\n"
+                                            f"WhatsApp: {profile.get('whatsapp_number') or profile.get('contact_phone_number') or '-'}\n"
+                                            f"Kategori: {profile.get('business_category') or profile.get('category') or '-'}\n"
+                                            f"Followers: {profile.get('followers_count') or 0}"
+                                        )
+                                    except Exception:
+                                        pass
+                            except Exception as err:
+                                logger.error(f"Error perayapan latar belakang Android: {err}")
+                                update_item_status(q_id, "failed", str(err))
+
+                        threading.Thread(
+                            target=_run_android_background,
+                            args=(queue_item["id"], clean_handle, eid, b_name),
+                            daemon=True
+                        ).start()
+
+            fresh_lead = find_lead_by_id(eid)
+            if fresh_lead:
+                target_lead = fresh_lead
             enriched = enrich_lead_card(target_lead)
 
             self.send_response(200)
@@ -907,7 +982,8 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
                 "message": f"Kanal {platform} berhasil dihubungkan.",
                 "persisted": persisted,
                 "lead": enriched,
-                "inspection": inspection
+                "inspection": inspection,
+                "queue_item": queue_item
             }, ensure_ascii=False).encode("utf-8"))
             return
 
@@ -1015,14 +1091,13 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
                     "error": f"Status tidak valid. Pilihan valid: {', '.join(VALID_OUTREACH_STATUSES)}"
                 }, ensure_ascii=False).encode("utf-8"))
                 return
-
             target_lead = None
-            for lead in SAMPLE_LEADS:
-                if lead["id"] == lead_id:
-                    target_lead = lead
+            from_dossier = False
+            for lead in get_all_leads():
+                if lead.get("id") == lead_id or lead.get("entity_id") == lead_id:
+                    target_lead = adapt_sqlite_lead_for_dashboard(lead) if "channels" not in lead else lead
                     break
 
-            from_dossier = False
             if not target_lead:
                 for lead in load_processed_dossiers():
                     if lead.get("id") == lead_id or lead.get("entity_id") == lead_id:
@@ -1031,7 +1106,7 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
                         break
 
             if not target_lead:
-                for lead in get_all_leads():
+                for lead in SAMPLE_LEADS:
                     if lead.get("id") == lead_id or lead.get("entity_id") == lead_id:
                         target_lead = lead
                         break
@@ -1065,20 +1140,25 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
 
             persisted = False
             entity_id_target = target_lead.get("entity_id") or lead_id
-            try:
-                update_outreach_log(entity_id_target, status, notes)
-                persisted = True
-            except Exception:
-                pass
-
-            try:
-                if update_lead_status_in_db(lead_id, status, reason or notes):
+            is_sample = str(entity_id_target).startswith("lead-")
+            if not is_sample:
+                if from_dossier:
+                    persist_status_to_dossier(entity_id_target, status, notes)
                     persisted = True
-            except Exception:
-                pass
+                else:
+                    try:
+                        update_outreach_log(entity_id_target, status, notes)
+                        persisted = True
+                    except Exception:
+                        pass
 
-            if from_dossier:
-                persist_status_to_dossier(entity_id_target, status, notes)
+                    try:
+                        if update_lead_status_in_db(lead_id, status, reason or notes):
+                            persisted = True
+                    except Exception:
+                        pass
+            else:
+                persisted = True
 
             enriched = enrich_lead_card(target_lead)
 
@@ -1141,12 +1221,12 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
                 manual_tier, manual_score, manual_notes = "", None, ""
 
             target_lead = None
-            for lead in SAMPLE_LEADS:
-                if lead["id"] == lead_id:
-                    target_lead = lead
+            from_dossier = False
+            for lead in get_all_leads():
+                if lead.get("id") == lead_id or lead.get("entity_id") == lead_id:
+                    target_lead = adapt_sqlite_lead_for_dashboard(lead) if "channels" not in lead else lead
                     break
 
-            from_dossier = False
             if not target_lead:
                 for lead in load_processed_dossiers():
                     if lead.get("id") == lead_id or lead.get("entity_id") == lead_id:
@@ -1155,7 +1235,7 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
                         break
 
             if not target_lead:
-                for lead in get_all_leads():
+                for lead in SAMPLE_LEADS:
                     if lead.get("id") == lead_id or lead.get("entity_id") == lead_id:
                         target_lead = lead
                         break
@@ -1175,12 +1255,15 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
 
             persisted = False
             entity_id_target = target_lead.get("entity_id") or lead_id
+            is_sample = str(entity_id_target).startswith("lead-")
             try:
                 persisted = update_manual_override(entity_id_target, manual_tier, manual_score, manual_notes, is_override)
             except Exception:
                 pass
             if from_dossier:
                 persisted = persist_manual_override_to_dossier(entity_id_target, manual_tier, manual_score, manual_notes, is_override) or persisted
+            if is_sample:
+                persisted = True
 
             enriched = enrich_lead_card(target_lead)
 
@@ -1269,6 +1352,61 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
                     "status": "error",
                     "message": str(exc)
                 }, ensure_ascii=False).encode("utf-8"))
+        if parsed.path in ("/api/android/run-queue", "/api/queue/run"):
+            from scrapers.phone_queue import get_pending_items, update_item_status
+            pending = get_pending_items()
+            if not pending:
+                self.send_response(200)
+                self.send_cors_headers()
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    "status": "empty",
+                    "message": "Tidak ada akun dalam antrean pending."
+                }, ensure_ascii=False).encode("utf-8"))
+                return
+
+            dev_status = check_android_device_status()
+            if not dev_status.get("connected"):
+                self.send_response(400)
+                self.send_cors_headers()
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    "status": "error",
+                    "message": "Perangkat Android tidak terhubung via USB."
+                }, ensure_ascii=False).encode("utf-8"))
+                return
+
+            def _batch_queue_worker(items):
+                from scrapers.android_scraper import get_android_device, extract_instagram_profile, persist_profile_to_db, save_raw_output
+                d = get_android_device()
+                for it in items:
+                    q_id = it["id"]
+                    uname = it["handle"]
+                    update_item_status(q_id, "processing")
+                    try:
+                        profile = extract_instagram_profile(d, uname)
+                        if profile.get("status") in ("not_found", "timeout"):
+                            update_item_status(q_id, "failed", profile.get("status"))
+                        else:
+                            save_raw_output(profile, uname)
+                            persist_profile_to_db(profile, entity_id=it.get("lead_id"))
+                            update_item_status(q_id, "completed")
+                    except Exception as exc:
+                        update_item_status(q_id, "failed", str(exc))
+
+            threading.Thread(target=_batch_queue_worker, args=(pending,), daemon=True).start()
+
+            self.send_response(200)
+            self.send_cors_headers()
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                "status": "started",
+                "message": f"Memulai perayapan untuk {len(pending)} akun pada perangkat Android.",
+                "total": len(pending)
+            }, ensure_ascii=False).encode("utf-8"))
             return
 
         self.send_response(404)
@@ -1280,6 +1418,17 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
 
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
+
+        # API Endpoint: Get Android Scraping Queue
+        if parsed.path in ("/api/android/queue", "/api/queue"):
+            from scrapers.phone_queue import load_queue
+            q_data = load_queue()
+            self.send_response(200)
+            self.send_cors_headers()
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps(q_data, ensure_ascii=False).encode("utf-8"))
+            return
 
         # API Endpoint: Status Perangkat Android
         if parsed.path == "/api/device/status":
@@ -1375,14 +1524,6 @@ class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
 
 def start_server():
     ThreadedTCPServer.allow_reuse_address = True
-    try:
-        from scrapers.db_sqlite import seed_sample_leads_to_sqlite
-        seeded = seed_sample_leads_to_sqlite()
-        if seeded > 0:
-            print(f"Database SQLite lokal terverifikasi ({seeded} prospek tersinkron).")
-    except Exception as e:
-        print(f"Peringatan: Gagal seeding database SQLite: {e}")
-
     with ThreadedTCPServer(("", PORT), DashboardHandler) as httpd:
         print(f"RUANG VISUAL Market Intelligence Dashboard aktif di: http://localhost:{PORT}/market-scraping")
         try:

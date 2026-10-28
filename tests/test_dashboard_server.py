@@ -12,6 +12,8 @@ import threading
 import unittest
 from pathlib import Path
 from unittest.mock import patch
+import scrapers.dashboard_server as ds
+from scrapers.sample_leads import SAMPLE_LEADS as FIXTURE_SAMPLE_LEADS
 from scrapers.dashboard_server import (
     DashboardHandler,
     enrich_lead_card,
@@ -131,7 +133,7 @@ class TestDashboardServer(unittest.TestCase):
 
 
 MULTI_CHANNEL_ENTITY = {
-    "entity_id": "ent_0002",
+    "entity_id": "ent_test_dossier_002",
     "business_name": "Kopi Kanal Lengkap",
     "city": "makassar",
     "district_area": "panakkukang",
@@ -202,7 +204,7 @@ class TestPersistChannelToDossier(unittest.TestCase):
             posts = [{"id": "post-1", "caption": "Uji coba", "views": 10, "likes": 2,
                       "comments": 1, "engagement_rate": 3.0, "date": "2026-10-25",
                       "packaging_signal": False, "tags": []}]
-            ok = persist_channel_to_dossier("ent_0002", "instagram", "kopikanal", posts, Path(tmp))
+            ok = persist_channel_to_dossier(MULTI_CHANNEL_ENTITY["entity_id"], "instagram", "kopikanal", posts, Path(tmp))
             self.assertTrue(ok)
             saved = json.loads(path.read_text(encoding="utf-8"))
             self.assertEqual(saved[0]["channels"]["instagram"], "kopikanal")
@@ -218,12 +220,13 @@ class TestPersistChannelToDossier(unittest.TestCase):
 
     def test_persist_without_dossier_returns_false(self):
         with tempfile.TemporaryDirectory() as tmp:
-            self.assertFalse(persist_channel_to_dossier("ent_0002", "instagram", "x", [], Path(tmp)))
+            self.assertFalse(persist_channel_to_dossier("ent_test_dossier_002", "instagram", "x", [], Path(tmp)))
 
 
 class TestLinkChannelEndpoint(unittest.TestCase):
 
     def setUp(self):
+        ds.SAMPLE_LEADS = list(FIXTURE_SAMPLE_LEADS)
         socketserver.TCPServer.allow_reuse_address = True
         self.httpd = socketserver.TCPServer(("127.0.0.1", 0), DashboardHandler)
         self.port = self.httpd.server_address[1]
@@ -231,6 +234,7 @@ class TestLinkChannelEndpoint(unittest.TestCase):
         self.thread.start()
 
     def tearDown(self):
+        ds.SAMPLE_LEADS = []
         self.httpd.shutdown()
         self.httpd.server_close()
 
@@ -257,7 +261,7 @@ class TestLinkChannelEndpoint(unittest.TestCase):
             fixture.write_text(json.dumps([MULTI_CHANNEL_ENTITY], ensure_ascii=False), encoding="utf-8")
             with patch("scrapers.dashboard_server.find_latest_dossier", return_value=fixture):
                 res, body = self._post("/api/leads/link-channel", {
-                    "lead_id": "ent_0002",
+                    "lead_id": "ent_test_dossier_002",
                     "platform": "instagram",
                     "handle_or_url": "https://instagram.com/kopikanalbaru",
                 })
@@ -376,7 +380,7 @@ class TestPersistStatusToDossier(unittest.TestCase):
             path = Path(tmp) / "unified_dossiers_Makassar_20261025_000000.json"
             path.write_text(json.dumps([MULTI_CHANNEL_ENTITY], ensure_ascii=False), encoding="utf-8")
 
-            ok = persist_status_to_dossier("ent_0002", "Dihubungi", "Sudah kirim pesan WA ke owner", Path(tmp))
+            ok = persist_status_to_dossier(MULTI_CHANNEL_ENTITY["entity_id"], "Dihubungi", "Sudah kirim pesan WA ke owner", Path(tmp))
             self.assertTrue(ok)
 
             saved = json.loads(path.read_text(encoding="utf-8"))
@@ -389,7 +393,7 @@ class TestPersistStatusToDossier(unittest.TestCase):
             path = Path(tmp) / "unified_dossiers_Makassar_20261025_000000.json"
             path.write_text(json.dumps([MULTI_CHANNEL_ENTITY], ensure_ascii=False), encoding="utf-8")
 
-            ok = persist_status_to_dossier("ent_0002", "Closing", "Pesanan 1000 cup disetujui", Path(tmp))
+            ok = persist_status_to_dossier(MULTI_CHANNEL_ENTITY["entity_id"], "Closing", "Pesanan 1000 cup disetujui", Path(tmp))
             self.assertTrue(ok)
 
             saved = json.loads(path.read_text(encoding="utf-8"))
@@ -402,7 +406,7 @@ class TestPersistStatusToDossier(unittest.TestCase):
             path = Path(tmp) / "unified_dossiers_Makassar_20261025_000000.json"
             path.write_text(json.dumps([MULTI_CHANNEL_ENTITY], ensure_ascii=False), encoding="utf-8")
 
-            ok = persist_status_to_dossier("ent_0002", "Tertarik", "Tanya daftar harga", Path(tmp))
+            ok = persist_status_to_dossier(MULTI_CHANNEL_ENTITY["entity_id"], "Tertarik", "Tanya daftar harga", Path(tmp))
             self.assertTrue(ok)
 
             saved = json.loads(path.read_text(encoding="utf-8"))
@@ -427,6 +431,7 @@ class TestPersistStatusToDossier(unittest.TestCase):
 class TestUpdateStatusEndpoint(unittest.TestCase):
 
     def setUp(self):
+        ds.SAMPLE_LEADS = list(FIXTURE_SAMPLE_LEADS)
         socketserver.TCPServer.allow_reuse_address = True
         self.httpd = socketserver.TCPServer(("127.0.0.1", 0), DashboardHandler)
         self.port = self.httpd.server_address[1]
@@ -434,6 +439,7 @@ class TestUpdateStatusEndpoint(unittest.TestCase):
         self.thread.start()
 
     def tearDown(self):
+        ds.SAMPLE_LEADS = []
         self.httpd.shutdown()
         self.httpd.server_close()
 
@@ -466,7 +472,7 @@ class TestUpdateStatusEndpoint(unittest.TestCase):
 
             with patch("scrapers.dashboard_server.find_latest_dossier", return_value=fixture):
                 res, body = self._post("/api/leads/update-status", {
-                    "lead_id": "ent_0002",
+                    "lead_id": "ent_test_dossier_002",
                     "status": "Dihubungi",
                     "notes": "Kontak via WhatsApp jam 10 pagi"
                 })
@@ -577,7 +583,7 @@ class TestPersistManualOverrideToDossier(unittest.TestCase):
             path = Path(tmp) / "unified_dossiers_Makassar_20261025_000000.json"
             path.write_text(json.dumps([MULTI_CHANNEL_ENTITY], ensure_ascii=False), encoding="utf-8")
 
-            ok = persist_manual_override_to_dossier("ent_0002", "Tier B", 72, "Owner responsif", True, Path(tmp))
+            ok = persist_manual_override_to_dossier(MULTI_CHANNEL_ENTITY["entity_id"], "Tier B", 72, "Owner responsif", True, Path(tmp))
             self.assertTrue(ok)
 
             saved = json.loads(path.read_text(encoding="utf-8"))
@@ -611,6 +617,7 @@ class TestPersistManualOverrideToDossier(unittest.TestCase):
 class TestOverrideScoreEndpoint(unittest.TestCase):
 
     def setUp(self):
+        ds.SAMPLE_LEADS = list(FIXTURE_SAMPLE_LEADS)
         socketserver.TCPServer.allow_reuse_address = True
         self.httpd = socketserver.TCPServer(("127.0.0.1", 0), DashboardHandler)
         self.port = self.httpd.server_address[1]
@@ -618,6 +625,7 @@ class TestOverrideScoreEndpoint(unittest.TestCase):
         self.thread.start()
 
     def tearDown(self):
+        ds.SAMPLE_LEADS = []
         self.httpd.shutdown()
         self.httpd.server_close()
 
@@ -673,7 +681,7 @@ class TestOverrideScoreEndpoint(unittest.TestCase):
             with patch("scrapers.dashboard_server.find_latest_dossier", return_value=fixture), \
                  patch("scrapers.dashboard_server.update_manual_override", return_value=True):
                 res, body = self._post("/api/leads/override-score", {
-                    "lead_id": "ent_0002",
+                    "lead_id": "ent_test_dossier_002",
                     "manual_tier": "Tier C",
                     "manual_score": 55,
                     "manual_notes": "Kapasitas cetak terbatas",

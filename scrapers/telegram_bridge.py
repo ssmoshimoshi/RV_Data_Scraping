@@ -20,6 +20,7 @@ from dotenv import load_dotenv
 import threading
 
 load_dotenv()
+socket.setdefaulttimeout(30)
 
 # Pastikan path platform-tools Android selalu aktif jika folder ada
 ANDROID_TOOLS = "/Users/muhammadfanani/Library/Android/sdk/platform-tools"
@@ -611,7 +612,11 @@ def handle_incoming_command(text: str, chat_id: str, message_id: int):
             "8. /drop_lead <LEAD_ID> <alasan>\n"
             "   Membatalkan prospek.\n"
             "   Contoh: /drop_lead LD-0001 bukan target\n\n"
-            "9. /menu\n"
+            "9. /queue\n"
+            "   Melihat antrean akun yang akan dirayap di ponsel Android.\n\n"
+            "10. /run_phone\n"
+            "   Mengeksekusi antrean perayapan profil Instagram di perangkat Android fisik.\n\n"
+            "11. /menu\n"
             "   Membuka panel tombol kontrol interaktif."
         )
         send_telegram_message(chat_id, help_msg, reply_to_message_id=message_id)
@@ -647,6 +652,87 @@ def handle_incoming_command(text: str, chat_id: str, message_id: int):
     if clean_text in ["/db", "/db@RuangVisualBot"]:
         db_msg = get_db_summary()
         send_telegram_message(chat_id, db_msg, reply_to_message_id=message_id)
+        return
+
+    if clean_text in ["/queue", "/queue@RuangVisualBot", "/antrean"]:
+        from scrapers.phone_queue import load_queue
+        q_data = load_queue()
+        items = q_data.get("queue", [])
+        pending = [it for it in items if it.get("status") == "pending"]
+        processing = [it for it in items if it.get("status") == "processing"]
+        lines = [
+            "STATUS ANTREAN PERAYAPAN ANDROID",
+            "================================",
+            f"Total Antrean : {len(items)}",
+            f"Pending       : {len(pending)}",
+            f"Sedang Jalan  : {len(processing)}",
+            ""
+        ]
+        if pending:
+            lines.append("Daftar Akun Pending:")
+            for idx, p in enumerate(pending[:10], 1):
+                lines.append(f"{idx}. @{p.get('handle')} - {p.get('business_name')} ({p.get('lead_id')})")
+        else:
+            lines.append("Tidak ada akun dalam antrean pending.")
+        lines.append("\nKetik /run_phone untuk mengeksekusi antrean di ponsel fisik Android.")
+        send_telegram_message(chat_id, "\n".join(lines), reply_to_message_id=message_id)
+        return
+
+    if clean_text in ["/run_phone", "/run_phone@RuangVisualBot", "/jalankan_ponsel"]:
+        from scrapers.phone_queue import get_pending_items, update_item_status
+        pending = get_pending_items()
+        if not pending:
+            send_telegram_message(chat_id, "Tidak ada akun dalam antrean pending saat ini.", reply_to_message_id=message_id)
+            return
+
+        send_telegram_message(
+            chat_id,
+            f"Memulai perayapan antrean untuk {len(pending)} akun pada perangkat Android...",
+            reply_to_message_id=message_id
+        )
+
+        def _bg_process_queue():
+            try:
+                from scrapers.android_scraper import (
+                    get_android_device,
+                    ensure_device_ready,
+                    extract_instagram_profile,
+                    persist_profile_to_db,
+                    save_raw_output
+                )
+                d = get_android_device()
+                if not ensure_device_ready(d):
+                    send_telegram_message(chat_id, "Gagal: Perangkat Android tidak merespons atau kabel USB terputus.")
+                    return
+
+                for it in pending:
+                    q_id = it["id"]
+                    uname = it["handle"]
+                    bname = it.get("business_name") or uname
+                    update_item_status(q_id, "processing")
+
+                    profile = extract_instagram_profile(d, uname)
+                    if profile.get("status") in ("not_found", "timeout"):
+                        update_item_status(q_id, "failed", profile.get("status"))
+                        send_telegram_message(chat_id, f"Gagal merayap @{uname}: status {profile.get('status')}")
+                    else:
+                        save_raw_output(profile, uname)
+                        persist_profile_to_db(profile, entity_id=it.get("lead_id"))
+                        update_item_status(q_id, "completed")
+                        send_telegram_message(
+                            chat_id,
+                            f"[BERHASIL DIRAYAP]\n"
+                            f"Usaha: {bname}\n"
+                            f"Akun: @{uname}\n"
+                            f"WhatsApp: {profile.get('contact_phone_number') or '-'}\n"
+                            f"Followers: {profile.get('followers_count') or 0}"
+                        )
+                send_telegram_message(chat_id, f"Seluruh antrean perayapan ponsel ({len(pending)} akun) telah selesai diproses.")
+            except Exception as e:
+                logger.error(f"Error proses antrean ponsel: {e}")
+                send_telegram_message(chat_id, f"Terjadi kesalahan saat memproses antrean ponsel: {e}")
+
+        threading.Thread(target=_bg_process_queue, daemon=True).start()
         return
 
     if clean_text.startswith("/set_ig"):
