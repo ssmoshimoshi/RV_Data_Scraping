@@ -100,28 +100,6 @@ class TestExportCsvEndpoint(unittest.TestCase):
         conn.close()
         return res, body
 
-    def test_export_csv_returns_200_with_csv_headers(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            fixture = Path(tmp) / "unified_dossiers_Makassar_20261025_000000.json"
-            fixture.write_text(json.dumps([SAMPLE_ENTITY], ensure_ascii=False), encoding="utf-8")
-            out_csv = Path(tmp) / "data" / "processed" / "dossiers_export_ruang_visual.csv"
-            with patch("scrapers.dashboard_server.find_latest_dossier", return_value=fixture), \
-                 patch("scrapers.dashboard_server.PROJECT_ROOT", Path(tmp)):
-                res, body = self._get("/api/export/csv")
-            self.assertEqual(res.status, 200)
-            self.assertIn("text/csv", res.getheader("Content-Type"))
-            self.assertIn('attachment; filename="dossiers_export_ruang_visual.csv"', res.getheader("Content-Disposition"))
-            self.assertEqual(res.getheader("Access-Control-Allow-Origin"), "*")
-            self.assertIn(b"entity_id", body)
-            self.assertIn(b"Warung Coto Daeng", body)
-            self.assertTrue(out_csv.exists())
-
-    def test_export_csv_returns_404_when_no_dossier(self):
-        with patch("scrapers.dashboard_server.find_latest_dossier", return_value=None):
-            res, body = self._get("/api/export/csv")
-        self.assertEqual(res.status, 404)
-        self.assertIn("error", json.loads(body))
-
 
 class TestDashboardServer(unittest.TestCase):
 

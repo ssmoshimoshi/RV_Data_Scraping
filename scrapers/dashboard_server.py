@@ -21,7 +21,7 @@ from scrapers.lead_scoring import (
     estimate_packaging_volume_and_value,
 )
 from scrapers.db_sqlite import get_all_leads as get_all_leads_from_sqlite, update_outreach_log
-from scrapers.exporter import export_dossiers_to_csv, export_full_dossiers_to_csv, find_latest_dossier
+from scrapers.exporter import find_latest_dossier
 from scrapers.content_inspector import (
     fetch_social_top_posts,
     save_inspected_posts_to_sqlite,
@@ -146,15 +146,26 @@ def update_lead_status_in_db(lead_id: str, status: str, reason: str = '') -> boo
             conn.close()
             return False
         
+        cursor.execute("PRAGMA table_info(leads)")
+        cols = [c[1] for c in cursor.fetchall()]
+        id_col = "place_id" if "place_id" in cols and "lead_id" not in cols else "lead_id"
+        notes_clause = ", notes = ?" if "notes" in cols else ""
+        updated_clause = ", updated_at = CURRENT_TIMESTAMP" if "updated_at" in cols else ""
+        
         notes_text = f"Status changed to {status}"
         if reason:
             notes_text += f". Reason: {reason}"
         
-        cursor.execute("""
+        params = [status]
+        if "notes" in cols:
+            params.append(notes_text)
+        params.append(lead_id)
+
+        cursor.execute(f"""
             UPDATE leads 
-            SET status = ?, notes = ?, updated_at = CURRENT_TIMESTAMP
-            WHERE lead_id = ?
-        """, (status, notes_text, lead_id))
+            SET status = ?{notes_clause}{updated_clause}
+            WHERE {id_col} = ?
+        """, params)
         
         success = cursor.rowcount > 0
         conn.commit()
@@ -1115,52 +1126,6 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
             self.send_header("Content-Type", "application/json")
             self.end_headers()
             self.wfile.write(json.dumps(status, ensure_ascii=False).encode("utf-8"))
-            return
-
-        # API Endpoint: Unduh CSV dossier terpadu
-        if parsed.path == "/api/export/csv":
-            try:
-                json_path = find_latest_dossier()
-                if not json_path or not json_path.exists():
-                    raise FileNotFoundError("Tidak ada berkas dossier terpadu yang ditemukan.")
-                import json as _json
-                dossiers = _json.loads(json_path.read_text(encoding='utf-8'))
-                csv_path = PROJECT_ROOT / "data" / "processed" / "dossiers_export_ruang_visual.csv"
-                export_dossiers_to_csv(dossiers, csv_path)
-            except (FileNotFoundError, ValueError, OSError) as exc:
-                self.send_response(404)
-                self.send_cors_headers()
-                self.send_header("Content-Type", "application/json")
-                self.end_headers()
-                self.wfile.write(json.dumps({"error": str(exc)}, ensure_ascii=False).encode("utf-8"))
-                return
-            self.send_response(200)
-            self.send_cors_headers()
-            self.send_header("Content-Type", "text/csv; charset=utf-8")
-            self.send_header("Content-Disposition", 'attachment; filename="dossiers_export_ruang_visual.csv"')
-            self.end_headers()
-            self.wfile.write(csv_path.read_bytes())
-            return
-
-        # API Endpoint: Unduh CSV 32 Kolom (Full)
-        if parsed.path == "/api/export/csv-full":
-            try:
-                all_leads = get_all_leads()
-                csv_path = PROJECT_ROOT / "data" / "processed" / "dossiers_export_full.csv"
-                export_full_dossiers_to_csv(all_leads, csv_path)
-            except Exception as exc:
-                self.send_response(500)
-                self.send_cors_headers()
-                self.send_header("Content-Type", "application/json")
-                self.end_headers()
-                self.wfile.write(json.dumps({"error": str(exc)}, ensure_ascii=False).encode("utf-8"))
-                return
-            self.send_response(200)
-            self.send_cors_headers()
-            self.send_header("Content-Type", "text/csv; charset=utf-8")
-            self.send_header("Content-Disposition", 'attachment; filename="dossiers_export_full.csv"')
-            self.end_headers()
-            self.wfile.write(csv_path.read_bytes())
             return
 
         # API Endpoint: Get Leads

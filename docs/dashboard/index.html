@@ -79,16 +79,10 @@
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
             <span>Buka Google Spreadsheet</span>
           </a>
-          <button class="btn-refresh" id="btn-sync-hermes" onclick="syncToHermesSheet()" title="Sinkronkan Prospek Terverifikasi ke Google Sheets Hermes">Sinkron ke Google Sheets</button>
-          <button class="btn-primary-action" onclick="fetchLeads()">Perbarui Data</button>
           <a href="https://docs.google.com/spreadsheets/d/1mDx0aQcz95iPN6KwdmRgb2RE2xVNIhAgiuoq96k6dAU/edit" target="_blank" rel="noopener noreferrer" class="btn-mobile-sheets" title="Buka Google Spreadsheet">
             <svg class="mobile-sheets-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
             <span>Spreadsheet</span>
           </a>
-          <button class="btn-mobile-refresh" onclick="fetchLeads()" title="Perbarui Data">
-            <svg class="mobile-refresh-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-            <span>Perbarui</span>
-          </button>
         </div>
       </header>
 
@@ -194,18 +188,6 @@
               <option value="Tier B">Tier B (Prioritas Menengah, Skor 65 - 79)</option>
               <option value="Tier C">Tier C (Standar, Skor 50 - 64)</option>
               <option value="Tier D">Tier D (Riset Lanjutan, Skor &lt; 50)</option>
-            </select>
-          </div>
-
-          <div class="toolbar-group">
-            <label for="filter-outreach">Status CRM</label>
-            <select id="filter-outreach">
-              <option value="all">Semua Status</option>
-              <option value="Belum Dihubungi">Belum Dihubungi</option>
-              <option value="Dihubungi">Dihubungi</option>
-              <option value="Tertarik">Tertarik</option>
-              <option value="Closing">Closing</option>
-              <option value="Tidak Relevan">Tidak Relevan</option>
             </select>
           </div>
 

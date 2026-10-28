@@ -228,8 +228,6 @@ function switchDrawerTab(tabId) {
 
 function setOutreachFilter(status) {
   currentOutreachFilter = status;
-  const selectEl = document.getElementById('filter-outreach');
-  if (selectEl) selectEl.value = status;
   updatePipelinePillActive(status);
   currentPage = 1;
   renderDashboard();
@@ -323,8 +321,7 @@ function renderDashboard() {
   const catFilter = (document.getElementById('filter-category') || {}).value || 'all';
   const pillarFilter = (document.getElementById('filter-pillar') || {}).value || 'all';
   const tierFilter = (document.getElementById('filter-tier') || {}).value || 'all';
-  const outreachSelect = document.getElementById('filter-outreach');
-  const outreachFilter = outreachSelect ? outreachSelect.value : currentOutreachFilter;
+  const outreachFilter = currentOutreachFilter;
   const searchFilter = (document.getElementById('search-input') || {}).value ? document.getElementById('search-input').value.toLowerCase().trim() : '';
 
   const filtered = allLeads.filter(lead => {
@@ -1467,66 +1464,12 @@ if (tierSelect) {
   });
 }
 
-const outreachSelect = document.getElementById('filter-outreach');
-if (outreachSelect) {
-  outreachSelect.addEventListener('change', (e) => {
-    currentOutreachFilter = e.target.value;
-    updatePipelinePillActive(currentOutreachFilter);
-    currentPage = 1;
-    renderDashboard();
-  });
-}
-
 const searchInput = document.getElementById('search-input');
 if (searchInput) {
   searchInput.addEventListener('input', () => {
     currentPage = 1;
     renderDashboard();
   });
-}
-
-const exportCsvBtn = document.getElementById('btn-export-csv');
-if (exportCsvBtn) {
-  exportCsvBtn.addEventListener('click', () => {
-    window.location.href = '/api/export/csv';
-  });
-}
-
-const exportCsvFullBtn = document.getElementById('btn-export-csv-full');
-if (exportCsvFullBtn) {
-  exportCsvFullBtn.addEventListener('click', () => {
-    window.location.href = '/api/export/csv-full';
-  });
-}
-
-async function syncToHermesSheet() {
-  const btn = document.getElementById('btn-sync-hermes');
-  const originalText = btn ? btn.textContent : 'Sinkron ke Google Sheets';
-  if (btn) {
-    btn.disabled = true;
-    btn.textContent = 'Menyinkronkan...';
-  }
-
-  try {
-    const res = await fetch('/api/sync-hermes', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sheet_name: 'Radar Prospek', clear_first: false })
-    });
-    const data = await res.json();
-    if (res.ok && data.status === 'success') {
-      alert(`Berhasil menyinkronkan ${data.rows_count} prospek ke Google Sheets Hermes!`);
-    } else {
-      alert(`Gagal sinkronisasi: ${data.message || 'Galat tidak diketahui'}`);
-    }
-  } catch (err) {
-    alert(`Terjadi kesalahan jaringan: ${err.message}`);
-  } finally {
-    if (btn) {
-      btn.disabled = false;
-      btn.textContent = originalText;
-    }
-  }
 }
 
 // Device Status Polling

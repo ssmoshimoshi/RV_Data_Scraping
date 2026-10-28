@@ -291,62 +291,6 @@ body {
   gap: 10px;
 }
 
-.btn-primary-action {
-  background: var(--cmyk-key);
-  color: #ffffff;
-  border: 1px solid transparent;
-  padding: 9px 16px;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.4px;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: all 0.18s ease;
-  font-family: inherit;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-}
-
-.btn-primary-action:hover {
-  background: var(--cmyk-charcoal);
-  transform: translateY(-1px);
-}
-
-.btn-primary-action:active {
-  transform: scale(0.98);
-}
-
-.btn-refresh {
-  background: #ffffff;
-  border: 1px solid var(--border-subtle);
-  padding: 9px 16px;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--cmyk-key);
-  letter-spacing: 0.4px;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: all 0.18s ease;
-  font-family: inherit;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-}
-
-.btn-refresh:hover {
-  background: var(--bg-surface-container);
-  border-color: var(--border-strong);
-}
-
-.btn-refresh:active {
-  transform: scale(0.98);
-}
-
 .btn-spreadsheet {
   background: #0f9d58;
   color: #ffffff;
@@ -2458,11 +2402,7 @@ select:focus, input[type="text"]:focus {
     gap: 8px !important;
   }
 
-  .header-actions .btn-spreadsheet,
-  .header-actions #btn-export-csv,
-  .header-actions #btn-export-csv-full,
-  .header-actions #btn-sync-hermes,
-  .header-actions .btn-primary-action {
+  .header-actions .btn-spreadsheet {
     display: none !important;
   }
 
@@ -2492,34 +2432,6 @@ select:focus, input[type="text"]:focus {
     width: 14px !important;
     height: 14px !important;
     color: #ffffff !important;
-  }
-
-  /* Clean Outline Refresh Button Matching Photo 2 Logout Button */
-  .btn-mobile-refresh {
-    display: inline-flex !important;
-    align-items: center !important;
-    gap: 6px !important;
-    padding: 6px 12px !important;
-    border-radius: 8px !important;
-    border: 1px solid var(--border-strong) !important;
-    background: #ffffff !important;
-    color: var(--text-key) !important;
-    font-size: 12px !important;
-    font-weight: 700 !important;
-    font-family: inherit !important;
-    cursor: pointer !important;
-    transition: all 0.2s ease !important;
-  }
-
-  .btn-mobile-refresh:active {
-    background: var(--bg-surface-container) !important;
-    transform: scale(0.97) !important;
-  }
-
-  .mobile-refresh-icon {
-    width: 14px !important;
-    height: 14px !important;
-    color: var(--text-secondary) !important;
   }
 
   /* 3. Main Workspace Area */
