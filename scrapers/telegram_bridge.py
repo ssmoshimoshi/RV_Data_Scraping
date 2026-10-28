@@ -260,17 +260,28 @@ def get_db_summary() -> str:
         recent_leads = []
         
         if 'leads' in existing_tables:
-            cursor.execute("SELECT COUNT(*) FROM leads WHERE status != 'dropped'")
+            cursor.execute("PRAGMA table_info(leads)")
+            lead_cols = [c[1] for c in cursor.fetchall()]
+            has_status = 'status' in lead_cols
+            status_clause = " WHERE status != 'dropped'" if has_status else ""
+            
+            cursor.execute(f"SELECT COUNT(*) FROM leads{status_clause}")
             total_leads = cursor.fetchone()[0]
             total_entities += total_leads
             
-            cursor.execute("SELECT COUNT(*) FROM leads WHERE whatsapp IS NOT NULL AND whatsapp != '' AND status != 'dropped'")
+            wa_col = 'whatsapp' if 'whatsapp' in lead_cols else 'whatsapp_number'
+            status_drop_clause = " AND status != 'dropped'" if has_status else ""
+            cursor.execute(f"SELECT COUNT(*) FROM leads WHERE {wa_col} IS NOT NULL AND {wa_col} != ''{status_drop_clause}")
             total_valid_wa += cursor.fetchone()[0]
             
-            cursor.execute("SELECT sector, COUNT(*) FROM leads WHERE status != 'dropped' GROUP BY sector ORDER BY COUNT(*) DESC LIMIT 5")
-            sector_rows = cursor.fetchall()
+            sec_col = 'sector' if 'sector' in lead_cols else ('category' if 'category' in lead_cols else None)
+            if sec_col:
+                cursor.execute(f"SELECT {sec_col}, COUNT(*) FROM leads{status_clause} GROUP BY {sec_col} ORDER BY COUNT(*) DESC LIMIT 5")
+                sector_rows = cursor.fetchall()
             
-            cursor.execute("SELECT business_name, whatsapp, sector FROM leads WHERE status != 'dropped' ORDER BY created_at DESC LIMIT 5")
+            order_col = 'created_at' if 'created_at' in lead_cols else ('found_at' if 'found_at' in lead_cols else 'rowid')
+            sec_col_expr = sec_col if sec_col else "'general'"
+            cursor.execute(f"SELECT business_name, {wa_col}, {sec_col_expr} FROM leads{status_clause} ORDER BY {order_col} DESC LIMIT 5")
             recent_leads = cursor.fetchall()
         
         if 'entities' in existing_tables:
@@ -451,47 +462,30 @@ def execute_scrape_batch(chat_id: str, target_users: List[str], reply_to_message
 def run_gmaps_scrape_job(chat_id: str, query: str = "cafe", city: str = "Makassar", limit: int = 5, reply_to_message_id: Optional[int] = None):
     send_telegram_message(
         chat_id,
-        f"PERMINTAAN PERAYAPAN GOOGLE MAPS DITERIMA\n"
+        f"PERINTAH PERAYAPAN DITERIMA\n"
         f"====================================\n"
-        f"Kata Kunci   : {query}\n"
-        f"Kota          : {city}\n"
+        f"Mode          : Radius Konsentris Bertingkat (Titik Hertasning/Panakkukang)\n"
         f"Target        : {limit} tempat usaha\n\n"
-        f"Sistem sedang menjalankan perayapan headless Chromium dan sinkronisasi ke Google Spreadsheet...",
+        f"Sistem sedang menjalankan perayapan headless Playwright dan sinkronisasi otomatis ke Google Spreadsheet...",
         reply_to_message_id=reply_to_message_id
     )
 
     try:
-        from pipeline import run_gmaps_pipeline, run_match_pipeline, run_export_pipeline, run_sync_hermes_pipeline
-        from scrapers.dashboard_server import get_all_leads
+        from scrapers.radius_scraper import run_radius_scraper, load_state
 
-        # 1. Ekstraksi Google Maps
-        run_gmaps_pipeline(query=query, city=city, limit=limit, dry_run=False, save_db=False)
+        new_leads = run_radius_scraper(limit=limit, dry_run=False)
 
-        # 2. Entity Matching & 4-Pillars Scoring
-        raw_dir = str(PROJECT_ROOT / "data" / "raw")
-        proc_dir = str(PROJECT_ROOT / "data" / "processed")
-        run_match_pipeline(raw_dir=raw_dir, output_dir=proc_dir, city=city, dry_run=False, save_db=False)
-
-        # 3. Export CSV
-        run_export_pipeline(input_path="", output_path="", dry_run=False)
-
-        # 4. Sinkronisasi otomatis ke Google Spreadsheet
-        hermes_res = run_sync_hermes_pipeline(sheet_name="Radar Prospek", clear_first=False, dry_run=False)
-
-        # 5. Kirim kartu detail prospek yang baru didapatkan ke grup Telegram
-        all_leads = get_all_leads()
-        newest_leads = all_leads[:limit]
-
-        for lead in newest_leads:
+        for lead in new_leads:
             bname = lead.get("business_name", "")
-            wa = lead.get("whatsapp_number") or "-"
-            addr = lead.get("address_full") or "-"
+            wa = lead.get("whatsapp") or lead.get("whatsapp_number") or "-"
+            addr = lead.get("address") or lead.get("address_full") or "-"
             rating = lead.get("rating", 0.0)
             revs = lead.get("reviews_count", 0)
-            score = lead.get("score") or lead.get("lead_score", 0)
+            score = lead.get("lead_score", 0)
             tier = lead.get("priority_tier", "Tier D")
+            dist = lead.get("distance_km", 0)
             pitch = lead.get("whatsapp_pitch", "")
-            wa_link = lead.get("wa_link") or (f"https://wa.me/{wa}" if wa != "-" else "")
+            wa_link = f"https://wa.me/{wa}" if wa != "-" else ""
 
             card_text = (
                 f"PROSPEK BARU GOOGLE MAPS\n"
@@ -499,6 +493,7 @@ def run_gmaps_scrape_job(chat_id: str, query: str = "cafe", city: str = "Makassa
                 f"Nama Bisnis : {bname}\n"
                 f"Kategori    : {lead.get('category', 'fnb_hospitality')}\n"
                 f"WhatsApp    : {wa}\n"
+                f"Jarak Titik : {dist} km dari Titik Panakkukang\n"
                 f"Alamat      : {addr}\n"
                 f"Rating      : {rating} ({revs} ulasan)\n"
                 f"Skor Potensi: {score}/100 ({tier})\n"
@@ -510,15 +505,15 @@ def run_gmaps_scrape_job(chat_id: str, query: str = "cafe", city: str = "Makassa
             send_telegram_message(chat_id, card_text)
             time.sleep(1)
 
-        # 6. Ringkasan penutup
-        rows_synced = hermes_res.get("rows_count", len(newest_leads))
+        state = load_state()
+        rad = state.get("current_radius_km", 1)
         summary_msg = (
             f"PERAYAPAN GOOGLE MAPS SELESAI\n"
             f"====================================\n"
-            f"Kata Kunci       : {query}\n"
-            f"Kota             : {city}\n"
-            f"Total Prospek    : {len(newest_leads)} bisnis\n"
-            f"Google Sheet     : Berhasil disinkronkan ({rows_synced} baris di 'Radar Prospek')\n"
+            f"Mode             : Radius Konsentris Bertingkat\n"
+            f"Radius Aktif     : {rad} km dari Titik Panakkukang\n"
+            f"Total Prospek    : {len(new_leads)} bisnis baru\n"
+            f"Google Sheet     : Berhasil disinkronkan ke 'Radar Prospek'\n"
             f"Database Lokal   : Tersimpan di data/leads.sqlite\n"
             f"===================================="
         )

@@ -347,6 +347,41 @@ body {
   transform: scale(0.98);
 }
 
+.btn-spreadsheet {
+  background: #0f9d58;
+  color: #ffffff;
+  border: 1px solid #0b8043;
+  padding: 9px 16px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.btn-spreadsheet:hover {
+  background: #0b8043;
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(15, 157, 88, 0.25);
+}
+
+.btn-spreadsheet:active {
+  transform: scale(0.98);
+}
+
+.btn-mobile-sheets {
+  display: none;
+}
+
 /* View Panels */
 .view-panel {
   display: none;
@@ -2423,11 +2458,40 @@ select:focus, input[type="text"]:focus {
     gap: 8px !important;
   }
 
+  .header-actions .btn-spreadsheet,
   .header-actions #btn-export-csv,
   .header-actions #btn-export-csv-full,
   .header-actions #btn-sync-hermes,
   .header-actions .btn-primary-action {
     display: none !important;
+  }
+
+  .btn-mobile-sheets {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    padding: 6px 12px !important;
+    border-radius: 8px !important;
+    border: 1px solid #0b8043 !important;
+    background: #0f9d58 !important;
+    color: #ffffff !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    font-family: inherit !important;
+    text-decoration: none !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+  }
+
+  .btn-mobile-sheets:active {
+    background: #0b8043 !important;
+    transform: scale(0.97) !important;
+  }
+
+  .mobile-sheets-icon {
+    width: 14px !important;
+    height: 14px !important;
+    color: #ffffff !important;
   }
 
   /* Clean Outline Refresh Button Matching Photo 2 Logout Button */

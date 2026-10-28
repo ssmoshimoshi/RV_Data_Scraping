@@ -1,9 +1,9 @@
 name: RUANG VISUAL — Market Intelligence Pipeline
 
 on:
-  # 1. Jadwal Otomatis: Setiap Senin & Kamis pukul 09:00 WITA (01:00 UTC)
+  # 1. Jadwal Otomatis: Setiap hari pukul 08:00 WITA (00:00 UTC)
   schedule:
-    - cron: '0 1 * * 1,4'
+    - cron: '0 0 * * *'
 
   # 2. Eksekusi Manual dari HP / Web GitHub (On-Demand)
   workflow_dispatch:
@@ -11,21 +11,18 @@ on:
       mode:
         description: 'Pilih modul pipeline'
         required: true
-        default: 'all'
+        default: 'radius'
         type: choice
         options:
+          - radius
           - all
           - gmaps
-          - facebook
-          - instagram
-          - tiktok
-          - matrix
+          - harvest
           - clean-sheets
-          - export-csv
       limit:
-        description: 'Batas query pencarian (default: 2)'
+        description: 'Batas query pencarian (default: 5)'
         required: false
-        default: '2'
+        default: '5'
       dry_run:
         description: 'Dry run (tidak sync ke Google Sheets)'
         required: false
@@ -70,7 +67,7 @@ jobs:
           GOOGLE_SHEET_WEBHOOK_URL: ${{ secrets.GOOGLE_SHEET_WEBHOOK_URL }}
           APIFY_API_TOKEN: ${{ secrets.APIFY_API_TOKEN }}
         run: |
-          MODE="${{ github.event.client_payload.mode || github.event.inputs.mode || 'gmaps' }}"
+          MODE="${{ github.event.client_payload.mode || github.event.inputs.mode || 'radius' }}"
           LIMIT="${{ github.event.client_payload.limit || github.event.inputs.limit || '5' }}"
           DRY_RUN="${{ github.event.client_payload.dry_run || github.event.inputs.dry_run }}"
 
@@ -79,20 +76,15 @@ jobs:
             DRY_FLAG="--dry-run"
           fi
 
-          if [ "$MODE" = "gmaps" ] || [ "$MODE" = "all" ]; then
-            echo "Menjalankan perayapan Google Maps..."
-            python pipeline.py gmaps --query "cafe" --city Makassar --limit "$LIMIT" $DRY_FLAG
-            python pipeline.py match
+          if [ "$MODE" = "radius" ] || [ "$MODE" = "gmaps" ] || [ "$MODE" = "all" ]; then
+            echo "Menjalankan perayapan Google Maps radius konsentris bertingkat..."
+            python pipeline.py radius --limit "$LIMIT" $DRY_FLAG
           fi
 
           if [ "$MODE" = "harvest" ]; then
             echo "Menjalankan panen prospek Makassar..."
             python pipeline.py harvest --sector fnb_hospitality --limit-per-query "$LIMIT" $DRY_FLAG
             python pipeline.py match
-          fi
-
-          if [ "$MODE" = "export-csv" ] || [ "$MODE" = "all" ] || [ "$MODE" = "gmaps" ]; then
-            python pipeline.py export
           fi
 
           # Sinkronisasi otomatis ke Google Spreadsheet Radar Prospek
@@ -117,6 +109,7 @@ jobs:
             data/processed/
             data/raw/
             data/leads.sqlite
+            data/search_state.json
           retention-days: 14
 
       - name: Commit and Push Processed Data
@@ -124,10 +117,10 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add -f data/leads.sqlite data/processed/ 2>/dev/null || true
+          git add -f data/leads.sqlite data/search_state.json data/processed/ 2>/dev/null || true
           if git diff --staged --quiet; then
             echo "Tidak ada perubahan data baru untuk di-commit."
           else
-            git commit -m "chore(data): auto-update cloud scraped leads [skip ci]"
+            git commit -m "chore(data): auto-update cloud scraped leads and search state [skip ci]"
             git push || echo "Push skipped"
           fi

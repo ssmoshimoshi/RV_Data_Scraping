@@ -741,6 +741,13 @@ def main():
     telegram_parser.add_argument("--once", action="store_true", help="Jalankan sekali periksa pesan dan keluar")
     telegram_parser.add_argument("--notify", type=str, nargs="?", const="summary", help="Kirim notifikasi atau ringkasan ke grup Telegram")
 
+    # Subcommand: radius
+    radius_parser = subparsers.add_parser("radius", help="Jalankan perayap Google Maps berbasis radius konsentris bertingkat")
+    radius_parser.add_argument("--limit", type=int, default=10, help="Batas maksimal tempat yang dirayap")
+    radius_parser.add_argument("--radius", type=int, default=None, help="Paksa radius tertentu dalam km")
+    radius_parser.add_argument("--sector", type=str, default=None, help="Pilih sektor bisnis tertentu")
+    radius_parser.add_argument("--dry-run", action="store_true", help="Simulasi tanpa menyimpan ke database")
+
     args = parser.parse_args()
 
     if args.command == "gmaps":
@@ -827,6 +834,14 @@ def main():
                 print("Laporan Telegram gagal terkirim.")
         else:
             start_telegram_bridge(run_once=args.once)
+    elif args.command == "radius":
+        from scrapers.radius_scraper import run_radius_scraper
+        run_radius_scraper(
+            limit=args.limit,
+            dry_run=args.dry_run,
+            radius=args.radius,
+            sector=args.sector
+        )
 
 
 if __name__ == "__main__":

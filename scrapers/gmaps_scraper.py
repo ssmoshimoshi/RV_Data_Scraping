@@ -10,6 +10,7 @@ import os
 import re
 import urllib.parse
 from datetime import datetime
+from typing import Optional, List, Dict, Any
 
 from dotenv import load_dotenv
 
@@ -175,7 +176,14 @@ def parse_place_entry(item: dict, default_city: str = "Makassar") -> dict:
     }
 
 
-def scrape_google_maps_playwright(query: str, city: str = "Makassar", limit: int = 20) -> list[dict]:
+def scrape_google_maps_playwright(
+    query: str,
+    city: str = "Makassar",
+    limit: int = 20,
+    lat: Optional[float] = None,
+    lon: Optional[float] = None,
+    zoom: int = 15
+) -> list[dict]:
     from playwright.sync_api import sync_playwright
 
     results = []
@@ -188,7 +196,10 @@ def scrape_google_maps_playwright(query: str, city: str = "Makassar", limit: int
             user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         )
         page = context.new_page()
-        url = f"https://www.google.com/maps/search/{urllib.parse.quote(search_query)}?hl=id"
+        if lat is not None and lon is not None:
+            url = f"https://www.google.com/maps/search/{urllib.parse.quote(search_query)}/@{lat},{lon},{zoom}z?hl=id"
+        else:
+            url = f"https://www.google.com/maps/search/{urllib.parse.quote(search_query)}?hl=id"
         page.goto(url, timeout=60000)
         page.wait_for_timeout(3000)
 
@@ -335,13 +346,22 @@ def scrape_google_maps_playwright(query: str, city: str = "Makassar", limit: int
     return results
 
 
-def search_places(query: str, city: str = "Makassar", limit: int = 20, dry_run: bool = False) -> list[dict]:
+def search_places(
+    query: str,
+    city: str = "Makassar",
+    limit: int = 20,
+    dry_run: bool = False,
+    lat: Optional[float] = None,
+    lon: Optional[float] = None,
+    zoom: int = 15
+) -> list[dict]:
     if dry_run:
-        print(f"[DRY RUN] Would search Google Maps for '{query}' in {city}, limit {limit}")
+        coords_str = f" near ({lat}, {lon})" if lat and lon else ""
+        print(f"[DRY RUN] Would search Google Maps for '{query}' in {city}{coords_str}, limit {limit}")
         return []
 
     try:
-        places = scrape_google_maps_playwright(query, city, limit)
+        places = scrape_google_maps_playwright(query, city, limit, lat=lat, lon=lon, zoom=zoom)
         print(f"Found {len(places)} places")
         return places
     except Exception as e:
