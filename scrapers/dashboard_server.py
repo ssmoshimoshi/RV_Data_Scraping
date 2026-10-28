@@ -8,8 +8,9 @@ import json
 import http.server
 import socketserver
 import sqlite3
+import time
 import urllib.parse
-from typing import Optional
+from typing import Optional, Dict, Any, List
 from datetime import datetime, timedelta
 from scrapers.lead_scoring import (
     classify_category,
@@ -69,31 +70,66 @@ def get_leads_table_data() -> list:
         return []
 
 
+_DEVICE_STATUS_CACHE: Dict[str, Any] = {
+    "data": None,
+    "timestamp": 0.0
+}
+
+
 def check_android_device_status() -> dict:
+    global _DEVICE_STATUS_CACHE
+    now = time.time()
+    if _DEVICE_STATUS_CACHE["data"] is not None and (now - _DEVICE_STATUS_CACHE["timestamp"]) < 20.0:
+        return _DEVICE_STATUS_CACHE["data"]
+
+    # Pemeriksaan cepat via CLI adb devices untuk mencegah timeout blocking 10 detik jika perangkat tidak terhubung
+    try:
+        import subprocess
+        adb_exec = "/Users/muhammadfanani/Library/Android/sdk/platform-tools/adb"
+        cmd = [adb_exec if Path(adb_exec).exists() else "adb", "devices"]
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=0.8)
+        lines = [line.strip() for line in proc.stdout.strip().split("\n") if line.strip()]
+        attached = [l.split()[0] for l in lines[1:] if "\tdevice" in l]
+
+        if not attached:
+            result = {
+                "connected": False,
+                "device_model": "Xiaomi Redmi Note 14 5G",
+                "serial": None,
+                "message": "Tidak ada perangkat Android terhubung via USB"
+            }
+            _DEVICE_STATUS_CACHE = {"data": result, "timestamp": now}
+            return result
+    except Exception:
+        pass
+
     try:
         from scrapers.android_scraper import get_android_device, ensure_device_ready
-        
+
         device = get_android_device()
         if device and ensure_device_ready(device):
-            serial = device.serial if hasattr(device, 'serial') else 'unknown'
-            return {
-                'connected': True,
-                'device_model': 'Xiaomi Redmi Note 14 5G',
-                'serial': serial
+            serial = device.serial if hasattr(device, "serial") else "unknown"
+            result = {
+                "connected": True,
+                "device_model": "Xiaomi Redmi Note 14 5G",
+                "serial": serial
             }
         else:
-            return {
-                'connected': False,
-                'device_model': 'Xiaomi Redmi Note 14 5G',
-                'serial': None
+            result = {
+                "connected": False,
+                "device_model": "Xiaomi Redmi Note 14 5G",
+                "serial": None
             }
     except Exception as e:
-        return {
-            'connected': False,
-            'device_model': 'Xiaomi Redmi Note 14 5G',
-            'serial': None,
-            'error': str(e)
+        result = {
+            "connected": False,
+            "device_model": "Xiaomi Redmi Note 14 5G",
+            "serial": None,
+            "error": str(e)
         }
+
+    _DEVICE_STATUS_CACHE = {"data": result, "timestamp": now}
+    return result
 
 
 def update_lead_status_in_db(lead_id: str, status: str, reason: str = '') -> bool:
@@ -1204,8 +1240,13 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
         self.end_headers()
 
 
+class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
+    daemon_threads = True
+    allow_reuse_address = True
+
+
 def start_server():
-    socketserver.TCPServer.allow_reuse_address = True
+    ThreadedTCPServer.allow_reuse_address = True
     try:
         from scrapers.db_sqlite import seed_sample_leads_to_sqlite
         seeded = seed_sample_leads_to_sqlite()
@@ -1214,7 +1255,7 @@ def start_server():
     except Exception as e:
         print(f"Peringatan: Gagal seeding database SQLite: {e}")
 
-    with socketserver.TCPServer(("", PORT), DashboardHandler) as httpd:
+    with ThreadedTCPServer(("", PORT), DashboardHandler) as httpd:
         print(f"RUANG VISUAL Market Intelligence Dashboard aktif di: http://localhost:{PORT}/market-scraping")
         try:
             httpd.serve_forever()

@@ -1614,10 +1614,10 @@ async function dropLead(leadId) {
   }
 }
 
-// Initialize Device Status Polling
-checkDeviceStatus();
-setInterval(checkDeviceStatus, 30000);
-
-// Initial Load
+// Initial Load - prioritaskan data utama agar render antarmuka instan
 fetchLeads();
 loadInspectorPresets();
+
+// Initialize Device Status Polling di latar belakang
+setTimeout(checkDeviceStatus, 100);
+setInterval(checkDeviceStatus, 30000);
