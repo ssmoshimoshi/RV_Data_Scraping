@@ -1,0 +1,17 @@
+{
+  "center_lat": -5.15759432245317,
+  "center_lon": 119.43530577903459,
+  "current_radius_km": 1,
+  "current_sector_index": 1,
+  "completed_sectors_in_radius": [
+    "fnb_hospitality"
+  ],
+  "seen_place_ids": [
+    "gmaps_1692176242487415417",
+    "gmaps_4411049771803464851",
+    "gmaps_8442771725440977601",
+    "gmaps_1692850518626188970",
+    "gmaps_6486377087441246394"
+  ],
+  "last_scraped_at": "2026-10-29T04:43:22.864848"
+}
