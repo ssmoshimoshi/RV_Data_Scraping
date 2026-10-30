@@ -2,16 +2,22 @@
   "center_lat": -5.15759432245317,
   "center_lon": 119.43530577903459,
   "current_radius_km": 1,
-  "current_sector_index": 1,
+  "current_sector_index": 2,
   "completed_sectors_in_radius": [
-    "fnb_hospitality"
+    "fnb_hospitality",
+    "retail_apparel"
   ],
   "seen_place_ids": [
-    "gmaps_1692176242487415417",
-    "gmaps_4411049771803464851",
-    "gmaps_8442771725440977601",
+    "gmaps_6070758438450669684",
     "gmaps_1692850518626188970",
-    "gmaps_6486377087441246394"
+    "gmaps_4411049771803464851",
+    "gmaps_1225229580102277871",
+    "gmaps_4098441634892423358",
+    "gmaps_1692176242487415417",
+    "gmaps_7798923345079504738",
+    "gmaps_5025495935482181759",
+    "gmaps_6486377087441246394",
+    "gmaps_8442771725440977601"
   ],
-  "last_scraped_at": "2026-10-29T04:43:22.864848"
+  "last_scraped_at": "2026-10-30T04:43:36.345116"
 }
