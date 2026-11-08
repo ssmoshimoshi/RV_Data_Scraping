@@ -5,6 +5,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -20,7 +21,9 @@ from scrapers.lead_scoring import estimate_packaging_volume_and_value, classify_
 
 load_dotenv()
 
-_PLACE_ID_PATTERN = re.compile(r'(?:place_id:|!1s)(ChIJ[a-zA-Z0-9_\-]+)')
+_PLACE_ID_PATTERN = re.compile(r'(?:place_id:|!1s)(ChIJ[a-zA-Z0-9_\-]+|0x[0-9a-fA-F]+:0x[0-9a-fA-F]+)')
+_COORDS_PATTERN_1 = re.compile(r'!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)')
+_COORDS_PATTERN_2 = re.compile(r'/@(-?\d+\.\d+),(-?\d+\.\d+)')
 
 
 def _extract_place_id_from_url(url: str) -> str:
@@ -30,6 +33,24 @@ def _extract_place_id_from_url(url: str) -> str:
     if m:
         return m.group(1)
     return ""
+
+
+def _extract_coords_from_url(url: str) -> tuple:
+    if not url:
+        return None, None
+    m = _COORDS_PATTERN_1.search(url)
+    if m:
+        try:
+            return float(m.group(1)), float(m.group(2))
+        except (ValueError, TypeError):
+            pass
+    m = _COORDS_PATTERN_2.search(url)
+    if m:
+        try:
+            return float(m.group(1)), float(m.group(2))
+        except (ValueError, TypeError):
+            pass
+    return None, None
 
 
 def _is_low_rating(review: dict) -> bool:
@@ -140,11 +161,19 @@ def parse_place_entry(item: dict, default_city: str = "Makassar") -> dict:
     except (ValueError, TypeError):
         lng = None
 
+    if (lat is None or lng is None) and item.get('url'):
+        u_lat, u_lng = _extract_coords_from_url(item['url'])
+        if lat is None:
+            lat = u_lat
+        if lng is None:
+            lng = u_lng
+
     place_id = item.get('placeId') or item.get('place_id') or ''
     if not place_id and item.get('url'):
         place_id = _extract_place_id_from_url(item['url'])
     if not place_id and title:
-        place_id = f"gmaps_{abs(hash(title + raw_address))}"
+        digest = hashlib.md5(f"{title}_{raw_address}".encode('utf-8')).hexdigest()[:16]
+        place_id = f"gmaps_{digest}"
 
     website = item.get('website') or item.get('website_url') or None
     url = item.get('url') or item.get('maps_url') or item.get('google_maps_url')
@@ -182,12 +211,16 @@ def scrape_google_maps_playwright(
     limit: int = 20,
     lat: Optional[float] = None,
     lon: Optional[float] = None,
-    zoom: int = 15
+    zoom: int = 15,
+    exclude_place_ids: Optional[set] = None
 ) -> list[dict]:
     from playwright.sync_api import sync_playwright
 
     results = []
-    search_query = f"{query} {city}"
+    if city and city.lower() in query.lower():
+        search_query = query
+    else:
+        search_query = f"{query} {city}".strip()
 
     with sync_playwright() as p:
         browser = _get_browser(p)
@@ -213,8 +246,9 @@ def scrape_google_maps_playwright(
 
         collected = []
         seen_hrefs = set()
+        max_candidates = max(limit * 4, 30)
 
-        for _ in range(10):
+        for _ in range(15):
             links = page.locator('a.hfpxzc').all()
             for link in links:
                 href = link.get_attribute('href') or ''
@@ -224,14 +258,15 @@ def scrape_google_maps_playwright(
                 if not aria_label:
                     continue
                 seen_hrefs.add(href)
+                p_id = _extract_place_id_from_url(href)
                 collected.append({
                     'title': aria_label.strip(),
                     'url': href,
-                    'place_id': _extract_place_id_from_url(href)
+                    'place_id': p_id
                 })
-                if len(collected) >= limit * 2:
+                if len(collected) >= max_candidates:
                     break
-            if len(collected) >= limit * 2:
+            if len(collected) >= max_candidates:
                 break
             try:
                 feed = page.locator('div[role="feed"]').first
@@ -243,8 +278,11 @@ def scrape_google_maps_playwright(
             except Exception:
                 break
 
-        for entry in collected[:limit]:
+        for entry in collected:
             place_id = entry.get('place_id') or ""
+            if exclude_place_ids and place_id and place_id in exclude_place_ids:
+                continue
+
             item = {
                 'title': entry['title'],
                 'url': entry['url'],
@@ -353,7 +391,8 @@ def search_places(
     dry_run: bool = False,
     lat: Optional[float] = None,
     lon: Optional[float] = None,
-    zoom: int = 15
+    zoom: int = 15,
+    exclude_place_ids: Optional[set] = None
 ) -> list[dict]:
     if dry_run:
         coords_str = f" near ({lat}, {lon})" if lat and lon else ""
@@ -361,7 +400,15 @@ def search_places(
         return []
 
     try:
-        places = scrape_google_maps_playwright(query, city, limit, lat=lat, lon=lon, zoom=zoom)
+        places = scrape_google_maps_playwright(
+            query=query,
+            city=city,
+            limit=limit,
+            lat=lat,
+            lon=lon,
+            zoom=zoom,
+            exclude_place_ids=exclude_place_ids
+        )
         print(f"Found {len(places)} places")
         return places
     except Exception as e:

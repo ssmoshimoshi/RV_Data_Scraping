@@ -60,6 +60,7 @@ def load_state() -> Dict[str, Any]:
         "center_lon": LON_ORIGIN,
         "current_radius_km": 1,
         "current_sector_index": 0,
+        "current_query_index": 0,
         "completed_sectors_in_radius": [],
         "seen_place_ids": [],
         "last_scraped_at": None
@@ -309,6 +310,7 @@ def run_radius_scraper(
     center_lon = state.get("center_lon", LON_ORIGIN)
     current_radius_km = radius or state.get("current_radius_km", 1)
     current_sector_index = state.get("current_sector_index", 0)
+    current_query_index = state.get("current_query_index", 0)
     completed_sectors = state.get("completed_sectors_in_radius", [])
     seen_place_ids = set(state.get("seen_place_ids", []))
 
@@ -330,6 +332,7 @@ def run_radius_scraper(
             print(f"Seluruh sektor telah selesai dipindai untuk radius {current_radius_km} km.")
             current_radius_km += 1
             current_sector_index = 0
+            current_query_index = 0
             completed_sectors = []
             zoom = zoom_map.get(current_radius_km, 13)
             print(f"Memperluas pencarian ke radius {current_radius_km} km (Zoom: {zoom}z)...")
@@ -340,16 +343,20 @@ def run_radius_scraper(
 
         if sector_key in completed_sectors and not sector:
             current_sector_index += 1
+            current_query_index = 0
             continue
 
         queries = SECTOR_QUERIES[sector_key]
         print(f"\nMemindai sektor: {sector_key} (Radius {current_radius_km} km)")
 
-        new_places_in_sector = 0
+        start_q_idx = current_query_index if not sector else 0
+        limit_reached = False
 
-        for q in queries:
-            full_query = f"{q} Makassar"
-            print(f"  Pencarian query: '{full_query}'")
+        for q_idx in range(start_q_idx, len(queries)):
+            q = queries[q_idx]
+            current_query_index = q_idx
+            full_query = q if "makassar" in q.lower() else f"{q} Makassar"
+            print(f"  Pencarian query ({q_idx + 1}/{len(queries)}): '{full_query}'")
             places = search_places(
                 query=full_query,
                 city="Makassar",
@@ -357,7 +364,8 @@ def run_radius_scraper(
                 dry_run=dry_run,
                 lat=center_lat,
                 lon=center_lon,
-                zoom=zoom
+                zoom=zoom,
+                exclude_place_ids=seen_place_ids
             )
 
             for p in places:
@@ -376,22 +384,31 @@ def run_radius_scraper(
                 if save_lead(lead, dry_run=dry_run):
                     if p_id:
                         seen_place_ids.add(p_id)
-                    new_places_in_sector += 1
                     total_new_leads.append(lead)
                     print(f"    [+] {lead['business_name']} | WA: {lead.get('whatsapp') or '-'} | Jarak: {dist} km")
 
                 if limit and len(total_new_leads) >= limit:
+                    limit_reached = True
                     break
 
-            if limit and len(total_new_leads) >= limit:
+            if limit_reached:
+                if q_idx + 1 < len(queries):
+                    current_query_index = q_idx + 1
+                else:
+                    completed_sectors.append(sector_key)
+                    current_sector_index += 1
+                    current_query_index = 0
                 break
 
-        completed_sectors.append(sector_key)
-        current_sector_index += 1
+        if not limit_reached:
+            completed_sectors.append(sector_key)
+            current_sector_index += 1
+            current_query_index = 0
 
         if not dry_run:
             state["current_radius_km"] = current_radius_km
             state["current_sector_index"] = current_sector_index
+            state["current_query_index"] = current_query_index
             state["completed_sectors_in_radius"] = completed_sectors
             state["seen_place_ids"] = list(seen_place_ids)
             state["last_scraped_at"] = datetime.utcnow().isoformat()

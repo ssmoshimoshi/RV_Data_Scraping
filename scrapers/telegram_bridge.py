@@ -260,20 +260,31 @@ def get_db_summary() -> str:
         sector_rows = []
         recent_leads = []
         
-        if 'leads' in existing_tables:
+        if 'entities' in existing_tables:
+            cursor.execute("SELECT COUNT(*) FROM entities")
+            total_entities = cursor.fetchone()[0]
+            
+            cursor.execute("SELECT COUNT(*) FROM entities WHERE is_wa_valid = 1 OR (whatsapp_number IS NOT NULL AND whatsapp_number != '')")
+            total_valid_wa = cursor.fetchone()[0]
+            
+            cursor.execute("SELECT target_sector, COUNT(*) FROM entities GROUP BY target_sector ORDER BY COUNT(*) DESC LIMIT 5")
+            sector_rows = cursor.fetchall()
+            
+            cursor.execute("SELECT business_name, whatsapp_number, target_sector FROM entities ORDER BY created_at DESC LIMIT 5")
+            recent_leads = cursor.fetchall()
+        elif 'leads' in existing_tables:
             cursor.execute("PRAGMA table_info(leads)")
             lead_cols = [c[1] for c in cursor.fetchall()]
             has_status = 'status' in lead_cols
             status_clause = " WHERE status != 'dropped'" if has_status else ""
             
             cursor.execute(f"SELECT COUNT(*) FROM leads{status_clause}")
-            total_leads = cursor.fetchone()[0]
-            total_entities += total_leads
+            total_entities = cursor.fetchone()[0]
             
             wa_col = 'whatsapp' if 'whatsapp' in lead_cols else 'whatsapp_number'
             status_drop_clause = " AND status != 'dropped'" if has_status else ""
             cursor.execute(f"SELECT COUNT(*) FROM leads WHERE {wa_col} IS NOT NULL AND {wa_col} != ''{status_drop_clause}")
-            total_valid_wa += cursor.fetchone()[0]
+            total_valid_wa = cursor.fetchone()[0]
             
             sec_col = 'sector' if 'sector' in lead_cols else ('category' if 'category' in lead_cols else None)
             if sec_col:
@@ -284,21 +295,6 @@ def get_db_summary() -> str:
             sec_col_expr = sec_col if sec_col else "'general'"
             cursor.execute(f"SELECT business_name, {wa_col}, {sec_col_expr} FROM leads{status_clause} ORDER BY {order_col} DESC LIMIT 5")
             recent_leads = cursor.fetchall()
-        
-        if 'entities' in existing_tables:
-            cursor.execute("SELECT COUNT(*) FROM entities")
-            total_entities += cursor.fetchone()[0]
-            
-            cursor.execute("SELECT COUNT(*) FROM entities WHERE is_wa_valid = 1")
-            total_valid_wa += cursor.fetchone()[0]
-            
-            if not sector_rows:
-                cursor.execute("SELECT target_sector, COUNT(*) FROM entities GROUP BY target_sector ORDER BY COUNT(*) DESC LIMIT 5")
-                sector_rows = cursor.fetchall()
-            
-            if not recent_leads:
-                cursor.execute("SELECT business_name, whatsapp_number, target_sector FROM entities ORDER BY created_at DESC LIMIT 5")
-                recent_leads = cursor.fetchall()
         
         conn.close()
 

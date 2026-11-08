@@ -618,6 +618,14 @@ class TestOverrideScoreEndpoint(unittest.TestCase):
 
     def setUp(self):
         ds.SAMPLE_LEADS = list(FIXTURE_SAMPLE_LEADS)
+        import scrapers.db_sqlite as db_sqlite
+        self._temp_db = tempfile.NamedTemporaryFile(suffix=".sqlite", delete=False)
+        self.temp_db_path = Path(self._temp_db.name)
+        db_sqlite.init_db(self.temp_db_path)
+        self.orig_db_path = db_sqlite.DB_PATH
+        db_sqlite.DB_PATH = self.temp_db_path
+        ds.DB_PATH = self.temp_db_path
+
         socketserver.TCPServer.allow_reuse_address = True
         self.httpd = socketserver.TCPServer(("127.0.0.1", 0), DashboardHandler)
         self.port = self.httpd.server_address[1]
@@ -628,6 +636,13 @@ class TestOverrideScoreEndpoint(unittest.TestCase):
         ds.SAMPLE_LEADS = []
         self.httpd.shutdown()
         self.httpd.server_close()
+        import scrapers.db_sqlite as db_sqlite
+        db_sqlite.DB_PATH = self.orig_db_path
+        ds.DB_PATH = self.orig_db_path
+        try:
+            self.temp_db_path.unlink()
+        except Exception:
+            pass
 
     def _post(self, path, payload):
         body = json.dumps(payload).encode("utf-8")

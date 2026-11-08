@@ -3,6 +3,7 @@
   "center_lon": 119.43530577903459,
   "current_radius_km": 1,
   "current_sector_index": 0,
+  "current_query_index": 0,
   "completed_sectors_in_radius": [],
   "seen_place_ids": [
     "gmaps_1976046436573917140",

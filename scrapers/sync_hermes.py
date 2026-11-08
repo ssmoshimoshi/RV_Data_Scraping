@@ -141,7 +141,11 @@ def sync_leads_to_hermes(
     dry_run: bool = False,
     webhook_url: Optional[str] = None,
 ) -> Dict[str, Any]:
-    target_leads = leads if leads is not None else SAMPLE_LEADS
+    if leads is not None:
+        target_leads = leads
+    else:
+        from scrapers.dashboard_server import get_all_leads
+        target_leads = get_all_leads()
     rows = [format_lead_for_radar_prospek(l) for l in target_leads]
 
     if dry_run:
@@ -224,9 +228,18 @@ def pull_leads_from_hermes(
     updated_count = 0
     processed_entities = []
 
+    DUMMY_NAMES = {
+        'kopi titik temu makassar',
+        'dapur bunda roastery & resto',
+        'ayu hijab & modern boutique',
+        'aesthetic glow dental clinic',
+        'grand opening kopi kenangan pettarani',
+        'kantor notaris & ppat ahmad fauzi sh mkn'
+    }
+
     for r in rows[1:]:
         name = r[0].strip() if len(r) > 0 else ""
-        if not name or name.lower() == "nama bisnis":
+        if not name or name.lower() == "nama bisnis" or name.lower().strip() in DUMMY_NAMES:
             continue
 
         cat_str = r[1].strip() if len(r) > 1 else ""
@@ -359,7 +372,9 @@ def main():
         print(f"Baris diperbarui: {res.get('updated_count')}")
         return
 
-    leads = SAMPLE_LEADS[:args.limit] if args.limit > 0 else SAMPLE_LEADS
+    from scrapers.dashboard_server import get_all_leads
+    all_leads = get_all_leads()
+    leads = all_leads[:args.limit] if args.limit > 0 else all_leads
     print(f"Memulai sinkronisasi ke Google Sheets Hermes (Total prospek: {len(leads)})...")
     
     result = sync_leads_to_hermes(
