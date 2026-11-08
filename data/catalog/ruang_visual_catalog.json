@@ -1,8 +1,8 @@
 {
-  "synced_at": "2026-10-26T04:42:12.505605",
+  "synced_at": "2026-11-04T12:30:50.380478",
   "source": "ruang_visual_app_master_items",
-  "total_templates": 16,
-  "total_master_items": 100,
+  "total_templates": 20,
+  "total_master_items": 113,
   "product_templates": [
     {
       "id": "40456705-0b04-42b8-b467-8765440fc653",
@@ -204,40 +204,6 @@
           "label": "Partai Besar",
           "max_qty": null,
           "min_qty": 150,
-          "margin_percent": 35
-        }
-      ]
-    },
-    {
-      "id": "c641443a-7383-4a33-8b91-17be1ea01623",
-      "name": "Cetak Spanduk  Flexy China",
-      "category": "OUTDOOR",
-      "unit": "Pcs",
-      "description": null,
-      "is_active": true,
-      "pricing_tiers": [
-        {
-          "label": "Eceran / Retail",
-          "max_qty": 11,
-          "min_qty": 1,
-          "margin_percent": 70
-        },
-        {
-          "label": "Grosir Lusinan",
-          "max_qty": 49,
-          "min_qty": 12,
-          "margin_percent": 70
-        },
-        {
-          "label": "Grosir Sedang",
-          "max_qty": 99,
-          "min_qty": 50,
-          "margin_percent": 50
-        },
-        {
-          "label": "Partai Besar",
-          "max_qty": null,
-          "min_qty": 100,
           "margin_percent": 35
         }
       ]
@@ -531,6 +497,192 @@
           "calculation_type": "MANUAL_PRICE"
         }
       ]
+    },
+    {
+      "id": "3dba67ee-6bca-4900-b8f5-5edc41ffe67a",
+      "name": "Terpal Tenda Piramid",
+      "category": "UMUM",
+      "unit": "Lembar",
+      "description": null,
+      "is_active": true,
+      "pricing_tiers": [
+        {
+          "label": "Eceran / Retail",
+          "max_qty": 11,
+          "min_qty": 1,
+          "manual_price": 1300000,
+          "margin_percent": 36,
+          "calculation_type": "MANUAL_PRICE"
+        },
+        {
+          "label": "Partai Besar",
+          "max_qty": null,
+          "min_qty": 50,
+          "manual_price": 1100000,
+          "margin_percent": 15,
+          "calculation_type": "MANUAL_PRICE"
+        }
+      ]
+    },
+    {
+      "id": "a68f5af1-37b8-411f-b939-ecefe3177369",
+      "name": "Cetak Stiker Transparan A3+",
+      "category": "UMUM",
+      "unit": "Pcs",
+      "description": "Bahan vinyl transapan dan jasa cetak 1 sisi A3+",
+      "is_active": true,
+      "pricing_tiers": [
+        {
+          "label": "Eceran / Retail",
+          "max_qty": 11,
+          "min_qty": 1,
+          "manual_price": 15000,
+          "margin_percent": 257,
+          "calculation_type": "MANUAL_PRICE"
+        },
+        {
+          "label": "Grosir Lusinan",
+          "max_qty": 49,
+          "min_qty": 12,
+          "manual_price": 12000,
+          "margin_percent": 186,
+          "calculation_type": "MANUAL_PRICE"
+        },
+        {
+          "label": "Grosir Sedang",
+          "max_qty": 149,
+          "min_qty": 50,
+          "manual_price": 10000,
+          "margin_percent": 138,
+          "calculation_type": "MANUAL_PRICE"
+        },
+        {
+          "label": "Grosir Besar",
+          "max_qty": null,
+          "min_qty": 150,
+          "manual_price": 8000,
+          "margin_percent": 90,
+          "calculation_type": "MANUAL_PRICE"
+        }
+      ]
+    },
+    {
+      "id": "c641443a-7383-4a33-8b91-17be1ea01623",
+      "name": "Cetak Spanduk  Flexy China",
+      "category": "OUTDOOR",
+      "unit": "Meter",
+      "description": null,
+      "is_active": true,
+      "pricing_tiers": [
+        {
+          "label": "Eceran / Retail",
+          "max_qty": 11,
+          "min_qty": 1,
+          "manual_price": 25000,
+          "margin_percent": 67,
+          "calculation_type": "MANUAL_PRICE"
+        },
+        {
+          "label": "Grosir Lusinan",
+          "max_qty": 49,
+          "min_qty": 12,
+          "manual_price": 25000,
+          "margin_percent": 67,
+          "calculation_type": "MANUAL_PRICE"
+        },
+        {
+          "label": "Grosir Sedang",
+          "max_qty": 99,
+          "min_qty": 50,
+          "manual_price": 23000,
+          "margin_percent": 53,
+          "calculation_type": "MANUAL_PRICE"
+        },
+        {
+          "label": "Partai Besar",
+          "max_qty": null,
+          "min_qty": 100,
+          "manual_price": 20000,
+          "margin_percent": 33,
+          "calculation_type": "MANUAL_PRICE"
+        }
+      ]
+    },
+    {
+      "id": "f4877fc9-e7c4-440f-a94c-1fcf837b1bca",
+      "name": "Kartu Nama Standar 1 Sisi",
+      "category": "UMUM",
+      "unit": "Set",
+      "description": "Termasuk art paper 260, cetak 1 sisi, potong dan box",
+      "is_active": true,
+      "pricing_tiers": [
+        {
+          "label": "Eceran / Retail",
+          "max_qty": 35,
+          "min_qty": 1,
+          "manual_price": 40000,
+          "margin_percent": 88,
+          "calculation_type": "MANUAL_PRICE"
+        },
+        {
+          "label": "Grosir Lusinan",
+          "max_qty": 99,
+          "min_qty": 36,
+          "manual_price": 35000,
+          "margin_percent": 64,
+          "calculation_type": "MANUAL_PRICE"
+        },
+        {
+          "label": "Partai Besar",
+          "max_qty": null,
+          "min_qty": 100,
+          "manual_price": 30000,
+          "margin_percent": 41,
+          "calculation_type": "MANUAL_PRICE"
+        }
+      ]
+    },
+    {
+      "id": "d821ec5e-c5d9-4fc4-8e73-b7b6b74adac8",
+      "name": "Stiker Cetak UV + Cutting",
+      "category": "UMUM",
+      "unit": "Meter",
+      "description": null,
+      "is_active": true,
+      "pricing_tiers": [
+        {
+          "label": "Eceran / Retail",
+          "max_qty": 11,
+          "min_qty": 1,
+          "manual_price": 150000,
+          "margin_percent": 20,
+          "calculation_type": "MANUAL_PRICE"
+        },
+        {
+          "label": "Grosir Lusinan",
+          "max_qty": 49,
+          "min_qty": 12,
+          "manual_price": 145000,
+          "margin_percent": 16,
+          "calculation_type": "MANUAL_PRICE"
+        },
+        {
+          "label": "Grosir Sedang",
+          "max_qty": 99,
+          "min_qty": 50,
+          "manual_price": 140000,
+          "margin_percent": 12,
+          "calculation_type": "MANUAL_PRICE"
+        },
+        {
+          "label": "Partai Besar",
+          "max_qty": null,
+          "min_qty": 100,
+          "manual_price": 135000,
+          "margin_percent": 8,
+          "calculation_type": "MANUAL_PRICE"
+        }
+      ]
     }
   ],
   "master_items": [
@@ -557,6 +709,38 @@
       "subCategory": "UMUM",
       "name": "Akrilik 3mm",
       "baseUnit": "cm"
+    },
+    {
+      "id": "675fe954-20a1-409e-acc8-242b190ca175",
+      "itemCode": "MAT-065",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Gagang Kipas Tangan",
+      "baseUnit": "Pcs"
+    },
+    {
+      "id": "18ec8bb2-53f5-4336-bb63-e8bd862c7d4b",
+      "itemCode": "SRV-064",
+      "type": "JASA",
+      "subCategory": "UMUM",
+      "name": "Ongkos potong kartu nama",
+      "baseUnit": "Flat"
+    },
+    {
+      "id": "fb61b1ed-ed48-4514-8e91-cee8d8911719",
+      "itemCode": "MAT-067",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Blanko undangan B",
+      "baseUnit": "Lembar"
+    },
+    {
+      "id": "8132147f-c172-4c3a-8fe0-7a36abebf07a",
+      "itemCode": "MAT-066",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Blanko undangan A",
+      "baseUnit": "Lembar"
     },
     {
       "id": "f6b64ce0-ca38-4a06-bc15-74d6ebc0f79e",
@@ -591,6 +775,22 @@
       "baseUnit": "cm"
     },
     {
+      "id": "63094528-7843-408b-a6f4-a47bdab96cc3",
+      "itemCode": "SRV-061",
+      "type": "JASA",
+      "subCategory": "UMUM",
+      "name": "Lanyard Custom Vendor",
+      "baseUnit": "Pcs"
+    },
+    {
+      "id": "6b90ff78-2e20-4d41-9e32-f9a8c04bc14f",
+      "itemCode": "MAT-070",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Box Kartu Nama",
+      "baseUnit": "Pcs"
+    },
+    {
       "id": "cf5820a6-7a59-406f-891d-e95b442dce09",
       "itemCode": "SRV-055",
       "type": "JASA",
@@ -613,6 +813,30 @@
       "subCategory": "UMUM",
       "name": "Ganci UV Akrilik 3mm",
       "baseUnit": "Pcs"
+    },
+    {
+      "id": "4cee3ade-92ea-4878-a556-a0730ed57a28",
+      "itemCode": "MAT-068",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "ID Card Holder BT",
+      "baseUnit": "Pcs"
+    },
+    {
+      "id": "7413ad97-ac86-4a54-be0c-46c8620fc1b2",
+      "itemCode": "MAT-069",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "ID Card Holder Akrilik",
+      "baseUnit": "Pcs"
+    },
+    {
+      "id": "177460ad-46e7-4099-aefd-7f0dd715282d",
+      "itemCode": "SRV-065",
+      "type": "JASA",
+      "subCategory": "UMUM",
+      "name": "Cetak UV large format ",
+      "baseUnit": "cm"
     },
     {
       "id": "4e285519-aca6-433c-a5fa-45abbcb6d646",
@@ -693,6 +917,22 @@
       "subCategory": "UMUM",
       "name": "Tote Bag Box  30x40x10",
       "baseUnit": "Pcs"
+    },
+    {
+      "id": "d185b961-2eae-4086-8d8f-d66f584fb5d1",
+      "itemCode": "SRV-062",
+      "type": "JASA",
+      "subCategory": "DOKUMEN",
+      "name": "Fotokopi 2 Sisi",
+      "baseUnit": "Lembar"
+    },
+    {
+      "id": "cfa26dbf-b375-4945-ac91-b0d4eddafd8d",
+      "itemCode": "SRV-066",
+      "type": "JASA",
+      "subCategory": "UMUM",
+      "name": "Cutting Stiker large format",
+      "baseUnit": "cm"
     },
     {
       "id": "7c61996e-a7b1-4c4b-b203-6290f7f890cc",
@@ -887,14 +1127,6 @@
       "baseUnit": "Lembar"
     },
     {
-      "id": "477a0c14-2adb-4071-bb4b-7b5e559faa87",
-      "itemCode": "MAT-011",
-      "type": "BAHAN",
-      "subCategory": "UMUM",
-      "name": "Kingstruk 310gsm 65/100",
-      "baseUnit": "cm"
-    },
-    {
       "id": "608dacd9-3858-4ca5-9473-45538f263cfc",
       "itemCode": "MAT-012",
       "type": "BAHAN",
@@ -940,14 +1172,6 @@
       "type": "BAHAN",
       "subCategory": "INDOOR",
       "name": "Albatros",
-      "baseUnit": "cm"
-    },
-    {
-      "id": "facee07d-aa07-4f04-af4a-b8f4b0b1230b",
-      "itemCode": "SRV-006",
-      "type": "JASA",
-      "subCategory": "FINISHING",
-      "name": "Cutting Sticker",
       "baseUnit": "cm"
     },
     {
@@ -1167,14 +1391,6 @@
       "baseUnit": "cm"
     },
     {
-      "id": "db3660a2-9fbb-4e92-822f-e8f7d09a4cc2",
-      "itemCode": "MAT-037",
-      "type": "JASA",
-      "subCategory": "DOKUMEN",
-      "name": "Fotokopi",
-      "baseUnit": "Lembar"
-    },
-    {
       "id": "81326a64-38bc-4b55-81c9-2d65a1ee620f",
       "itemCode": "MAT-014",
       "type": "BAHAN",
@@ -1204,6 +1420,30 @@
       "type": "JASA",
       "subCategory": "UMUM",
       "name": "Cetak UV Flatbed",
+      "baseUnit": "cm"
+    },
+    {
+      "id": "477a0c14-2adb-4071-bb4b-7b5e559faa87",
+      "itemCode": "MAT-011",
+      "type": "BAHAN",
+      "subCategory": "UMUM",
+      "name": "Kingstruk 310gsm 65/100",
+      "baseUnit": "Lembar"
+    },
+    {
+      "id": "db3660a2-9fbb-4e92-822f-e8f7d09a4cc2",
+      "itemCode": "MAT-037",
+      "type": "JASA",
+      "subCategory": "DOKUMEN",
+      "name": "Fotokopi 1 Sisi",
+      "baseUnit": "Lembar"
+    },
+    {
+      "id": "facee07d-aa07-4f04-af4a-b8f4b0b1230b",
+      "itemCode": "SRV-006",
+      "type": "JASA",
+      "subCategory": "FINISHING",
+      "name": "Cutting Sticker oracal",
       "baseUnit": "cm"
     },
     {
@@ -1333,6 +1573,22 @@
       "subCategory": "UMUM",
       "name": "Ivory 210gsm plano 65/100",
       "baseUnit": "Lembar"
+    },
+    {
+      "id": "261e912b-4a13-44fe-9e6f-cbcde7e76416",
+      "itemCode": "SRV-063",
+      "type": "JASA",
+      "subCategory": "UMUM",
+      "name": "Terpal tenda piramid custom",
+      "baseUnit": "cm"
+    },
+    {
+      "id": "f9c75b68-f55a-482f-b2af-e9f62189d47d",
+      "itemCode": "SRV-067",
+      "type": "JASA",
+      "subCategory": "UMUM",
+      "name": "Cetak Blanko Undangan",
+      "baseUnit": "Pcs"
     }
   ]
 }

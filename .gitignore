@@ -12,6 +12,7 @@ credentials/
 hermes-mcp-server/credentials/
 *.json
 !package*.json
+!data/search_state.json
 
 # Data files (local cache)
 data/raw/*

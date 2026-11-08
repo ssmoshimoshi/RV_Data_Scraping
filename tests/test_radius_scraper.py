@@ -125,6 +125,66 @@ class TestRadiusScraper(unittest.TestCase):
         self.assertIsNone(lead['whatsapp'])
         self.assertIsNotNone(lead['address'])
 
+    def test_save_lead_deduplicates_by_whatsapp_and_name(self):
+        import scrapers.radius_scraper as rs
+        from scrapers.db_sqlite import get_all_leads, init_db as init_rel_db
+        
+        with tempfile.NamedTemporaryFile(suffix='.sqlite', delete=False) as f:
+            temp_db = Path(f.name)
+        
+        orig_db = rs.LEADS_DB
+        rs.LEADS_DB = temp_db
+        init_rel_db(temp_db)
+        rs.init_db()
+        
+        try:
+            lead1 = {
+                'place_id': 'place_orig_001',
+                'business_name': 'Kopi Senja Bahagia',
+                'category': 'fnb_hospitality',
+                'whatsapp': '628111222333',
+                'found_at': '2026-10-29T12:00:00Z'
+            }
+            rs.save_lead(lead1)
+            
+            leads_1 = get_all_leads(temp_db)
+            self.assertEqual(len(leads_1), 1)
+            first_entity_id = leads_1[0]['entity_id']
+            
+            lead2 = {
+                'place_id': 'place_diff_999',
+                'business_name': 'kopi senja bahagia',
+                'category': 'fnb_hospitality',
+                'whatsapp': '628111222333',
+                'found_at': '2026-10-29T13:00:00Z'
+            }
+            rs.save_lead(lead2)
+            
+            leads_2 = get_all_leads(temp_db)
+            self.assertEqual(len(leads_2), 1)
+            self.assertEqual(leads_2[0]['entity_id'], first_entity_id)
+
+            # Test save_lead with dict address (handling edge case)
+            lead_dict_address = {
+                'place_id': 'place_dict_addr',
+                'business_name': 'Bakery Manis',
+                'category': 'fnb_hospitality',
+                'address': {'address_full': 'Jl. Veteran No. 10', 'city': 'Makassar'},
+                'whatsapp': '628999888777',
+                'found_at': '2026-10-29T14:00:00Z'
+            }
+            save_ok = rs.save_lead(lead_dict_address)
+            self.assertTrue(save_ok)
+            leads_3 = get_all_leads(temp_db)
+            self.assertEqual(len(leads_3), 2)
+        finally:
+            rs.LEADS_DB = orig_db
+            try:
+                temp_db.unlink()
+            except Exception:
+                pass
+
 
 if __name__ == '__main__':
     unittest.main()
+

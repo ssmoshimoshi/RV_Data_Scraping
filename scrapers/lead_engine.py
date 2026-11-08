@@ -189,6 +189,57 @@ def save_lead_to_db(lead: Dict, dry_run: bool = False) -> str:
             lead.get('score', 0)
         ))
         conn.commit()
+
+        try:
+            from scrapers.db_sqlite import (
+                init_db as init_relational_db,
+                upsert_lead as upsert_lead_relational,
+                find_existing_entity_id,
+            )
+            init_relational_db(DB_PATH)
+            phone_val = lead.get('phone') or lead.get('whatsapp')
+            wa_norm = normalize_whatsapp(phone_val) if phone_val else None
+            existing_id = find_existing_entity_id(
+                whatsapp=wa_norm,
+                business_name=lead.get('business_name'),
+                db_path=DB_PATH
+            )
+            rel_id = existing_id or lead_id
+            score_val = lead.get('score', 0)
+            tier_val = "Tier A" if score_val >= 80 else ("Tier B" if score_val >= 60 else "Tier C")
+
+            entity_payload = {
+                "entity_id": rel_id,
+                "business_name": lead['business_name'],
+                "target_sector": lead.get('sector') or lead.get('category') or '',
+                "primary_service_pillar": "packaging_box",
+                "category_raw": lead.get('category'),
+                "whatsapp_number": wa_norm,
+                "phone_raw": lead.get('phone'),
+                "is_wa_valid": 1 if wa_norm else 0,
+                "is_commercial": 1,
+                "locations": {
+                    "place_id": lead.get('place_id'),
+                    "address_full": lead.get('address') or '',
+                    "city": "Makassar"
+                },
+                "digital_footprints": {
+                    "website_url": lead.get('website'),
+                    "gmaps_rating": lead.get('rating', 0.0),
+                    "gmaps_reviews_count": lead.get('reviews_count', 0),
+                    "instagram_handle": lead.get('instagram_handle')
+                },
+                "commercial_intelligence": {
+                    "lead_score": score_val,
+                    "priority_tier": tier_val
+                },
+                "outreach_logs": {
+                    "outreach_status": lead.get('status') or "Belum Dihubungi"
+                }
+            }
+            upsert_lead_relational(entity_payload, db_path=DB_PATH)
+        except Exception:
+            pass
     
     conn.close()
     return lead_id

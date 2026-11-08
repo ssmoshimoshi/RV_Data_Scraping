@@ -16,22 +16,20 @@ from scrapers.gmaps_scraper import search_places
 from scrapers.normalizer import normalize_whatsapp, normalize_address
 from scrapers.lead_scoring import calculate_4_pillars_score, classify_category
 from scrapers.sync_hermes import sync_leads_to_hermes
-from scrapers.db_sqlite import init_db as init_normalized_db, upsert_lead as upsert_lead_sqlite
+from scrapers.db_sqlite import (
+    init_db as init_normalized_db,
+    upsert_lead as upsert_lead_sqlite,
+    find_existing_entity_id,
+)
 from scrapers.outreach_generator import generate_outreach_pitch, recommended_products
-
-STATE_FILE = PROJECT_ROOT / "data" / "search_state.json"
-LEADS_DB = PROJECT_ROOT / "data" / "leads.sqlite"
-
-LAT_ORIGIN = -5.15759432245317
-LON_ORIGIN = 119.43530577903459
-
-SECTOR_QUERIES = {
-    "fnb_hospitality": ["kafe", "kedai kopi", "roastery", "restoran", "bakery", "toko kue", "katering"],
-    "retail_apparel": ["butik pakaian", "hijab store", "distro clothing", "toko baju"],
-    "beauty_skincare": ["klinik kecantikan", "klinik estetika", "dokter gigi", "salon", "spa"],
-    "corporate_legal": ["notaris ppat", "kantor hukum", "advokat", "konsultan hukum"],
-    "event_wedding": ["wedding organizer", "event planner", "dekorasi pesta", "wedding decoration"]
-}
+from scrapers.config import (
+    CITY_DEFAULT,
+    LAT_ORIGIN,
+    LON_ORIGIN,
+    SECTOR_QUERIES,
+    STATE_FILE,
+    LEADS_DB,
+)
 
 
 def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -146,13 +144,24 @@ def process_place(
     elif place.get("whatsapp_number"):
         whatsapp = normalize_whatsapp(place.get("whatsapp_number"))
 
+    address_str = ""
+    district = ""
+    city = "Makassar"
     if address:
-        address = normalize_address(address)
+        if isinstance(address, dict):
+            address_str = address.get("address_full") or ""
+            district = address.get("district_area") or ""
+            city = address.get("city") or "Makassar"
+        else:
+            norm = normalize_address(str(address))
+            address_str = norm.get("address_full") or str(address)
+            district = norm.get("district_area") or ""
+            city = norm.get("city") or "Makassar"
 
     scoring_payload = {
         "place_id": place_id,
         "business_name": name,
-        "address_full": address,
+        "address_full": address_str,
         "category": category,
         "gmaps_rating": place.get("rating") or place.get("total_score"),
         "reviews_count": place.get("reviews_count", 0),
@@ -166,7 +175,7 @@ def process_place(
         "business_name": name,
         "category": category,
         "rating": place.get("rating"),
-        "city": "Makassar"
+        "city": city
     })
     recs = recommended_products({"category": category})
 
@@ -176,8 +185,10 @@ def process_place(
         "category": category,
         "whatsapp": whatsapp,
         "whatsapp_number": whatsapp,
-        "address": address,
-        "address_full": address,
+        "address": address_str,
+        "address_full": address_str,
+        "district_area": district,
+        "city": city,
         "latitude": lat,
         "longitude": lon,
         "distance_km": round(distance, 2),
@@ -196,8 +207,15 @@ def save_lead(lead: Dict[str, Any], dry_run: bool = False) -> bool:
         print(f"[DRY-RUN] Teridentifikasi: {lead['business_name']} ({lead['category']}) | Jarak: {lead['distance_km']} km")
         return True
 
+    address_val = lead.get("address_full") or lead.get("address") or ""
+    if isinstance(address_val, dict):
+        address_val = address_val.get("address_full") or str(address_val)
+    elif not isinstance(address_val, str):
+        address_val = str(address_val)
+
     conn = sqlite3.connect(LEADS_DB)
     cursor = conn.cursor()
+    saved_to_leads = False
     try:
         cursor.execute("""
             INSERT OR REPLACE INTO leads 
@@ -208,7 +226,7 @@ def save_lead(lead: Dict[str, Any], dry_run: bool = False) -> bool:
             lead["business_name"],
             lead["category"],
             lead.get("whatsapp"),
-            lead.get("address"),
+            address_val,
             lead.get("latitude"),
             lead.get("longitude"),
             lead.get("distance_km"),
@@ -217,12 +235,25 @@ def save_lead(lead: Dict[str, Any], dry_run: bool = False) -> bool:
             lead["found_at"]
         ))
         conn.commit()
+        saved_to_leads = True
     except Exception as e:
         print(f"Gagal menyimpan ke tabel leads: {e}")
     finally:
         conn.close()
 
-    entity_id = f"ent_{lead['place_id'][-8:]}" if lead.get("place_id") else f"ent_{int(time.time())}"
+    existing_id = find_existing_entity_id(
+        whatsapp=lead.get("whatsapp"),
+        business_name=lead.get("business_name"),
+        place_id=lead.get("place_id"),
+        db_path=LEADS_DB
+    )
+    if existing_id:
+        entity_id = existing_id
+    elif lead.get("place_id"):
+        entity_id = f"ent_{lead['place_id'][-8:]}"
+    else:
+        entity_id = f"ent_{int(time.time())}"
+
     entity_payload = {
         "entity_id": entity_id,
         "business_name": lead["business_name"],
@@ -235,8 +266,9 @@ def save_lead(lead: Dict[str, Any], dry_run: bool = False) -> bool:
         "is_commercial": 1,
         "locations": {
             "place_id": lead["place_id"],
-            "address_full": lead.get("address", ""),
-            "city": "Makassar",
+            "address_full": address_val,
+            "district_area": lead.get("district_area", ""),
+            "city": lead.get("city", "Makassar"),
             "latitude": lead.get("latitude"),
             "longitude": lead.get("longitude")
         },
@@ -254,12 +286,13 @@ def save_lead(lead: Dict[str, Any], dry_run: bool = False) -> bool:
             "whatsapp_pitch": lead.get("whatsapp_pitch", "")
         }
     }
+    saved_to_entities = False
     try:
-        upsert_lead_sqlite(entity_payload, db_path=str(LEADS_DB))
+        saved_to_entities = bool(upsert_lead_sqlite(entity_payload, db_path=str(LEADS_DB)))
     except Exception as e:
         print(f"Gagal menyimpan ke entitas SQLite: {e}")
 
-    return True
+    return saved_to_leads or saved_to_entities
 
 
 def run_radius_scraper(

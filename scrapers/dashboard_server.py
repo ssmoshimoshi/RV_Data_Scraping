@@ -21,7 +21,16 @@ from scrapers.lead_scoring import (
     generate_whatsapp_pitch,
     estimate_packaging_volume_and_value,
 )
-from scrapers.db_sqlite import get_all_leads as get_all_leads_from_sqlite, update_outreach_log, update_manual_override
+from scrapers.db_sqlite import (
+    get_all_leads as get_all_leads_from_sqlite,
+    update_outreach_log,
+    update_manual_override,
+    get_all_debates,
+    get_debate_by_id,
+    create_debate,
+    add_debate_turn,
+    conclude_debate,
+)
 from scrapers.exporter import find_latest_dossier
 from scrapers.content_inspector import (
     fetch_social_top_posts,
@@ -682,58 +691,82 @@ def adapt_sqlite_lead_for_dashboard(item: dict) -> dict:
 def get_all_leads():
     combined = []
     seen_ids = set()
+    seen_phones = set()
+    seen_names = set()
     
-    # 1. Tabel leads (Prioritas Tertinggi - dari lead_engine.py)
-    leads_from_table = get_leads_table_data()
-    for item in leads_from_table:
-        lead_id = item.get('lead_id') or item.get('id')
-        if lead_id and lead_id not in seen_ids:
-            seen_ids.add(lead_id)
-            enriched = enrich_lead_card({
-                'id': lead_id,
-                'entity_id': lead_id,
-                'business_name': item.get('business_name', ''),
-                'category': item.get('category', ''),
-                'whatsapp_number': item.get('whatsapp', ''),
-                'phone_raw': item.get('phone', ''),
-                'website_url': item.get('website', ''),
-                'address_full': item.get('address', ''),
-                'rating': item.get('rating', 0.0),
-                'reviews_count': item.get('reviews_count', 0),
-                'status': item.get('status', 'new'),
-                'instagram_handle': item.get('instagram_handle', ''),
-                'score': item.get('score', 0),
-                'manual_tier': item.get('manual_tier') or '',
-                'manual_score': item.get('manual_score'),
-                'manual_notes': item.get('manual_notes') or '',
-                'is_manual_override': bool(item.get('is_manual_override')),
-                'channels': {
-                    'instagram': item.get('instagram_handle', ''),
-                    'website': item.get('website', '')
-                }
-            })
-            combined.append(enriched)
-    
-    # 2. SQLite entities (dari db_sqlite.py)
+    # 1. SQLite entities (Sumber Utama - skema relasional 5-tabel db_sqlite.py)
     leads_sqlite = get_all_leads_from_sqlite()
     for item in leads_sqlite:
         entity_id = item.get('entity_id')
+        name = (item.get('business_name') or '').strip().lower()
+        phone = (item.get('whatsapp_number') or item.get('phone_raw') or '').strip()
+        
         if entity_id and entity_id not in seen_ids:
             seen_ids.add(entity_id)
+            if name:
+                seen_names.add(name)
+            if phone:
+                seen_phones.add(phone)
             combined.append(enrich_lead_card(adapt_sqlite_lead_for_dashboard(item)))
     
-    # 3. Fallback: Processed Dossiers & Raw Scraped (Hanya jika data/leads.sqlite belum ada)
+    # 2. Tabel leads (Fallback untuk kompatibilitas data lama jika belum ada di entities)
+    leads_from_table = get_leads_table_data()
+    for item in leads_from_table:
+        lead_id = item.get('lead_id') or item.get('id')
+        name = (item.get('business_name') or '').strip().lower()
+        phone = (item.get('whatsapp') or item.get('phone') or '').strip()
+        
+        if lead_id in seen_ids:
+            continue
+        if name and name in seen_names:
+            continue
+        if phone and phone in seen_phones:
+            continue
+            
+        if lead_id:
+            seen_ids.add(lead_id)
+        if name:
+            seen_names.add(name)
+        if phone:
+            seen_phones.add(phone)
+            
+        enriched = enrich_lead_card({
+            'id': lead_id,
+            'entity_id': lead_id,
+            'business_name': item.get('business_name', ''),
+            'category': item.get('category', ''),
+            'whatsapp_number': item.get('whatsapp', ''),
+            'phone_raw': item.get('phone', ''),
+            'website_url': item.get('website', ''),
+            'address_full': item.get('address', ''),
+            'rating': item.get('rating', 0.0),
+            'reviews_count': item.get('reviews_count', 0),
+            'status': item.get('status', 'new'),
+            'instagram_handle': item.get('instagram_handle', ''),
+            'score': item.get('score', 0),
+            'manual_tier': item.get('manual_tier') or '',
+            'manual_score': item.get('manual_score'),
+            'manual_notes': item.get('manual_notes') or '',
+            'is_manual_override': bool(item.get('is_manual_override')),
+            'channels': {
+                'instagram': item.get('instagram_handle', ''),
+                'website': item.get('website', '')
+            }
+        })
+        combined.append(enriched)
+    
+    # 3. Fallback: Processed Dossiers & Raw Scraped (Hanya jika database SQLite belum ada data)
     db_file = PROJECT_ROOT / 'data' / 'leads.sqlite'
     if not combined and not db_file.exists():
         processed = load_processed_dossiers()
         scraped = load_raw_scraped_leads()
-        seen_names = {p["business_name"].lower() for p in processed if p.get("business_name")}
+        seen_names_fallback = {p["business_name"].lower() for p in processed if p.get("business_name")}
         combined = list(processed)
-        combined += [s for s in scraped if s["business_name"].lower() not in seen_names]
+        combined += [s for s in scraped if s["business_name"].lower() not in seen_names_fallback]
         
-        seen_names = {c["business_name"].lower() for c in combined if c.get("business_name")}
+        seen_names_fallback = {c["business_name"].lower() for c in combined if c.get("business_name")}
         for sample in SAMPLE_LEADS:
-            if sample.get("business_name", "").lower() not in seen_names:
+            if sample.get("business_name", "").lower() not in seen_names_fallback:
                 combined.append(sample)
         
         combined = [enrich_lead_card(item) for item in combined]
@@ -835,6 +868,83 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
             data = json.loads(body) if body else {}
         except Exception:
             data = {}
+
+        # API Endpoint: Run Automated Debate (AI vs AI)
+        if parsed.path == "/api/debates/auto":
+            topic = (data.get("topic") or "").strip()
+            if not topic:
+                self.send_response(400)
+                self.send_cors_headers()
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "Topik atau pertanyaan debat diperlukan"}, ensure_ascii=False).encode("utf-8"))
+                return
+            from scrapers.debate_engine import run_automated_debate
+            debate_result = run_automated_debate(topic)
+            self.send_response(201)
+            self.send_cors_headers()
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps(debate_result, ensure_ascii=False).encode("utf-8"))
+            return
+
+        # API Endpoint: Create New Debate
+        if parsed.path == "/api/debates":
+            topic = (data.get("topic") or "").strip()
+            if not topic:
+                self.send_response(400)
+                self.send_cors_headers()
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "Topik debat diperlukan"}, ensure_ascii=False).encode("utf-8"))
+                return
+            new_id = create_debate(topic)
+            self.send_response(201)
+            self.send_cors_headers()
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"status": "success", "debate_id": new_id}, ensure_ascii=False).encode("utf-8"))
+            return
+
+        # API Endpoint: Add Turn to Debate
+        if parsed.path.startswith("/api/debates/") and parsed.path.endswith("/turn"):
+            parts = parsed.path.strip("/").split("/")
+            if len(parts) >= 4:
+                debate_id = parts[2]
+                round_num = int(data.get("round_number", 1))
+                agent = (data.get("agent_name") or "Antigravity").strip()
+                role = (data.get("role") or "Thesis").strip()
+                content = (data.get("content") or "").strip()
+                verdict = (data.get("verdict") or "proposed").strip()
+                if not content:
+                    self.send_response(400)
+                    self.send_cors_headers()
+                    self.send_header("Content-Type", "application/json")
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"error": "Konten argumen tidak boleh kosong"}, ensure_ascii=False).encode("utf-8"))
+                    return
+                turn_id = add_debate_turn(debate_id, round_num, agent, role, content, verdict)
+                self.send_response(201)
+                self.send_cors_headers()
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"status": "success", "turn_id": turn_id}, ensure_ascii=False).encode("utf-8"))
+                return
+
+        # API Endpoint: Conclude Debate
+        if parsed.path.startswith("/api/debates/") and parsed.path.endswith("/conclude"):
+            parts = parsed.path.strip("/").split("/")
+            if len(parts) >= 4:
+                debate_id = parts[2]
+                winner_summary = (data.get("winner_summary") or "").strip()
+                success = conclude_debate(debate_id, winner_summary)
+                self.send_response(200 if success else 404)
+                self.send_cors_headers()
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"status": "success" if success else "error"}, ensure_ascii=False).encode("utf-8"))
+                return
+
         if parsed.path == "/api/leads/link-channel":
             lead_id = data.get("lead_id")
             platform = data.get("platform", "instagram").lower()
@@ -1314,6 +1424,24 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
                 self.wfile.write(json.dumps({"status": "error", "message": str(exc)}, ensure_ascii=False).encode("utf-8"))
             return
 
+        if parsed.path in ["/api/sync-from-sheets", "/api/leads/pull-sheets"]:
+            try:
+                from scrapers.sync_hermes import pull_leads_from_hermes
+                sheet_name = data.get("sheet_name", "Radar Prospek") if data else "Radar Prospek"
+                res = pull_leads_from_hermes(sheet_name=sheet_name)
+                self.send_response(200)
+                self.send_cors_headers()
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps(res, ensure_ascii=False).encode("utf-8"))
+            except Exception as exc:
+                self.send_response(500)
+                self.send_cors_headers()
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"status": "error", "message": str(exc)}, ensure_ascii=False).encode("utf-8"))
+            return
+
         if parsed.path == "/api/android/scrape":
             username = data.get("username", "")
             dry_run = data.get("dry_run", False)
@@ -1438,6 +1566,52 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
             self.send_header("Content-Type", "application/json")
             self.end_headers()
             self.wfile.write(json.dumps(status, ensure_ascii=False).encode("utf-8"))
+            return
+
+        # API Endpoint: Sync From Google Sheets
+        if parsed.path in ["/api/sync-from-sheets", "/api/leads/pull-sheets"]:
+            try:
+                from scrapers.sync_hermes import pull_leads_from_hermes
+                res = pull_leads_from_hermes(sheet_name="Radar Prospek")
+                self.send_response(200)
+                self.send_cors_headers()
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps(res, ensure_ascii=False).encode("utf-8"))
+            except Exception as exc:
+                self.send_response(500)
+                self.send_cors_headers()
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"status": "error", "message": str(exc)}, ensure_ascii=False).encode("utf-8"))
+            return
+
+        # API Endpoint: Get All Debates
+        if parsed.path == "/api/debates":
+            debates = get_all_debates()
+            self.send_response(200)
+            self.send_cors_headers()
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps(debates, ensure_ascii=False).encode("utf-8"))
+            return
+
+        # API Endpoint: Get Single Debate by ID
+        if parsed.path.startswith("/api/debates/"):
+            debate_id = parsed.path[len("/api/debates/"):].strip("/")
+            debate = get_debate_by_id(debate_id)
+            if debate:
+                self.send_response(200)
+                self.send_cors_headers()
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps(debate, ensure_ascii=False).encode("utf-8"))
+            else:
+                self.send_response(404)
+                self.send_cors_headers()
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "Sesi debat tidak ditemukan"}, ensure_ascii=False).encode("utf-8"))
             return
 
         # API Endpoint: Get Leads

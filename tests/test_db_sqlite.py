@@ -261,5 +261,45 @@ class TestManualOverride(unittest.TestCase):
         self.assertTrue(ok_clear)
 
 
+class TestFindExistingEntityId(unittest.TestCase):
+    def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.db_path = Path(self.temp_dir.name) / 'test_dedup.sqlite'
+        init_db(self.db_path)
+        upsert_lead({
+            'entity_id': 'ent_existing_123',
+            'business_name': 'Kopi Janji Manis',
+            'whatsapp_number': '6281234567890',
+            'phone_raw': '081234567890',
+            'locations': {
+                'place_id': 'ChIJ_abc123'
+            }
+        }, self.db_path)
+
+    def tearDown(self):
+        self.temp_dir.cleanup()
+
+    def test_find_by_place_id(self):
+        from scrapers.db_sqlite import find_existing_entity_id
+        found = find_existing_entity_id(place_id='ChIJ_abc123', db_path=self.db_path)
+        self.assertEqual(found, 'ent_existing_123')
+
+    def test_find_by_whatsapp(self):
+        from scrapers.db_sqlite import find_existing_entity_id
+        found = find_existing_entity_id(whatsapp='6281234567890', db_path=self.db_path)
+        self.assertEqual(found, 'ent_existing_123')
+
+    def test_find_by_business_name_case_insensitive(self):
+        from scrapers.db_sqlite import find_existing_entity_id
+        found = find_existing_entity_id(business_name='  kopi janji manis  ', db_path=self.db_path)
+        self.assertEqual(found, 'ent_existing_123')
+
+    def test_find_non_existent_returns_none(self):
+        from scrapers.db_sqlite import find_existing_entity_id
+        found = find_existing_entity_id(business_name='Toko Lain', db_path=self.db_path)
+        self.assertIsNone(found)
+
+
 if __name__ == '__main__':
     unittest.main()
+

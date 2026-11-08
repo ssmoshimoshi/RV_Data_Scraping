@@ -322,6 +322,58 @@ body {
   transform: scale(0.98);
 }
 
+.btn-spreadsheet-sync {
+  background: rgba(0, 229, 255, 0.08);
+  color: #00e5ff;
+  border: 1px solid rgba(0, 229, 255, 0.4);
+  padding: 9px 16px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.btn-spreadsheet-sync:hover {
+  background: rgba(0, 229, 255, 0.18);
+  border-color: #00e5ff;
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 229, 255, 0.25);
+}
+
+.btn-spreadsheet-sync:active {
+  transform: scale(0.98);
+}
+
+.btn-spreadsheet-sync:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.spin-icon {
+  animation: spinIcon 0.8s linear infinite;
+}
+
+@keyframes spinIcon {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .btn-mobile-sheets {
   display: none;
 }
@@ -2863,5 +2915,406 @@ select:focus, input[type="text"]:focus {
     stroke-width: 2 !important;
   }
 }
+
+/* ==========================================================================
+   ARENA DEBAT MULTI-AGEN (KILO VS ANTIGRAVITY)
+   ========================================================================== */
+
+.arena-hero-badge {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cmyk-cyan);
+  background: var(--cmyk-cyan-light);
+  padding: 4px 10px;
+  border-radius: 9999px;
+  margin-bottom: 8px;
+  border: 1px solid rgba(0, 174, 239, 0.2);
+}
+
+.arena-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: var(--bg-paper);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 14px 20px;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow-subtle);
+  flex-wrap: wrap;
+}
+
+.arena-session-selector-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 260px;
+}
+
+.arena-label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.arena-select {
+  flex: 1;
+  padding: 8px 14px;
+  font-size: 0.88rem;
+  font-family: var(--font-family);
+  font-weight: 600;
+  color: var(--text-key);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.arena-select:focus {
+  border-color: var(--cmyk-cyan);
+  box-shadow: 0 0 0 3px rgba(0, 174, 239, 0.15);
+}
+
+.arena-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-arena-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  font-family: var(--font-family);
+  color: var(--text-secondary);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-arena-action:hover {
+  background: var(--bg-surface-container);
+  color: var(--text-key);
+}
+
+.btn-arena-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  font-family: var(--font-family);
+  color: #ffffff;
+  background: var(--cmyk-key);
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-arena-primary:hover {
+  background: #000000;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.btn-arena-secondary {
+  padding: 8px 16px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  font-family: var(--font-family);
+  color: var(--text-secondary);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.arena-topic-card {
+  background: var(--bg-paper);
+  border: 1px solid var(--border-subtle);
+  border-radius: 14px;
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: var(--shadow-card);
+}
+
+.arena-topic-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.arena-status-pill {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  background: var(--bg-surface-container);
+  color: var(--text-secondary);
+}
+
+.arena-status-pill.in_progress {
+  background: rgba(245, 158, 11, 0.12);
+  color: #b45309;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.arena-status-pill.concluded {
+  background: rgba(16, 185, 129, 0.12);
+  color: #065f46;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.arena-timestamp {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.arena-topic-heading {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--text-key);
+  margin-bottom: 8px;
+  line-height: 1.35;
+}
+
+.arena-topic-summary {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  background: var(--bg-surface);
+  border-left: 3px solid #10b981;
+  padding: 12px 16px;
+  border-radius: 0 8px 8px 0;
+  margin-top: 12px;
+}
+
+/* Rounds Container */
+.arena-rounds-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  margin-bottom: 30px;
+}
+
+.arena-round-block {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.arena-round-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed var(--border-strong);
+}
+
+.arena-round-number {
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  background: var(--cmyk-charcoal);
+  color: #ffffff;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.arena-round-title {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text-key);
+}
+
+/* Turn Card */
+.arena-turn-card {
+  background: var(--bg-paper);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 18px 22px;
+  box-shadow: var(--shadow-subtle);
+  transition: all 0.15s ease;
+  position: relative;
+}
+
+.arena-turn-card.kilo {
+  border-left: 5px solid var(--cmyk-cyan);
+}
+
+.arena-turn-card.antigravity {
+  border-left: 5px solid var(--cmyk-magenta);
+}
+
+.arena-turn-card.consensus {
+  border-left: 5px solid #10b981;
+  background: linear-gradient(180deg, #ffffff 0%, rgba(16, 185, 129, 0.03) 100%);
+}
+
+.arena-turn-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.arena-agent-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.arena-agent-badge {
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  padding: 3px 10px;
+  border-radius: 6px;
+  text-transform: uppercase;
+}
+
+.arena-turn-card.kilo .arena-agent-badge {
+  background: var(--cmyk-cyan-light);
+  color: #0077a8;
+  border: 1px solid rgba(0, 174, 239, 0.3);
+}
+
+.arena-turn-card.antigravity .arena-agent-badge {
+  background: var(--cmyk-magenta-light);
+  color: #a80064;
+  border: 1px solid rgba(236, 0, 140, 0.3);
+}
+
+.arena-turn-card.consensus .arena-agent-badge {
+  background: rgba(16, 185, 129, 0.12);
+  color: #065f46;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.arena-turn-role {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.arena-turn-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.arena-verdict-pill {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.arena-verdict-pill.proposed {
+  background: var(--cmyk-cyan-light);
+  color: #0077a8;
+}
+
+.arena-verdict-pill.countered {
+  background: rgba(245, 158, 11, 0.12);
+  color: #b45309;
+}
+
+.arena-verdict-pill.accepted {
+  background: rgba(16, 185, 129, 0.15);
+  color: #065f46;
+  font-weight: 800;
+}
+
+.arena-verdict-pill.eliminated {
+  background: rgba(239, 68, 68, 0.12);
+  color: #b91c1c;
+  text-decoration: line-through;
+}
+
+.arena-turn-body {
+  font-size: 0.88rem;
+  color: var(--text-key);
+  line-height: 1.65;
+  white-space: pre-line;
+}
+
+/* Add Turn Card */
+.arena-add-turn-card {
+  background: var(--bg-paper);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 20px 24px;
+  box-shadow: var(--shadow-subtle);
+}
+
+.arena-subheading {
+  font-size: 0.96rem;
+  font-weight: 800;
+  color: var(--text-key);
+  margin-bottom: 16px;
+}
+
+.arena-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.arena-input, .arena-textarea {
+  width: 100%;
+  padding: 9px 14px;
+  font-size: 0.86rem;
+  font-family: var(--font-family);
+  color: var(--text-key);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+.arena-input:focus, .arena-textarea:focus {
+  border-color: var(--cmyk-cyan);
+  box-shadow: 0 0 0 3px rgba(0, 174, 239, 0.15);
+}
+
+.arena-form-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+
+.arena-modal-dialog {
+  max-width: 580px;
+}
+
+.arena-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
 
 

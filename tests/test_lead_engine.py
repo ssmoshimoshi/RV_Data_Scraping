@@ -346,6 +346,25 @@ class TestDatabaseOperations(unittest.TestCase):
         self.assertEqual(nums[1], nums[0] + 1)
         self.assertEqual(nums[2], nums[1] + 1)
 
+    def test_save_lead_to_db_propagates_to_relational_entities(self):
+        from scrapers.db_sqlite import get_all_leads
+        lead = {
+            'business_name': 'Warung Relasional',
+            'category': 'Cafe',
+            'sector': 'fnb',
+            'phone': '081234567890',
+            'score': 88
+        }
+        lead_id = lead_engine.save_lead_to_db(lead, dry_run=False)
+        self.assertTrue(lead_id.startswith('LD-'))
+
+        rel_leads = get_all_leads(lead_engine.DB_PATH)
+        self.assertEqual(len(rel_leads), 1)
+        self.assertEqual(rel_leads[0]['business_name'], 'Warung Relasional')
+        self.assertEqual(rel_leads[0]['whatsapp_number'], '6281234567890')
+        self.assertEqual(rel_leads[0]['lead_score'], 88)
+
 
 if __name__ == '__main__':
     unittest.main()
+

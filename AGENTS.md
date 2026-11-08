@@ -101,6 +101,7 @@ Sesuai aturan di `.agents/rules/ponytail_lean_code.md`:
 
 - **PRD v2.0 (Sumber Kebenaran Tunggal)**: `PRD_RUANG_VISUAL_MARKET_INTELLIGENCE.md`
   Bab 5 PRD adalah satu-satunya definisi resmi formula Lead Scoring Engine. Kilo wajib mengacu hanya ke dokumen ini.
+- **Protokol Debat Multi-Agen (Kilo vs Antigravity)**: `docs/PROTOKOL_DEBAT_MULTI_AGEN.md`
 - **Spesifikasi Titik Data per Platform**: `docs/flowcharts/DETAIL_EKSTRAKSI_MULTIPLATFORM.md`
 - **Diagram Alur Arsitektur**: `docs/flowcharts/`
 

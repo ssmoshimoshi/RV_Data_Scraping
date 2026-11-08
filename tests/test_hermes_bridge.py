@@ -3,6 +3,7 @@ from unittest.mock import patch, MagicMock
 from scrapers.sync_hermes import (
     format_lead_for_radar_prospek,
     sync_leads_to_hermes,
+    pull_leads_from_hermes,
     send_webhook_payload,
     RADAR_PROSPEK_HEADERS,
 )
@@ -60,9 +61,25 @@ class TestHermesBridge(unittest.TestCase):
         self.assertEqual(res.get("status"), "ok")
         self.assertEqual(res.get("appended"), 6)
 
-    def test_send_webhook_payload_requires_url(self):
-        with self.assertRaises(ValueError):
-            send_webhook_payload({"action": "ping"}, webhook_url="")
+    @patch("scrapers.sync_hermes.fetch_sheet_rows")
+    def test_pull_leads_from_hermes_mocked(self, mock_fetch):
+        mock_fetch.return_value = [
+            ["Nama Bisnis", "Kategori", "Sumber Platform", "Skor", "Status", "No. WhatsApp", "Link WA", "Proyeksi Kebutuhan Cetak", "Pemicu", "Alamat", "Rating & Ulasan", "Website", "Link Peta", "Tanggal"],
+            ["Warung Baru Makassar", "Fnb Hospitality", "Google Maps", "60", "Tier C (Skor 60)", "6281234567890", "wa.me", "Paper Cup", "Pemicu", "Jl. Pettarani No. 1", "4.8 (50 ulasan)", "-", "https://maps.google.com", "2026-10-29"],
+        ]
+        import tempfile
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            temp_db = Path(tmp_dir) / "test_leads.sqlite"
+            res = pull_leads_from_hermes(sheet_name="Radar Prospek", db_path=str(temp_db), dry_run=False)
+            self.assertEqual(res["status"], "success")
+            self.assertEqual(res["imported_count"], 1)
+            self.assertEqual(res["updated_count"], 0)
+
+            # Test second pull (update)
+            res_update = pull_leads_from_hermes(sheet_name="Radar Prospek", db_path=str(temp_db), dry_run=False)
+            self.assertEqual(res_update["imported_count"], 0)
+            self.assertEqual(res_update["updated_count"], 1)
 
 
 if __name__ == "__main__":

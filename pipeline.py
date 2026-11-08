@@ -549,7 +549,14 @@ def run_harvest_pipeline(sector: str, limit_per_query: int, dry_run: bool):
     harvest(sector=sector, limit_per_query=limit_per_query, dry_run=dry_run)
 
 
-def run_sync_hermes_pipeline(sheet_name: str = "Radar Prospek", clear_first: bool = False, dry_run: bool = False, limit: int = 0) -> dict:
+def run_sync_hermes_pipeline(sheet_name: str = "Radar Prospek", clear_first: bool = False, dry_run: bool = False, limit: int = 0, direction: str = "push") -> dict:
+    if direction == "pull":
+        from scrapers.sync_hermes import pull_leads_from_hermes
+        print(f"Menjalankan penarikan data dari Google Sheets '{sheet_name}' (Dry-run: {dry_run})...")
+        res = pull_leads_from_hermes(sheet_name=sheet_name, dry_run=dry_run)
+        print(f"Status: {res.get('status')} | Total baris sheet: {res.get('total_rows')} | Diimpor: {res.get('imported_count')} | Diperbarui: {res.get('updated_count')}")
+        return res
+
     if sheet_name == "Matriks Kompetitor":
         from scrapers.competitor_matrix import sync_competitor_matrix_to_hermes, MAKASSAR_PRINTING_COMPETITORS
         comps = MAKASSAR_PRINTING_COMPETITORS[:limit] if limit > 0 else MAKASSAR_PRINTING_COMPETITORS
@@ -713,10 +720,11 @@ def main():
 
     # Subcommand: sync-hermes
     hermes_parser = subparsers.add_parser("sync-hermes", help="Sinkronkan prospek terverifikasi ke Google Sheets Hermes")
+    hermes_parser.add_argument("--direction", choices=["push", "pull"], default="push", help="Arah sinkronisasi: push (unggah ke Sheets) atau pull (tarik dari Sheets)")
     hermes_parser.add_argument("--sheet", type=str, default="Radar Prospek", help="Nama worksheet target di Google Sheets")
-    hermes_parser.add_argument("--clear-first", action="store_true", help="Kosongkan data lama sebelum mengunggah")
+    hermes_parser.add_argument("--clear-first", action="store_true", help="Kosongkan data lama sebelum mengunggah (khusus push)")
     hermes_parser.add_argument("--limit", type=int, default=0, help="Batasi jumlah baris")
-    hermes_parser.add_argument("--dry-run", action="store_true", help="Uji coba tanpa menulis ke Google Sheets")
+    hermes_parser.add_argument("--dry-run", action="store_true", help="Uji coba tanpa menulis ke database/Google Sheets")
 
     # Subcommand: inspect
     inspect_parser = subparsers.add_parser("inspect", help="Inspeksi mendalam traksi dan konten media sosial target")
@@ -796,7 +804,8 @@ def main():
             sheet_name=args.sheet,
             clear_first=args.clear_first,
             dry_run=args.dry_run,
-            limit=args.limit
+            limit=args.limit,
+            direction=args.direction
         )
     elif args.command == "inspect":
         run_inspect_pipeline(

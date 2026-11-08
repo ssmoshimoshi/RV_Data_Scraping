@@ -42,6 +42,11 @@
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
           <span class="nav-text">Spesifikasi Teknis Kemasan</span>
         </button>
+
+        <button class="nav-item" data-view="view-arena" onclick="switchView('view-arena')">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><line x1="9" y1="10" x2="15" y2="10"/><line x1="12" y1="7" x2="12" y2="13"/></svg>
+          <span class="nav-text">Arena Debat Multi-Agen</span>
+        </button>
       </nav>
 
       <div class="sidebar-footer">
@@ -75,6 +80,10 @@
           </div>
         </div>
         <div class="header-actions">
+          <button id="btn-pull-spreadsheet" class="btn-spreadsheet-sync" title="Tarik pembaruan data dari Google Spreadsheet ke database lokal">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>
+            <span>Tarik dari Spreadsheet</span>
+          </button>
           <a href="https://docs.google.com/spreadsheets/d/1mDx0aQcz95iPN6KwdmRgb2RE2xVNIhAgiuoq96k6dAU/edit" target="_blank" rel="noopener noreferrer" class="btn-spreadsheet" title="Buka Google Spreadsheet Radar Prospek">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
             <span>Buka Google Spreadsheet</span>
@@ -466,6 +475,93 @@
         </div>
       </section>
 
+      <!-- View 5: Arena Debat Multi-Agen (Kilo vs Antigravity) -->
+      <section id="view-arena" class="view-panel">
+        <div class="view-hero-header">
+          <div class="arena-hero-badge">DIALEKTIKA SOKRATIK 3 RONDE</div>
+          <h1 class="view-hero-title">Arena Debat Multi-Agen</h1>
+          <p class="view-hero-desc">Ruang perdebatan arsitektural dan teknis antara Kilo (Builder &amp; Scraper) dan Antigravity (Arsitek &amp; Auditor Sistem) untuk menyeleksi solusi paling ramping, aman, dan berdaya guna.</p>
+        </div>
+
+        <!-- Controls Toolbar -->
+        <div class="arena-toolbar">
+          <div class="arena-session-selector-wrap">
+            <label for="select-debate-session" class="arena-label">Topik Debat:</label>
+            <select id="select-debate-session" class="arena-select" onchange="onDebateSelected()">
+              <!-- Options loaded via JS -->
+            </select>
+          </div>
+          <div class="arena-toolbar-actions">
+            <button id="btn-refresh-debates" class="btn-arena-action" onclick="loadDebates()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>
+              <span>Segarkan</span>
+            </button>
+            <button id="btn-toggle-new-debate" class="btn-arena-primary" onclick="toggleNewDebateModal(true)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              <span>Mulai Debat Baru</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Active Debate Header Card -->
+        <div class="arena-topic-card" id="arena-topic-card">
+          <div class="arena-topic-header">
+            <span class="arena-status-pill" id="arena-debate-status">Memuat...</span>
+            <span class="arena-timestamp" id="arena-debate-timestamp"></span>
+          </div>
+          <h2 class="arena-topic-heading" id="arena-debate-title">Memuat topik perdebatan...</h2>
+          <div class="arena-topic-summary" id="arena-debate-summary"></div>
+        </div>
+
+        <!-- Rounds Container -->
+        <div class="arena-rounds-container" id="arena-rounds-container">
+          <!-- Turns populated dynamically by app.js -->
+        </div>
+
+        <!-- Form Tambah Argumen / Putaran Baru -->
+        <div class="arena-add-turn-card" id="arena-add-turn-card">
+          <h3 class="arena-subheading">Tambahkan Argumen ke Diskusi Ini</h3>
+          <form id="form-add-turn" onsubmit="submitDebateTurn(event)">
+            <div class="arena-form-grid">
+              <div class="form-group">
+                <label for="turn-agent">Agen:</label>
+                <select id="turn-agent" class="arena-input">
+                  <option value="Kilo">Kilo (Builder / Scraper)</option>
+                  <option value="Antigravity">Antigravity (Arsitek / Auditor)</option>
+                  <option value="Konsensus Multi-Agen">Konsensus Multi-Agen</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="turn-round">Ronde:</label>
+                <select id="turn-round" class="arena-input">
+                  <option value="1">Ronde 1: Tesis (Pengajuan Usulan)</option>
+                  <option value="2">Ronde 2: Antitesis (Counter-Audit Empiris)</option>
+                  <option value="3">Ronde 3: Sintesis (Eliminasi &amp; Konsensus)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="turn-verdict">Status Putusan:</label>
+                <select id="turn-verdict" class="arena-input">
+                  <option value="proposed">Diajukan (Proposed)</option>
+                  <option value="countered">Disanggah / Diaudit (Countered)</option>
+                  <option value="accepted">Diterima / Pemenang (Accepted)</option>
+                  <option value="eliminated">Dieliminasi (Eliminated)</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group mt-3">
+              <label for="turn-content">Isi Argumen / Temuan Teknis:</label>
+              <textarea id="turn-content" class="arena-textarea" rows="4" placeholder="Tuliskan argumen teknis, temuan audit, atau alasan eliminasi secara terukur dan faktual..." required></textarea>
+            </div>
+            <div class="arena-form-footer">
+              <button type="submit" class="btn-arena-primary" id="btn-submit-turn">
+                <span>Kirim Argumen</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </section>
+
     </div>
 
   </div>
@@ -793,7 +889,57 @@
       </svg>
       <span>Katalog</span>
     </button>
+    <button class="mobile-nav-item" data-view="view-arena" onclick="switchView('view-arena')">
+      <svg class="mobile-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><line x1="9" y1="10" x2="15" y2="10"/><line x1="12" y1="7" x2="12" y2="13"/>
+      </svg>
+      <span>Arena</span>
+    </button>
   </nav>
+
+  <!-- Modal Buat Debat Baru -->
+  <div class="modal-backdrop" id="new-debate-modal-backdrop" onclick="toggleNewDebateModal(false)">
+    <div class="modal-dialog arena-modal-dialog" onclick="event.stopPropagation()">
+      <div class="drawer-header">
+        <h3 class="drawer-title">Inisiasi Sesi Debat Multi-Agen</h3>
+        <button class="drawer-close-btn" onclick="toggleNewDebateModal(false)">✕</button>
+      </div>
+      <div class="drawer-body">
+        <div class="arena-modal-desc" style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 16px; line-height: 1.5;">
+          Masukkan topik atau pertanyaan perdebatan. Kilo (Builder &amp; Scraper) dan Antigravity (Arsitek &amp; Auditor) akan beradu argumen 3 ronde secara otomatis hingga menghasilkan satu kesimpulan pemenang yang tidak terbantahkan.
+        </div>
+        <form id="form-new-debate" onsubmit="submitNewDebate(event)">
+          <div class="form-group">
+            <label for="new-debate-topic" style="font-weight: 700; font-size: 0.85rem; display: block; margin-bottom: 6px;">Topik atau Pertanyaan Perdebatan:</label>
+            <input type="text" id="new-debate-topic" class="arena-input" placeholder="Contoh: Mana yang lebih efektif, scraping Google Maps atau Instagram untuk UMKM Makassar?" required>
+          </div>
+          
+          <div class="arena-mode-switch mt-3" style="display: flex; gap: 16px; margin-top: 14px;">
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; cursor: pointer;">
+              <input type="radio" name="debate-mode" value="auto" checked onchange="toggleManualArgInput(false)">
+              <span style="font-weight: 700; color: #0077a8;">Otomatis (Kilo &amp; Antigravity berdebat mandiri)</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; cursor: pointer;">
+              <input type="radio" name="debate-mode" value="manual" onchange="toggleManualArgInput(true)">
+              <span style="color: var(--text-secondary);">Input Tesis Manual</span>
+            </label>
+          </div>
+
+          <div class="form-group mt-3" id="group-manual-arg" style="display: none; margin-top: 12px;">
+            <label for="new-debate-initial-arg" style="font-weight: 700; font-size: 0.85rem; display: block; margin-bottom: 6px;">Argumen Tesis Awal (Kilo):</label>
+            <textarea id="new-debate-initial-arg" class="arena-textarea" rows="3" placeholder="Tuliskan usulan teknis awal..."></textarea>
+          </div>
+
+          <div class="arena-modal-footer mt-4" style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px;">
+            <button type="button" class="btn-arena-secondary" onclick="toggleNewDebateModal(false)">Batal</button>
+            <button type="submit" class="btn-arena-primary" id="btn-start-debate-submit">
+              <span>Mulai Debat</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
 
   <script src="app.js"></script>
 </body>

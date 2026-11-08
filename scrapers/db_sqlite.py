@@ -99,12 +99,34 @@ CREATE TABLE IF NOT EXISTS outreach_logs (
     FOREIGN KEY (entity_id) REFERENCES entities(entity_id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS debates (
+    debate_id TEXT PRIMARY KEY,
+    topic TEXT NOT NULL,
+    status TEXT DEFAULT 'in_progress',
+    winner_summary TEXT,
+    created_at TEXT,
+    updated_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS debate_turns (
+    turn_id TEXT PRIMARY KEY,
+    debate_id TEXT NOT NULL,
+    round_number INTEGER NOT NULL,
+    agent_name TEXT NOT NULL,
+    role TEXT NOT NULL,
+    content TEXT NOT NULL,
+    verdict TEXT DEFAULT 'proposed',
+    created_at TEXT,
+    FOREIGN KEY (debate_id) REFERENCES debates(debate_id) ON DELETE CASCADE
+);
+
 CREATE INDEX IF NOT EXISTS idx_entities_sector ON entities(target_sector);
 CREATE INDEX IF NOT EXISTS idx_entities_pillar ON entities(primary_service_pillar);
 CREATE INDEX IF NOT EXISTS idx_intelligence_tier ON commercial_intelligence(priority_tier);
 CREATE INDEX IF NOT EXISTS idx_intelligence_score ON commercial_intelligence(lead_score);
 CREATE INDEX IF NOT EXISTS idx_locations_cluster ON locations(sales_cluster);
 CREATE INDEX IF NOT EXISTS idx_outreach_status ON outreach_logs(outreach_status);
+CREATE INDEX IF NOT EXISTS idx_debate_turns_debate ON debate_turns(debate_id);
 """
 
 
@@ -347,6 +369,48 @@ def upsert_lead(entity_data: Dict[str, Any], db_path: Optional[Path] = None) -> 
         raise RuntimeError(f"upsert_lead failed: {e}")
 
 
+def find_existing_entity_id(
+    whatsapp: Optional[str] = None,
+    business_name: Optional[str] = None,
+    place_id: Optional[str] = None,
+    db_path: Optional[Path] = None
+) -> Optional[str]:
+    db = db_path or DB_PATH
+    if not Path(db).exists():
+        return None
+    try:
+        conn = sqlite3.connect(str(db))
+        cursor = conn.cursor()
+        if place_id:
+            cursor.execute("SELECT entity_id FROM locations WHERE place_id = ? LIMIT 1", (place_id,))
+            row = cursor.fetchone()
+            if row and row[0]:
+                conn.close()
+                return str(row[0])
+        if whatsapp:
+            cursor.execute(
+                "SELECT entity_id FROM entities WHERE whatsapp_number = ? OR phone_raw = ? LIMIT 1",
+                (whatsapp, whatsapp)
+            )
+            row = cursor.fetchone()
+            if row and row[0]:
+                conn.close()
+                return str(row[0])
+        if business_name:
+            cursor.execute(
+                "SELECT entity_id FROM entities WHERE LOWER(TRIM(business_name)) = LOWER(TRIM(?)) LIMIT 1",
+                (business_name,)
+            )
+            row = cursor.fetchone()
+            if row and row[0]:
+                conn.close()
+                return str(row[0])
+        conn.close()
+        return None
+    except Exception:
+        return None
+
+
 def get_all_leads(db_path: Optional[Path] = None) -> List[Dict[str, Any]]:
     db = db_path or DB_PATH
     if not db.exists():
@@ -446,4 +510,167 @@ def update_manual_override(entity_id: str, manual_tier: str, manual_score: Optio
 def seed_sample_leads_to_sqlite(db_path: Optional[Path] = None) -> int:
     """Dinonaktifkan: Menjaga database tetap bersih dari data rekaan dummy."""
     return 0
+
+
+def create_debate(topic: str, db_path: Optional[Path] = None) -> str:
+    db = db_path or DB_PATH
+    init_db(db)
+    debate_id = f"deb_{int(datetime.now().timestamp())}"
+    now_iso = datetime.now().isoformat()
+    with sqlite3.connect(str(db)) as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO debates (debate_id, topic, status, created_at, updated_at)
+            VALUES (?, ?, 'in_progress', ?, ?)
+        """, (debate_id, topic, now_iso, now_iso))
+        conn.commit()
+    return debate_id
+
+
+def add_debate_turn(
+    debate_id: str,
+    round_number: int,
+    agent_name: str,
+    role: str,
+    content: str,
+    verdict: str = 'proposed',
+    db_path: Optional[Path] = None
+) -> str:
+    db = db_path or DB_PATH
+    import uuid
+    turn_id = f"turn_{debate_id[-6:]}_{round_number}_{uuid.uuid4().hex[:6]}"
+    now_iso = datetime.now().isoformat()
+    with sqlite3.connect(str(db)) as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO debate_turns (turn_id, debate_id, round_number, agent_name, role, content, verdict, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (turn_id, debate_id, round_number, agent_name, role, content, verdict, now_iso))
+        cursor.execute("""
+            UPDATE debates SET updated_at = ? WHERE debate_id = ?
+        """, (now_iso, debate_id))
+        conn.commit()
+    return turn_id
+
+
+def conclude_debate(
+    debate_id: str,
+    winner_summary: str,
+    db_path: Optional[Path] = None
+) -> bool:
+    db = db_path or DB_PATH
+    init_db(db)
+    now_iso = datetime.now().isoformat()
+    with sqlite3.connect(str(db)) as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            UPDATE debates 
+            SET status = 'concluded', winner_summary = ?, updated_at = ?
+            WHERE debate_id = ?
+        """, (winner_summary, now_iso, debate_id))
+        success = cursor.rowcount > 0
+        conn.commit()
+    return success
+
+
+def get_all_debates(db_path: Optional[Path] = None) -> List[Dict[str, Any]]:
+    db = db_path or DB_PATH
+    if not db.exists():
+        return []
+    init_db(db)
+    seed_default_debate_if_empty(db)
+    with sqlite3.connect(str(db)) as conn:
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT d.*, COUNT(t.turn_id) AS total_turns
+            FROM debates d
+            LEFT JOIN debate_turns t ON d.debate_id = t.debate_id
+            GROUP BY d.debate_id
+            ORDER BY d.created_at DESC
+        """)
+        rows = cursor.fetchall()
+        return [dict(r) for r in rows]
+
+
+def get_debate_by_id(debate_id: str, db_path: Optional[Path] = None) -> Optional[Dict[str, Any]]:
+    db = db_path or DB_PATH
+    if not db.exists():
+        return None
+    init_db(db)
+    with sqlite3.connect(str(db)) as conn:
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM debates WHERE debate_id = ?", (debate_id,))
+        deb_row = cursor.fetchone()
+        if not deb_row:
+            return None
+        debate = dict(deb_row)
+        cursor.execute("""
+            SELECT * FROM debate_turns 
+            WHERE debate_id = ?
+            ORDER BY round_number ASC, created_at ASC
+        """, (debate_id,))
+        turns = [dict(t) for t in cursor.fetchall()]
+        debate['turns'] = turns
+        return debate
+
+
+def seed_default_debate_if_empty(db_path: Optional[Path] = None):
+    db = db_path or DB_PATH
+    with sqlite3.connect(str(db)) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM debates")
+        count = cursor.fetchone()[0]
+        if count == 0:
+            deb_id = "deb_001_arsitektur_refactor"
+            now_iso = datetime.now().isoformat()
+            cursor.execute("""
+                INSERT INTO debates (debate_id, topic, status, winner_summary, created_at, updated_at)
+                VALUES (?, ?, 'concluded', ?, ?, ?)
+            """, (
+                deb_id,
+                "Evaluasi Refactoring Arsitektur Pipeline vs Deduplikasi Database SQLite",
+                "Konsensus memenangkan pendekatan Ponytail Lean Code: deduplikasi langsung pada skema 5-tabel relasional SQLite dan sentralisasi konfigurasi ke scrapers/config.py. Usulan refactor folder global dan penggantian server ke FastAPI dieliminasi karena over-engineering berisiko tinggi serta mematahkan 428 unit test yang sudah stabil.",
+                now_iso,
+                now_iso
+            ))
+            turns = [
+                (
+                    "turn_001",
+                    deb_id,
+                    1,
+                    "Kilo",
+                    "Thesis (Pengusul)",
+                    "Menemukan inkonsistensi antara skema flat leads dan skema 5-tabel entities. Mengusulkan pemecahan modular scrapers/ menjadi pipeline/steps/, migrasi dashboard server ke FastAPI, dan penghapusan database.py karena dicurigai sebagai dead code.",
+                    "proposed",
+                    now_iso
+                ),
+                (
+                    "turn_002",
+                    deb_id,
+                    2,
+                    "Antigravity",
+                    "Antithesis (Penelaah)",
+                    "Audit empiris: (1) database.py bukan dead code, melainkan security guardrail PRD v2.0 Bab 7 untuk memblokir mutasi Supabase produksi; (2) entity_matcher.py aktif di pipeline match; (3) Migrasi ke FastAPI dan pemecahan folder mematahkan 428 unit test dan daemon bot Telegram tanpa nilai tambah performa. Rekomendasi: pertahankan server stdlib http.server, satukan konfigurasi ke config.py, dan perbaiki deduplikasi langsung di db_sqlite.py.",
+                    "countered",
+                    now_iso
+                ),
+                (
+                    "turn_003",
+                    deb_id,
+                    3,
+                    "Konsensus Multi-Agen",
+                    "Synthesis (Pemenang)",
+                    "Ide Dieliminasi: Perombakan struktur folder global dan penggantian framework FastAPI (alasan: over-engineering, regresi 428 unit test). Ide Pemenang yang Diterapkan: Sentralisasi parameter ke scrapers/config.py, find_existing_entity_id() pada SQLite, sinkronisasi dua arah Google Sheets, dan pengesahan Protokol Debat Multi-Agen 3 Ronde.",
+                    "accepted",
+                    now_iso
+                )
+            ]
+            cursor.executemany("""
+                INSERT INTO debate_turns (turn_id, debate_id, round_number, agent_name, role, content, verdict, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, turns)
+            conn.commit()
+
 

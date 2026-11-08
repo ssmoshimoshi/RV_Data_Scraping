@@ -729,6 +729,69 @@ class TestOverrideScoreEndpoint(unittest.TestCase):
     def test_valid_override_tiers_constant(self):
         self.assertEqual(VALID_OVERRIDE_TIERS, ("Tier A", "Tier B", "Tier C", "Tier D"))
 
+    @patch("scrapers.sync_hermes.pull_leads_from_hermes")
+    def test_sync_from_sheets_endpoint(self, mock_pull):
+        mock_pull.return_value = {
+            "status": "success",
+            "sheet_name": "Radar Prospek",
+            "total_rows": 5,
+            "imported_count": 2,
+            "updated_count": 3
+        }
+        res, body = self._post("/api/sync-from-sheets", {"sheet_name": "Radar Prospek"})
+        self.assertEqual(res.status, 200)
+        data = json.loads(body)
+        self.assertEqual(data["status"], "success")
+        self.assertEqual(data["imported_count"], 2)
+
+    def _get(self, path):
+        conn = http.client.HTTPConnection("127.0.0.1", self.port, timeout=10)
+        conn.request("GET", path)
+        res = conn.getresponse()
+        data = res.read()
+        conn.close()
+        return res, data
+
+    def test_debates_api_lifecycle(self):
+        # 1. GET /api/debates
+        res, body = self._get("/api/debates")
+        self.assertEqual(res.status, 200)
+        debates = json.loads(body)
+        self.assertIsInstance(debates, list)
+
+        # 2. POST /api/debates
+        res, body = self._post("/api/debates", {"topic": "Arsitektur Test Debat"})
+        self.assertEqual(res.status, 201)
+        data = json.loads(body)
+        self.assertEqual(data["status"], "success")
+        debate_id = data["debate_id"]
+
+        # 3. POST /api/debates/<id>/turn
+        res, body = self._post(f"/api/debates/{debate_id}/turn", {
+            "round_number": 1,
+            "agent_name": "Kilo",
+            "role": "Thesis (Pengusul)",
+            "content": "Proposal uji turn",
+            "verdict": "proposed"
+        })
+        self.assertEqual(res.status, 201)
+        self.assertEqual(json.loads(body)["status"], "success")
+
+        # 4. GET /api/debates/<id>
+        res, body = self._get(f"/api/debates/{debate_id}")
+        self.assertEqual(res.status, 200)
+        detail = json.loads(body)
+        self.assertEqual(detail["topic"], "Arsitektur Test Debat")
+        self.assertEqual(len(detail["turns"]), 1)
+
+        # 5. POST /api/debates/<id>/conclude
+        res, body = self._post(f"/api/debates/{debate_id}/conclude", {
+            "winner_summary": "Pemenang disepakati"
+        })
+        self.assertEqual(res.status, 200)
+        self.assertEqual(json.loads(body)["status"], "success")
+
 
 if __name__ == "__main__":
     unittest.main()
+

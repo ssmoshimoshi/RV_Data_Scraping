@@ -197,7 +197,8 @@ function switchView(viewId) {
     'view-dossier': 'Database Calon Customer (Anchor GMaps Makassar)',
     'view-inspector': 'Deep Content Inspector (Analisis 5 Postingan)',
     'view-pillars': 'Matriks 4 Dimensi Meta Universal',
-    'view-catalog': 'Katalog Spesifikasi Teknis Cetak RUANG VISUAL'
+    'view-catalog': 'Katalog Spesifikasi Teknis Cetak RUANG VISUAL',
+    'view-arena': 'Arena Debat Multi-Agen (Kilo vs Antigravity)'
   };
   const titleEl = document.getElementById('current-view-title');
   if (titleEl) titleEl.textContent = titles[viewId] || 'Platform Intelijen Pasar';
@@ -207,6 +208,9 @@ function switchView(viewId) {
   }
   if (viewId === 'view-inspector') {
     loadInspectorPresets();
+  }
+  if (viewId === 'view-arena') {
+    loadDebates();
   }
 }
 
@@ -1724,6 +1728,38 @@ async function dropLead(leadId) {
   }
 }
 
+// Listener Sinkronisasi Penarikan Data dari Google Spreadsheet
+const btnPullSheets = document.getElementById('btn-pull-spreadsheet');
+if (btnPullSheets) {
+  btnPullSheets.addEventListener('click', async () => {
+    const originalHtml = btnPullSheets.innerHTML;
+    try {
+      btnPullSheets.disabled = true;
+      btnPullSheets.innerHTML = `
+        <svg class="spin-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10" stroke-opacity="0.25"/>
+          <path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"/>
+        </svg>
+        <span>Menyinkronkan...</span>
+      `;
+      const res = await fetch('/api/sync-from-sheets', { method: 'POST' });
+      const data = await res.json();
+      if (res.ok && data.status === 'success') {
+        await fetchLeads();
+        alert(`Sinkronisasi berhasil: ${data.imported_count || 0} prospek baru diimpor, ${data.updated_count || 0} diperbarui dari Google Spreadsheet.`);
+      } else {
+        alert(`Gagal menarik data: ${data.message || 'Kesalahan jaringan'}`);
+      }
+    } catch (err) {
+      console.error('Gagal menarik dari spreadsheet:', err);
+      alert(`Terjadi kesalahan saat sinkronisasi: ${err.message}`);
+    } finally {
+      btnPullSheets.disabled = false;
+      btnPullSheets.innerHTML = originalHtml;
+    }
+  });
+}
+
 // Initial Load - prioritaskan data utama agar render antarmuka instan
 fetchLeads();
 loadInspectorPresets();
@@ -1731,3 +1767,317 @@ loadInspectorPresets();
 // Initialize Device Status Polling di latar belakang
 setTimeout(checkDeviceStatus, 100);
 setInterval(checkDeviceStatus, 30000);
+
+// ==========================================================================
+// ARENA DEBAT MULTI-AGEN (KILO VS ANTIGRAVITY) LOGIC
+// ==========================================================================
+let currentDebates = [];
+let currentDebateId = null;
+
+async function loadDebates() {
+  const selectEl = document.getElementById('select-debate-session');
+  if (!selectEl) return;
+
+  try {
+    const res = await fetch('/api/debates');
+    if (!res.ok) throw new Error('Gagal memuat daftar debat');
+    const debates = await res.json();
+    currentDebates = debates;
+
+    selectEl.innerHTML = '';
+    if (!debates || debates.length === 0) {
+      selectEl.innerHTML = '<option value="">Belum ada sesi debat</option>';
+      renderEmptyDebateState();
+      return;
+    }
+
+    debates.forEach((d) => {
+      const opt = document.createElement('option');
+      opt.value = d.debate_id;
+      const statusText = d.status === 'concluded' ? '[Selesai]' : '[Berlangsung]';
+      opt.textContent = `${statusText} ${d.topic}`;
+      selectEl.appendChild(opt);
+    });
+
+    if (!currentDebateId || !debates.some(d => d.debate_id === currentDebateId)) {
+      currentDebateId = debates[0].debate_id;
+    }
+    selectEl.value = currentDebateId;
+    await loadDebateDetail(currentDebateId);
+  } catch (err) {
+    console.error('loadDebates error:', err);
+  }
+}
+
+function onDebateSelected() {
+  const selectEl = document.getElementById('select-debate-session');
+  if (!selectEl) return;
+  currentDebateId = selectEl.value;
+  if (currentDebateId) {
+    loadDebateDetail(currentDebateId);
+  }
+}
+
+async function loadDebateDetail(debateId) {
+  if (!debateId) return;
+  try {
+    const res = await fetch(`/api/debates/${debateId}`);
+    if (!res.ok) throw new Error('Gagal memuat detail sesi debat');
+    const debate = await res.json();
+    renderDebateDetail(debate);
+  } catch (err) {
+    console.error('loadDebateDetail error:', err);
+  }
+}
+
+function renderDebateDetail(debate) {
+  const titleEl = document.getElementById('arena-debate-title');
+  const statusEl = document.getElementById('arena-debate-status');
+  const timestampEl = document.getElementById('arena-debate-timestamp');
+  const summaryEl = document.getElementById('arena-debate-summary');
+  const roundsContainer = document.getElementById('arena-rounds-container');
+
+  if (titleEl) titleEl.textContent = debate.topic;
+  if (statusEl) {
+    statusEl.className = `arena-status-pill ${debate.status}`;
+    statusEl.textContent = debate.status === 'concluded' ? 'Konsensus Disepakati' : 'Sedang Berlangsung';
+  }
+  if (timestampEl) {
+    const dt = new Date(debate.created_at);
+    timestampEl.textContent = `Dimulai: ${dt.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`;
+  }
+  if (summaryEl) {
+    if (debate.winner_summary) {
+      summaryEl.style.display = 'block';
+      summaryEl.innerHTML = `<strong>Konsensus Pemenang:</strong> ${escapeHtml(debate.winner_summary)}`;
+    } else {
+      summaryEl.style.display = 'none';
+      summaryEl.innerHTML = '';
+    }
+  }
+
+  if (!roundsContainer) return;
+  roundsContainer.innerHTML = '';
+
+  const turns = debate.turns || [];
+  if (turns.length === 0) {
+    roundsContainer.innerHTML = '<div style="padding: 24px; text-align: center; color: var(--text-muted);">Belum ada argumen yang dicatat dalam sesi ini.</div>';
+    return;
+  }
+
+  const rounds = {};
+  turns.forEach(turn => {
+    const r = turn.round_number || 1;
+    if (!rounds[r]) rounds[r] = [];
+    rounds[r].push(turn);
+  });
+
+  const roundTitles = {
+    1: 'Ronde 1: Pengajuan Usulan & Tesis Hipotesis',
+    2: 'Ronde 2: Counter-Audit & Pembuktian Empiris',
+    3: 'Ronde 3: Sintesis, Eliminasi Ide & Keputusan Pemenang'
+  };
+
+  Object.keys(rounds).sort((a, b) => Number(a) - Number(b)).forEach(rNum => {
+    const block = document.createElement('div');
+    block.className = 'arena-round-block';
+
+    const header = document.createElement('div');
+    header.className = 'arena-round-header';
+    header.innerHTML = `
+      <span class="arena-round-number">Ronde ${rNum}</span>
+      <span class="arena-round-title">${roundTitles[rNum] || `Ronde ${rNum}`}</span>
+    `;
+    block.appendChild(header);
+
+    rounds[rNum].forEach(turn => {
+      const card = document.createElement('div');
+      let agentClass = 'kilo';
+      if ((turn.agent_name || '').toLowerCase().includes('antigravity')) {
+        agentClass = 'antigravity';
+      } else if ((turn.agent_name || '').toLowerCase().includes('konsensus')) {
+        agentClass = 'consensus';
+      }
+      card.className = `arena-turn-card ${agentClass}`;
+
+      let verdictText = 'Diajukan';
+      let verdictClass = 'proposed';
+      if (turn.verdict === 'countered') {
+        verdictText = 'Diaudit / Sanggahan';
+        verdictClass = 'countered';
+      } else if (turn.verdict === 'accepted') {
+        verdictText = 'Disetujui / Pemenang';
+        verdictClass = 'accepted';
+      } else if (turn.verdict === 'eliminated') {
+        verdictText = 'Dieliminasi';
+        verdictClass = 'eliminated';
+      }
+
+      card.innerHTML = `
+        <div class="arena-turn-header">
+          <div class="arena-agent-info">
+            <span class="arena-agent-badge">${escapeHtml(turn.agent_name)}</span>
+            <span class="arena-turn-role">${escapeHtml(turn.role)}</span>
+          </div>
+          <div class="arena-turn-meta">
+            <span class="arena-verdict-pill ${verdictClass}">${escapeHtml(verdictText)}</span>
+          </div>
+        </div>
+        <div class="arena-turn-body">${escapeHtml(turn.content)}</div>
+      `;
+      block.appendChild(card);
+    });
+
+    roundsContainer.appendChild(block);
+  });
+}
+
+function renderEmptyDebateState() {
+  const titleEl = document.getElementById('arena-debate-title');
+  const summaryEl = document.getElementById('arena-debate-summary');
+  const roundsContainer = document.getElementById('arena-rounds-container');
+  if (titleEl) titleEl.textContent = 'Belum Ada Sesi Debat';
+  if (summaryEl) summaryEl.style.display = 'none';
+  if (roundsContainer) {
+    roundsContainer.innerHTML = '<div style="padding: 24px; text-align: center; color: var(--text-muted);">Silakan klik tombol "Mulai Debat Baru" untuk memulai diskusi dialektika pertama.</div>';
+  }
+}
+
+async function submitDebateTurn(e) {
+  e.preventDefault();
+  if (!currentDebateId) {
+    alert('Pilih sesi debat terlebih dahulu.');
+    return;
+  }
+  const agentEl = document.getElementById('turn-agent');
+  const roundEl = document.getElementById('turn-round');
+  const verdictEl = document.getElementById('turn-verdict');
+  const contentEl = document.getElementById('turn-content');
+  const submitBtn = document.getElementById('btn-submit-turn');
+
+  const payload = {
+    agent_name: agentEl.value,
+    round_number: parseInt(roundEl.value, 10),
+    role: roundEl.value === '1' ? 'Thesis (Pengusul)' : (roundEl.value === '2' ? 'Antithesis (Penelaah)' : 'Synthesis (Pemenang)'),
+    verdict: verdictEl.value,
+    content: contentEl.value.trim()
+  };
+
+  if (!payload.content) return;
+
+  try {
+    submitBtn.disabled = true;
+    const res = await fetch(`/api/debates/${currentDebateId}/turn`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (res.ok) {
+      contentEl.value = '';
+      await loadDebateDetail(currentDebateId);
+    } else {
+      const errData = await res.json();
+      alert(`Gagal mengirim argumen: ${errData.error || 'Kesalahan server'}`);
+    }
+  } catch (err) {
+    console.error('submitDebateTurn error:', err);
+    alert(`Kesalahan jaringan: ${err.message}`);
+  } finally {
+    submitBtn.disabled = false;
+  }
+}
+
+function toggleNewDebateModal(show) {
+  const modal = document.getElementById('new-debate-modal-backdrop');
+  if (!modal) return;
+  if (show) {
+    modal.classList.add('open');
+    const topicInput = document.getElementById('new-debate-topic');
+    if (topicInput) setTimeout(() => topicInput.focus(), 50);
+  } else {
+    modal.classList.remove('open');
+  }
+}
+
+function toggleManualArgInput(show) {
+  const group = document.getElementById('group-manual-arg');
+  if (group) group.style.display = show ? 'block' : 'none';
+}
+
+async function submitNewDebate(e) {
+  e.preventDefault();
+  const topicInput = document.getElementById('new-debate-topic');
+  const argInput = document.getElementById('new-debate-initial-arg');
+  const submitBtn = document.getElementById('btn-start-debate-submit');
+  const modeRadio = document.querySelector('input[name="debate-mode"]:checked');
+  const mode = modeRadio ? modeRadio.value : 'auto';
+
+  const topic = topicInput ? topicInput.value.trim() : '';
+  const initialArg = argInput ? argInput.value.trim() : '';
+
+  if (!topic) return;
+
+  const originalBtnHtml = submitBtn ? submitBtn.innerHTML : '';
+  try {
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span>Menjalankan Dialektika...</span>';
+    }
+
+    if (mode === 'auto') {
+      const res = await fetch('/api/debates/auto', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ topic })
+      });
+      const data = await res.json();
+      if (res.ok && data.debate_id) {
+        toggleNewDebateModal(false);
+        topicInput.value = '';
+        currentDebateId = data.debate_id;
+        await loadDebates();
+      } else {
+        alert(`Gagal menjalankan debat otomatis: ${data.error || 'Kesalahan server'}`);
+      }
+    } else {
+      const res = await fetch('/api/debates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ topic })
+      });
+      const data = await res.json();
+      if (res.ok && data.debate_id) {
+        if (initialArg) {
+          await fetch(`/api/debates/${data.debate_id}/turn`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              round_number: 1,
+              agent_name: 'Kilo',
+              role: 'Thesis (Pengusul)',
+              content: initialArg,
+              verdict: 'proposed'
+            })
+          });
+        }
+        toggleNewDebateModal(false);
+        topicInput.value = '';
+        if (argInput) argInput.value = '';
+        currentDebateId = data.debate_id;
+        await loadDebates();
+      } else {
+        alert(`Gagal membuat debat: ${data.error || 'Kesalahan server'}`);
+      }
+    }
+  } catch (err) {
+    console.error('submitNewDebate error:', err);
+    alert(`Terjadi kesalahan: ${err.message}`);
+  } finally {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = originalBtnHtml;
+    }
+  }
+}
+
+
