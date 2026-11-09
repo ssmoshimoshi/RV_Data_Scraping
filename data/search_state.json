@@ -3,15 +3,20 @@
   "center_lon": 119.43530577903459,
   "current_radius_km": 1,
   "current_sector_index": 0,
-  "current_query_index": 0,
+  "current_query_index": 1,
   "completed_sectors_in_radius": [],
   "seen_place_ids": [
-    "gmaps_1976046436573917140",
-    "gmaps_4147749923307541053",
-    "gmaps_4553943908096473500",
+    "gmaps_7934830749840195239",
     "gmaps_5408186501060197707",
     "gmaps_7508391154988868020",
-    "gmaps_7934830749840195239"
+    "0x2dbee357e932b365:0x1cea0d636cfd21d4",
+    "0x2dbee293a8a03b85:0x2693ca87ce6a070f",
+    "gmaps_4147749923307541053",
+    "0x2dbee3dc8e02025b:0xdbe6bfbf49d2bf6b",
+    "0x2dbee3d48f03d62f:0xc1619efbee81654d",
+    "0x2dbee3f281368c37:0xe808bd846fbd850f",
+    "gmaps_4553943908096473500",
+    "gmaps_1976046436573917140"
   ],
-  "last_scraped_at": null
+  "last_scraped_at": "2026-11-09T04:58:30.588970"
 }
